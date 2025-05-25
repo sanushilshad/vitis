@@ -1,0 +1,231 @@
+use actix_http::Payload;
+use actix_web::{FromRequest, HttpMessage, HttpRequest, web};
+use futures::future::LocalBoxFuture;
+use serde::{Deserialize, Serialize};
+use std::fmt;
+use std::future::{Ready, ready};
+use utoipa::ToSchema;
+use uuid::Uuid;
+
+use crate::email::EmailObject;
+use crate::errors::GenericError;
+use crate::routes::user::schemas::UserVector;
+use crate::schemas::Status;
+use anyhow::anyhow;
+
+#[allow(dead_code)]
+#[derive(Deserialize, Debug, ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct CreateprojectAccount {
+    pub name: String,
+    pub is_test_account: bool,
+    pub mobile_no: String,
+    pub email: EmailObject,
+    pub international_dialing_code: String,
+}
+
+impl CreateprojectAccount {
+    pub fn get_full_mobile_no(&self) -> String {
+        format!("{}{}", self.international_dialing_code, self.mobile_no)
+    }
+}
+impl FromRequest for CreateprojectAccount {
+    type Error = GenericError;
+    type Future = LocalBoxFuture<'static, Result<Self, Self::Error>>;
+
+    fn from_request(req: &HttpRequest, payload: &mut Payload) -> Self::Future {
+        let fut = web::Json::<Self>::from_request(req, payload);
+
+        Box::pin(async move {
+            match fut.await {
+                Ok(json) => Ok(json.into_inner()),
+                Err(e) => Err(GenericError::ValidationError(e.to_string())),
+            }
+        })
+    }
+}
+
+#[derive(Deserialize, Debug, ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct ProjectFetchRequest {
+    #[schema(value_type = String)]
+    pub id: Uuid,
+}
+
+impl FromRequest for ProjectFetchRequest {
+    type Error = GenericError;
+    type Future = LocalBoxFuture<'static, Result<Self, Self::Error>>;
+
+    fn from_request(req: &HttpRequest, payload: &mut Payload) -> Self::Future {
+        let fut = web::Json::<Self>::from_request(req, payload);
+
+        Box::pin(async move {
+            match fut.await {
+                Ok(json) => Ok(json.into_inner()),
+                Err(e) => Err(GenericError::ValidationError(e.to_string())),
+            }
+        })
+    }
+}
+
+#[derive(Deserialize, Debug, ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct ProjectPermissionRequest {
+    pub action_list: Vec<String>,
+    #[schema(value_type = String)]
+    pub project_id: Uuid,
+}
+
+impl FromRequest for ProjectPermissionRequest {
+    type Error = GenericError;
+    type Future = LocalBoxFuture<'static, Result<Self, Self::Error>>;
+
+    fn from_request(req: &HttpRequest, payload: &mut Payload) -> Self::Future {
+        let fut = web::Json::<Self>::from_request(req, payload);
+
+        Box::pin(async move {
+            match fut.await {
+                Ok(json) => Ok(json.into_inner()),
+                Err(e) => Err(GenericError::ValidationError(e.to_string())),
+            }
+        })
+    }
+}
+
+#[derive(Debug, Serialize, Clone, Deserialize, PartialEq)]
+pub enum PermissionType {
+    #[serde(rename = "read:address")]
+    ReadAddress,
+    #[serde(rename = "list:address")]
+    ListAddress,
+    #[serde(rename = "list:address:self")]
+    ListAddressSelf,
+    #[serde(rename = "update:address:self")]
+    UpdateAddressSelf,
+    #[serde(rename = "delete:address:self")]
+    DeleteAddressSelf,
+    #[serde(rename = "create:address")]
+    CreateAddress,
+    #[serde(rename = "create:setting")]
+    CreateSetting,
+}
+
+impl fmt::Display for PermissionType {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let display_str = match self {
+            PermissionType::ReadAddress => "read:address",
+            PermissionType::ListAddress => "list:address",
+            PermissionType::ListAddressSelf => "list:address:self",
+            PermissionType::UpdateAddressSelf => "update:address:self",
+            PermissionType::DeleteAddressSelf => "delete:address:self",
+            PermissionType::CreateAddress => "create:address",
+            PermissionType::CreateSetting => "create:setting",
+        };
+        write!(f, "{}", display_str)
+    }
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[allow(dead_code)]
+pub struct AllowedPermission {
+    pub permission_list: Vec<String>,
+}
+
+impl AllowedPermission {
+    pub fn _is_present(&self, permission: String) -> bool {
+        self.permission_list.contains(&permission)
+    }
+}
+
+impl FromRequest for AllowedPermission {
+    type Error = GenericError;
+    type Future = Ready<Result<Self, Self::Error>>;
+
+    fn from_request(
+        req: &actix_web::HttpRequest,
+        _payload: &mut actix_web::dev::Payload,
+    ) -> Self::Future {
+        let value = req.extensions().get::<AllowedPermission>().cloned();
+
+        let result = match value {
+            Some(user) => Ok(user),
+            None => Err(GenericError::UnexpectedError(anyhow!(
+                "Something went wrong while parsing allowed_permission data".to_string()
+            ))),
+        };
+
+        ready(result)
+    }
+}
+
+#[derive(Debug, Serialize, ToSchema)]
+pub struct BasicprojectAccount {
+    pub name: String,
+    #[schema(value_type = String)]
+    pub id: Uuid,
+}
+
+#[allow(dead_code)]
+#[derive(Debug, Deserialize, Clone, Serialize, ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct ProjectAccount {
+    #[schema(value_type = String)]
+    pub id: Uuid,
+    pub name: String,
+    pub vectors: Vec<UserVector>,
+    pub is_active: Status,
+    pub is_deleted: bool,
+    pub verified: bool,
+}
+
+impl FromRequest for ProjectAccount {
+    type Error = GenericError;
+    type Future = Ready<Result<Self, Self::Error>>;
+
+    fn from_request(
+        req: &actix_web::HttpRequest,
+        _payload: &mut actix_web::dev::Payload,
+    ) -> Self::Future {
+        let value = req.extensions().get::<ProjectAccount>().cloned();
+
+        let result = match value {
+            Some(user) => Ok(user),
+            None => Err(GenericError::UnexpectedError(anyhow!(
+                "Something went wrong while parsing project Account data".to_string()
+            ))),
+        };
+
+        ready(result)
+    }
+}
+
+// #[derive(Debug, Serialize, ToSchema)]
+// pub struct WSprojectAccountCreate {
+//     pub message: String,
+// }
+
+// impl WSprojectAccountCreate {
+//     pub fn get_message(message: String) -> Self {
+//         Self { message }
+//     }
+// }
+
+// #[allow(dead_code)]
+// #[derive(Debug, Deserialize, ToSchema)]
+// pub struct ProjectAccountListReq {}
+
+// impl FromRequest for ProjectAccountListReq {
+//     type Error = GenericError;
+//     type Future = LocalBoxFuture<'static, Result<Self, Self::Error>>;
+
+//     fn from_request(req: &HttpRequest, payload: &mut Payload) -> Self::Future {
+//         let fut = web::Json::<Self>::from_request(req, payload);
+
+//         Box::pin(async move {
+//             match fut.await {
+//                 Ok(json) => Ok(json.into_inner()),
+//                 Err(e) => Err(GenericError::ValidationError(e.to_string())),
+//             }
+//         })
+//     }
+// }

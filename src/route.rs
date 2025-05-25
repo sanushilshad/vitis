@@ -1,0 +1,33 @@
+use crate::handlers::health_check;
+use crate::middlewares::{HeaderValidation, ProjectAccountValidation, RequireAuth};
+use crate::openapi::ApiDoc;
+use crate::routes::project::routes::project_routes;
+use crate::routes::setting::routes::setting_routes;
+use crate::routes::user::routes::user_routes;
+use actix_web::web;
+use utoipa::OpenApi;
+use utoipa_swagger_ui::SwaggerUi;
+
+pub fn routes(cfg: &mut web::ServiceConfig) {
+    let openapi = ApiDoc::openapi();
+    cfg.route("/", web::get().to(health_check))
+        .service(
+            web::scope("/user")
+                .configure(user_routes)
+                .wrap(HeaderValidation),
+        )
+        .service(
+            web::scope("/project")
+                .configure(project_routes)
+                .wrap(HeaderValidation)
+                .wrap(RequireAuth),
+        )
+        .service(
+            web::scope("/setting")
+                .configure(setting_routes)
+                .wrap(ProjectAccountValidation {})
+                .wrap(HeaderValidation)
+                .wrap(RequireAuth),
+        )
+        .service(SwaggerUi::new("/docs/{_:.*}").url("/api-docs/openapi.json", openapi.clone()));
+}

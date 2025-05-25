@@ -1,0 +1,11 @@
+/target
+settings.json
+launch.json
+tasks.json
+settings.json
+configuration.yaml
+env.sh
+.env
+--connect=*
+/node_modules
+nohup.out

@@ -1,0 +1,19 @@
+{
+    "name": "semantic-auto",
+    "version": "1.0.0",
+    "repository": {
+      "type": "git",
+      "url": "https://gitlab.rapidor.co/placeorder/vitis.git"
+    },
+    "scripts": {
+      "semantic-release": "semantic-release"
+    },
+    "devDependencies": {
+      "@semantic-release/gitlab": "^13.2.0",
+      "@semantic-release/commit-analyzer": "^13.0.0",
+      "@semantic-release/release-notes-generator": "^14.0.1"
+    },
+    "publishConfig": {
+      "access": "public"
+    }
+  }

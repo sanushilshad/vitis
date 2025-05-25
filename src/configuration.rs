@@ -1,0 +1,78 @@
+use secrecy::{ExposeSecret, SecretString};
+use serde::Deserialize;
+use sqlx::ConnectOptions;
+use sqlx::postgres::PgConnectOptions;
+use uuid::Uuid;
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct DatabaseConfig {
+    pub username: String,
+    pub password: SecretString,
+    pub port: u16,
+    pub host: String,
+    pub name: String,
+    pub test_name: String,
+    pub max_connections: u32,
+    pub min_connections: u32,
+    pub acquire_timeout: u64,
+}
+
+impl DatabaseConfig {
+    // Renamed from `connection_string_without_db`
+    pub fn without_db(&self) -> PgConnectOptions {
+        PgConnectOptions::new()
+            .host(&self.host)
+            .username(&self.username)
+            .password(self.password.expose_secret())
+            .port(self.port)
+    }
+    // Renamed from `connection_string`
+    pub fn with_db(&self) -> PgConnectOptions {
+        self.without_db()
+            .database(&self.name)
+            .log_statements(tracing::log::LevelFilter::Trace)
+    }
+
+    pub fn test_with_db(&self) -> PgConnectOptions {
+        self.without_db()
+            .database(&self.test_name)
+            .log_statements(tracing::log::LevelFilter::Trace)
+    }
+}
+#[derive(Debug, Deserialize, Clone)]
+pub struct ApplicationConfig {
+    pub port: u16,
+    pub host: String,
+    pub workers: usize,
+    pub service_id: Uuid,
+}
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct Jwt {
+    pub secret: SecretString,
+    pub expiry: i64,
+}
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct OtpConfig {
+    pub expiry: i64,
+}
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct SecretConfig {
+    pub jwt: Jwt,
+    pub otp: OtpConfig,
+}
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct Config {
+    pub database: DatabaseConfig,
+    pub application: ApplicationConfig,
+    pub secret: SecretConfig,
+    pub user: UserConfig,
+}
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct UserConfig {
+    pub admin_list: Vec<String>,
+}

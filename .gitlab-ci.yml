@@ -1,0 +1,17 @@
+stages:
+  - release
+
+release:
+  stage: release
+  image: node:20
+
+  script:
+    - npm install
+    - npm run semantic-release
+  only:
+    - main
+    - master
+  tags:
+    - tag1
+  variables:
+    GITLAB_TOKEN: $GITLAB_TOKEN

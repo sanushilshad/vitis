@@ -1,92 +1,232 @@
-# vitis
+
+# VITIS
+ 
+A web service for managing all project related tasks for acelrtech.
+
+## Tech Stack
+| Type | Technologies |
+|---|---|
+| Server | Rust (Actix-web), Bash |
+| Database | PostgreSQL |
+| API Documention | OpenAPI Swagger |
 
 
-
-## Getting started
-
-To make it easy for you to get started with GitLab, here's a list of recommended next steps.
-
-Already a pro? Just edit this README.md and make it your own. Want to make it easy? [Use the template at the bottom](#editing-this-readme)!
-
-## Add your files
-
-- [ ] [Create](https://docs.gitlab.com/ee/user/project/repository/web_editor.html#create-a-file) or [upload](https://docs.gitlab.com/ee/user/project/repository/web_editor.html#upload-a-file) files
-- [ ] [Add files using the command line](https://docs.gitlab.com/ee/gitlab-basics/add-file.html#add-a-file-using-the-command-line) or push an existing Git repository with the following command:
-
+## CUSTOM COMMAND FOR DEBUG:
+### FOR MIGRATION:
 ```
-cd existing_repo
-git remote add origin http://gitlab.rapidor.co/sanu.shilshad/vitis.git
-git branch -M main
-git push -uf origin main
+cargo run --bin vitis -- migrate
 ```
 
-## Integrate with your tools
+### FOR TOKEN GENERATION:
+```
+cargo run --bin vitis -- generate_token
+```
 
-- [ ] [Set up project integrations](http://gitlab.rapidor.co/sanu.shilshad/vitis/-/settings/integrations)
+## CUSTOM COMMAND FOR RELEASE:
+### FOR MIGRATION:
 
-## Collaborate with your team
+    cargo run --release --bin  vitis -- migrate
 
-- [ ] [Invite team members and collaborators](https://docs.gitlab.com/ee/user/project/members/)
-- [ ] [Create a new merge request](https://docs.gitlab.com/ee/user/project/merge_requests/creating_merge_requests.html)
-- [ ] [Automatically close issues from merge requests](https://docs.gitlab.com/ee/user/project/issues/managing_issues.html#closing-issues-automatically)
-- [ ] [Enable merge request approvals](https://docs.gitlab.com/ee/user/project/merge_requests/approvals/)
-- [ ] [Automatically merge when pipeline succeeds](https://docs.gitlab.com/ee/user/project/merge_requests/merge_when_pipeline_succeeds.html)
+    OR 
 
-## Test and Deploy
+    ./target/release/vitis migrate
 
-Use the built-in continuous integration in GitLab.
+### FOR TOKEN GENERATION:
+```
+cargo run --release --bin  rapid -- generate_token
 
-- [ ] [Get started with GitLab CI/CD](https://docs.gitlab.com/ee/ci/quick_start/index.html)
-- [ ] [Analyze your code for known vulnerabilities with Static Application Security Testing(SAST)](https://docs.gitlab.com/ee/user/application_security/sast/)
-- [ ] [Deploy to Kubernetes, Amazon EC2, or Amazon ECS using Auto Deploy](https://docs.gitlab.com/ee/topics/autodevops/requirements.html)
-- [ ] [Use pull-based deployments for improved Kubernetes management](https://docs.gitlab.com/ee/user/clusters/agent/)
-- [ ] [Set up protected environments](https://docs.gitlab.com/ee/ci/environments/protected_environments.html)
+OR 
 
-***
+./target/release/vitis generate_token
+```
 
-# Editing this README
+## SQLX OFFLINE MODE:
 
-When you're ready to make this README your own, just edit this file and use the handy template below (or feel free to structure it however you want - this is just a starting point!).  Thank you to [makeareadme.com](https://www.makeareadme.com/) for this template.
+```
+cargo sqlx prepare
+```
 
-## Suggestions for a good README
-Every project is different, so consider which of these sections apply to yours. The sections used in the template are suggestions for most open source projects. Also keep in mind that while a README can be too long and detailed, too long is better than too short. If you think your README is too long, consider utilizing another form of documentation rather than cutting out information.
+## ENVIRON VARIABLE 
+- Set the following environ variables in `env.sh`
+- `env.sh`:
+```
 
-## Name
-Choose a self-explaining name for your project.
+## DATABASE VARIABLES
+export DATABASE__PASSWORD=""
+export DATABASE__PORT=5000
+export DATABASE__HOST=""
+export DATABASE__NAME=""
+export DATABASE__TEST_NAME=""
+export DATABASE_URL="postgres://postgres:{{password}}@{{ip}}:{{port}}/{{database_name}}"
+export DATABASE__USERNAME="postgres"
+export DATABASE__ACQUIRE_TIMEOUT=5
+export DATABASE__MAX_CONNECTIONS=2000
+export DATABASE__MIN_CONNECTIONS=10
 
-## Description
-Let people know what your project can do specifically. Provide context and add a link to any reference visitors might be unfamiliar with. A list of Features or a Background subsection can also be added here. If there are alternatives to your project, this is a good place to list differentiating factors.
+## TRACING VARIABLES
+export OTEL_SERVICE_NAME="preprod-vitis"
+export OTEL_EXPORTER_OTLP_TRACES_ENDPOINT="http://localhost:4317"
 
-## Badges
-On some READMEs, you may see small images that convey metadata, such as whether or not all the tests are passing for the project. You can use Shields to add some to your README. Many services also have instructions for adding a badge.
 
-## Visuals
-Depending on what you are making, it can be a good idea to include screenshots or even a video (you'll frequently see GIFs rather than actual videos). Tools like ttygif can help, but check out Asciinema for a more sophisticated method.
+## SECRET VARIABLE
+export SECRET__JWT__SECRET=""
+export SECRET__JWT__EXPIRY=876600
+export SECRET__OTP__EXPIRY=30
 
-## Installation
-Within a particular ecosystem, there may be a common way of installing things, such as using Yarn, NuGet, or Homebrew. However, consider the possibility that whoever is reading your README is a novice and would like more guidance. Listing specific steps helps remove ambiguity and gets people to using your project as quickly as possible. If it only runs in a specific context like a particular programming language version or operating system or has dependencies that have to be installed manually, also add a Requirements subsection.
+## APPLICATION VARIABLE
+export APPLICATION__NAME=""
+export APPLICATION__ACCOUNT_NAME=""
+export APPLICATION__PORT=8001
+export APPLICATION__HOST=0.0.0.0
+export APPLICATION__WORKERS=16
+export APPLICATION__SERVICE_ID="9a3c0909-3c5d-4a84-8fb6-71928e28cb5b"
+## WEBSOCKET SERVICE
+export WEBSOCKET__TOKEN=""
+export WEBSOCKET__BASE_URL="http://0.0.0.0:8229"
+export WEBSOCKET__TIMEOUT_MILLISECONDS=600000
 
-## Usage
-Use examples liberally, and show the expected output if you can. It's helpful to have inline the smallest example of usage that you can demonstrate, while providing links to more sophisticated examples if they are too long to reasonably include in the README.
+```
 
-## Support
-Tell people where they can go to for help. It can be any combination of an issue tracker, a chat room, an email address, etc.
 
-## Roadmap
-If you have ideas for releases in the future, it is a good idea to list them in the README.
+- In order to verify SQL queries at compile time, set the below config in `.env` file:
+```
+export DATABASE_URL="postgres://postgres:{password}@{host}:{port}/{db_name}"
 
-## Contributing
-State if you are open to contributions and what your requirements are for accepting them.
+```
 
-For people who want to make changes to your project, it's helpful to have some documentation on how to get started. Perhaps there is a script that they should run or some environment variables that they need to set. Make these steps explicit. These instructions could also be useful to your future self.
+## TO RUN THE SERVER:
+- For running development server:
+```
+bash dev_run.sh
+```
+- For running production server:
+```
+bash release.sh
+```
+- For killing server:
+```
+bash kill.sh
+```
 
-You can also document commands to lint the code or run tests. These steps help to ensure high code quality and reduce the likelihood that the changes inadvertently break something. Having instructions for running tests is especially helpful if it requires external setup, such as starting a Selenium server for testing in a browser.
+- For restarting server:
+```
+bash restart.sh
+```
 
-## Authors and acknowledgment
-Show your appreciation to those who have contributed to the project.
 
-## License
-For open source projects, say how it is licensed.
+## API DOCUMENTATION:
+The API Docmentation can be found at `https://{{domain}}/docs/` after running the server.
 
-## Project status
-If you have run out of energy or time for your project, put a note at the top of the README saying that development has slowed down or stopped completely. Someone may choose to fork your project or volunteer to step in as a maintainer or owner, allowing your project to keep going. You can also make an explicit request for maintainers.
+
+## DEBUG SETUP:
+- launch.json
+```json
+{
+
+    "version": "0.2.0",
+    "configurations": [
+
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug executable 'vitis'",
+            "cargo": {
+                "args": [
+                    "build",
+                    "--bin=vitis",
+                    "--package=vitis"
+                ],
+                "filter": {
+                    "name": "vitis",
+                    "kind": "bin"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}",
+            "envFile": "${workspaceFolder}/.env",
+            "preLaunchTask": "cargo build",
+        },
+    ]
+}
+```
+- settings.json
+
+```json
+{
+    "[rust]": {
+        "editor.formatOnSave": true,
+        "editor.defaultFormatter": "rust-lang.rust-analyzer"
+    },
+    "editor.formatOnSave": true,
+    "rust-analyzer.linkedProjects": [
+        "./Cargo.toml"
+    ],
+}
+```
+
+- tasks.json
+```json
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "cargo build",
+            "type": "shell",
+            "command": "cargo",
+            "args": [
+                "build",
+                "--bin=vitis",
+                "--package=vitis"
+            ],
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "problemMatcher": [
+                "$rustc"
+            ]
+        }
+    ]
+}
+```
+
+## MILESTONE 1:
+* [x] Setup the project structure.
+* [x] Create user account creation API.
+* [x] Create user account Authentication API.
+* [x] Create user account fetch API.
+* [x] Create project creation API.
+* [x] List all project of a user data API.
+* [x] Fetch project data API.
+* [ ] Create user account edit API.
+* [ ] Create user account deletion API.
+* [ ] Create project deletion API.
+* [ ] Create project edit API.
+* [ ] Fetch All Minimal User Account API.
+
+## MILESTONE 2:
+* [x] Create Setting creation API.
+* [ ] Create Setting deletion API.
+* [ ] Create Setting edit API.
+* [x] Create Setting fetch API.
+
+## MILESTONE 3:
+* [ ] Create project task creation API.
+* [ ] Create project task deletion API.
+* [ ] Create project task edit API.
+* [ ] Create project task assignment API.
+* [ ] Create project task unassignment API.
+* [ ] Create project task status update API.
+* [ ] Create On-call creation API.
+* [ ] Create On-call fetch API.
+* [ ] Create On-call history fetch API.
+
+## MILESTONE 4:
+* [ ] Create Permission fetch API.
+* [ ] Create Role fetch API.
+* [ ] Create user-project association API.
+* [ ] Create user-project deletion API.
+* [ ] Create role permissions assigment API.
+* [ ] Create role permissions assigment edit API.
+* [ ] Create project fetch API.
+* [ ] Create project task fetch API.
