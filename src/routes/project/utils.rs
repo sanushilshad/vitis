@@ -174,7 +174,7 @@ pub async fn create_project_account(
 }
 
 #[tracing::instrument(name = "Get project Account By User id", skip(pool))]
-pub async fn fetch_project_account_model_by_user_account(
+pub async fn fetch_project_account_models_by_user_account(
     pool: &PgPool,
     user_id: Uuid,
 ) -> Result<Vec<ProjectAccountModel>, anyhow::Error> {
@@ -185,7 +185,9 @@ pub async fn fetch_project_account_model_by_user_account(
         SELECT 
             ba.id, ba.name, 
             vectors,
-            ba.is_active
+            ba.is_active,
+            ba.is_deleted,
+            bur.verified
         FROM project_user_relationship as bur
             INNER JOIN project_account ba ON bur.project_id = ba.id
         WHERE bur.user_id = "#,
@@ -193,16 +195,46 @@ pub async fn fetch_project_account_model_by_user_account(
 
     query_builder.push_bind(user_id);
 
-    // Conditionally add customer_type filter
-
     let query = query_builder.build_query_as::<ProjectAccountModel>();
 
     let rows = query.fetch_all(pool).await?;
     Ok(rows)
 }
 
+#[tracing::instrument(name = "Get project Account", skip(pool))]
+pub async fn fetch_project_account_model_by_id(
+    pool: &PgPool,
+    project_id: Option<Uuid>,
+) -> Result<Option<ProjectAccountModel>, anyhow::Error> {
+    use sqlx::QueryBuilder;
+
+    let mut query_builder = QueryBuilder::new(
+        r#"
+        SELECT 
+            id,
+            name, 
+            vectors,
+            is_active,
+            is_deleted,
+            TRUE AS verified
+        FROM  project_account
+        "#,
+    );
+    if let Some(project_id) = project_id {
+        query_builder.push(" WHERE id = ");
+        query_builder.push_bind(project_id);
+    }
+
+    // query_builder.push_bind(project_id);
+
+    let query = query_builder.build_query_as::<ProjectAccountModel>();
+
+    let row = query.fetch_optional(pool).await?;
+    Ok(row)
+}
+
 #[tracing::instrument(name = "Get project Account By User Id", skip(pool))]
-pub async fn fetch_project_account_model(
+pub async fn fetch_associated_project_account_model(
     user_id: Uuid,
     project_account_id: Uuid,
     pool: &PgPool,
@@ -242,7 +274,7 @@ pub async fn get_project_account(
     project_account_id: Uuid,
 ) -> Result<Option<ProjectAccount>, anyhow::Error> {
     let project_account_model =
-        fetch_project_account_model(user_id, project_account_id, pool).await?;
+        fetch_associated_project_account_model(user_id, project_account_id, pool).await?;
     match project_account_model {
         Some(model) => {
             let project_account = model.into_schema();
@@ -253,14 +285,15 @@ pub async fn get_project_account(
 }
 
 #[tracing::instrument(name = "Get Basic project account by user id")]
-pub async fn get_basic_project_account_by_user_id(
+pub async fn get_basic_project_accounts_by_user_id(
     user_id: Uuid,
     pool: &PgPool,
 ) -> Result<Vec<BasicprojectAccount>, anyhow::Error> {
-    let project_account_models = fetch_project_account_model_by_user_account(pool, user_id).await?;
+    let project_account_models =
+        fetch_project_account_models_by_user_account(pool, user_id).await?;
     let project_account_list = project_account_models
         .into_iter()
-        .map(|e| e.into_schema())
+        .map(|e| e.into_basic_schema())
         .collect();
 
     Ok(project_account_list)
@@ -310,4 +343,17 @@ pub async fn validate_user_project_permission(
     })?;
 
     Ok(permission_list)
+}
+
+#[tracing::instrument(name = "Get Basic Business account by user id")]
+pub async fn get_basic_project_accounts(
+    pool: &PgPool,
+) -> Result<Vec<BasicprojectAccount>, anyhow::Error> {
+    let business_account_models = fetch_project_account_model_by_id(pool, None).await?;
+    let business_account_list = business_account_models
+        .into_iter()
+        .map(|e| e.into_basic_schema())
+        .collect();
+
+    Ok(business_account_list)
 }

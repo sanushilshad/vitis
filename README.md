@@ -198,17 +198,18 @@ The API Docmentation can be found at `https://{{domain}}/docs/` after running th
 * [x] Create project creation API.
 * [x] List all project of a user data API.
 * [x] Fetch project data API.
+* [x] Create user account deletion API.
+* [x] Create user account reactivation API.
 * [ ] Create user account edit API.
-* [ ] Create user account deletion API.
 * [ ] Create project deletion API.
 * [ ] Create project edit API.
 * [ ] Fetch All Minimal User Account API.
 
 ## MILESTONE 2:
 * [x] Create Setting creation API.
-* [ ] Create Setting deletion API.
-* [ ] Create Setting edit API.
 * [x] Create Setting fetch API.
+* [ ] Create Setting edit API.
+
 
 ## MILESTONE 3:
 * [ ] Create project task creation API.

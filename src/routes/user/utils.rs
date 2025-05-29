@@ -342,7 +342,7 @@ pub async fn save_user_role(
 
 
 // no test case added
-#[tracing::instrument(name = "delete user account", skip(pool))]
+#[tracing::instrument(name = "hard delete user account", skip(pool))]
 pub async fn hard_delete_user_account(
     pool: &PgPool,
     user_id: &str,
@@ -351,6 +351,32 @@ pub async fn hard_delete_user_account(
     .bind(user_id)
     .execute(pool)
     .await;
+    Ok(())
+}
+
+#[tracing::instrument(name = "soft delete user account", skip(pool))]
+pub async fn soft_delete_user_account(
+    pool: &PgPool,
+    user_id: &str,
+    created_by: Uuid
+) -> Result<(), anyhow::Error> {
+    let _ = sqlx::query!(
+        r#"
+        UPDATE user_account 
+        SET is_deleted = true,
+        deleted_on = $2,
+        deleted_by = $3
+        WHERE id::text = $1 OR mobile_no = $1 OR username = $1
+        "#,
+        user_id,
+        Utc::now(),
+        created_by
+    )
+    .execute(pool).await.map_err(|e| { 
+        tracing::error!("Failed to execute query: {:?}", e);
+        anyhow::Error::new(e)
+            .context("A database failure occurred while soft deleting user from database")
+        })?;
     Ok(())
 }
 
@@ -637,3 +663,31 @@ pub async fn send_otp(pool: &PgPool, otp: &str, expiry_in_sec: i64, credential: 
 
     Ok(())
 }
+
+
+#[tracing::instrument(name = "reactivate user account", skip(pool))]
+pub async fn reactivate_user_account(
+    pool: &PgPool,
+    user_id: Uuid,
+    updated_by: Uuid
+) -> Result<(), anyhow::Error> {
+    let _ = sqlx::query!(
+        r#"
+        UPDATE user_account 
+        SET is_deleted = false,
+        updated_on = $2,
+        updated_by = $3
+        WHERE id = $1
+        "#,
+        user_id,
+        Utc::now(),
+        updated_by
+    )
+    .execute(pool).await.map_err(|e| { 
+        tracing::error!("Failed to execute query: {:?}", e);
+        anyhow::Error::new(e)
+            .context("A database failure occurred while reactivating user")
+        })?;
+    Ok(())
+}
+

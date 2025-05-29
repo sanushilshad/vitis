@@ -20,14 +20,18 @@ pub fn routes(cfg: &mut web::ServiceConfig) {
             web::scope("/project")
                 .configure(project_routes)
                 .wrap(HeaderValidation)
-                .wrap(RequireAuth),
+                .wrap(RequireAuth {
+                    allow_deleted_user: false,
+                }),
         )
         .service(
             web::scope("/setting")
                 .configure(setting_routes)
-                .wrap(ProjectAccountValidation {})
+                .wrap(ProjectAccountValidation)
                 .wrap(HeaderValidation)
-                .wrap(RequireAuth),
+                .wrap(RequireAuth {
+                    allow_deleted_user: false,
+                }),
         )
         .service(SwaggerUi::new("/docs/{_:.*}").url("/api-docs/openapi.json", openapi.clone()));
 }

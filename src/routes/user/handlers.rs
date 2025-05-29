@@ -5,7 +5,7 @@ use utoipa::TupleUnit;
 use crate::{
     configuration::{SecretConfig, UserConfig},
     errors::GenericError,
-    schemas::{GenericResponse, RequestMetaData, Status},
+    schemas::{DeleteType, GenericResponse, RequestMetaData, Status},
 };
 
 use super::{
@@ -15,7 +15,8 @@ use super::{
         UserAccount, UserType, VectorType,
     },
     utils::{
-        fetch_user, get_auth_data, get_stored_credentials, register_user, send_otp,
+        fetch_user, get_auth_data, get_stored_credentials, hard_delete_user_account,
+        reactivate_user_account, register_user, send_otp, soft_delete_user_account,
         update_user_verification_status, validate_user_credentials,
     },
 };
@@ -222,6 +223,107 @@ pub async fn send_otp_req(
 
     Ok(web::Json(GenericResponse::success(
         "Sucessfully send data.",
+        (),
+    )))
+}
+
+#[utoipa::path(
+    delete,
+    path = "/user/delete/{delete_type}",
+    tag = "User Account",
+    description = "API for delete User Account",
+    summary = "Delete User Account API",
+    request_body(content = SendOTPRequest, description = "Request Body"),
+    responses(
+        (status=200, description= "Sucessfully fetched user data.", body= GenericResponse<TupleUnit>),
+        (status=400, description= "Invalid Request body", body= GenericResponse<TupleUnit>),
+        (status=401, description= "Invalid Token", body= GenericResponse<TupleUnit>),
+	    (status=403, description= "Insufficient Previlege", body= GenericResponse<TupleUnit>),
+	    (status=410, description= "Data not found", body= GenericResponse<TupleUnit>),
+        (status=500, description= "Internal Server Error", body= GenericResponse<TupleUnit>)
+    ),
+    params(
+        ("delete_type" = DeleteType, Path, description = "Delete type (soft or hard)"),
+        ("x-request-id" = String, Header, description = "Request id"),
+        ("x-device-id" = String, Header, description = "Device id"),
+    )
+)]
+#[tracing::instrument(err, name = "Delete User Account", skip(pool), fields())]
+pub async fn delete_user(
+    path: web::Path<DeleteType>,
+    pool: web::Data<PgPool>,
+    user_account: UserAccount,
+) -> Result<web::Json<GenericResponse<()>>, GenericError> {
+    let delete_type = path.into_inner();
+    let identifier = &user_account.id.to_string();
+
+    match delete_type {
+        DeleteType::Soft => {
+            soft_delete_user_account(
+                pool.get_ref(),
+                &user_account.id.to_string(),
+                user_account.id,
+            )
+            .await
+            .map_err(|e| {
+                tracing::error!("Soft delete failed: {:?}", e);
+                GenericError::UnexpectedCustomError("Failed to soft delete user".to_string())
+            })?;
+        }
+        DeleteType::Hard => {
+            hard_delete_user_account(pool.get_ref(), identifier)
+                .await
+                .map_err(|e| {
+                    tracing::error!("Hard delete failed: {:?}", e);
+                    GenericError::UnexpectedCustomError("Failed to hard delete user".to_string())
+                })?;
+        }
+    }
+
+    Ok(web::Json(GenericResponse::success(
+        "Successfully deleted user.",
+        (),
+    )))
+}
+
+#[utoipa::path(
+    patch,
+    path = "/user/reactivate",
+    tag = "User Account",
+    description = "API for reactivating deleted User Account",
+    summary = "User Account Reactivating API",
+    request_body(content = SendOTPRequest, description = "Request Body"),
+    responses(
+        (status=200, description= "Sucessfully fetched user data.", body= GenericResponse<TupleUnit>),
+        (status=400, description= "Invalid Request body", body= GenericResponse<TupleUnit>),
+        (status=401, description= "Invalid Token", body= GenericResponse<TupleUnit>),
+	    (status=403, description= "Insufficient Previlege", body= GenericResponse<TupleUnit>),
+	    (status=410, description= "Data not found", body= GenericResponse<TupleUnit>),
+        (status=500, description= "Internal Server Error", body= GenericResponse<TupleUnit>)
+    ),
+    params(
+        ("x-request-id" = String, Header, description = "Request id"),
+        ("x-device-id" = String, Header, description = "Device id"),
+    )
+)]
+#[tracing::instrument(err, name = "Delete User Account", skip(pool), fields())]
+pub async fn reactivate_user_req(
+    pool: web::Data<PgPool>,
+    user_account: UserAccount,
+) -> Result<web::Json<GenericResponse<()>>, GenericError> {
+    if user_account.is_deleted == false {
+        return Err(GenericError::ValidationError(
+            "User is not deleted".to_string(),
+        ));
+    }
+    let _ = reactivate_user_account(&pool, user_account.id, user_account.id)
+        .await
+        .map_err(|e| {
+            tracing::error!("Soft delete failed: {:?}", e);
+            GenericError::UnexpectedCustomError("Failed to reactivate deleted user".to_string())
+        })?;
+    Ok(web::Json(GenericResponse::success(
+        "Successfully reactivated user.",
         (),
     )))
 }

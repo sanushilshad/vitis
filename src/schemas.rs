@@ -84,3 +84,10 @@ impl FromRequest for RequestMetaData {
         ready(result)
     }
 }
+
+#[derive(Deserialize, Debug, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum DeleteType {
+    Hard,
+    Soft,
+}

@@ -2,9 +2,10 @@ use crate::configuration::SecretConfig;
 use crate::errors::GenericError;
 use crate::routes::project::schemas::{AllowedPermission, ProjectAccount};
 use crate::routes::project::utils::{
-    get_project_account, validate_project_account_active, validate_user_project_permission,
+    fetch_project_account_model_by_id, get_project_account, validate_project_account_active,
+    validate_user_project_permission,
 };
-use crate::routes::user::schemas::UserAccount;
+use crate::routes::user::schemas::{UserAccount, UserType};
 use crate::routes::user::utils::get_user;
 use crate::schemas::{RequestMetaData, Status};
 use crate::utils::{decode_token, get_header_value};
@@ -24,6 +25,7 @@ use uuid::Uuid;
 
 pub struct AuthMiddleware<S> {
     service: Rc<S>,
+    allow_deleted_user: bool,
 }
 
 impl<S> Service<ServiceRequest> for AuthMiddleware<S>
@@ -74,6 +76,7 @@ where
         };
 
         let srv = Rc::clone(&self.service);
+        let allow_deleted_user = self.allow_deleted_user;
         Box::pin(async move {
             let db_pool = &req.app_data::<web::Data<PgPool>>().unwrap();
             let user = get_user(vec![&decoded_user_id.to_string()], db_pool)
@@ -83,7 +86,7 @@ where
                 return Err(GenericError::ValidationError(
                     "User is Inactive. Please contact customer support".to_string(),
                 ))?;
-            } else if user.is_deleted {
+            } else if user.is_deleted & !allow_deleted_user {
                 return Err(GenericError::ValidationError(
                     "User is in deleted. Please contact customer support".to_string(),
                 ))?;
@@ -97,7 +100,9 @@ where
 }
 
 /// Middleware factory for requiring authentication.
-pub struct RequireAuth;
+pub struct RequireAuth {
+    pub allow_deleted_user: bool,
+}
 
 impl<S> Transform<S, ServiceRequest> for RequireAuth
 where
@@ -113,6 +118,7 @@ where
     fn new_transform(&self, service: S) -> Self::Future {
         ready(Ok(AuthMiddleware {
             service: Rc::new(service),
+            allow_deleted_user: self.allow_deleted_user,
         }))
     }
 }
@@ -150,9 +156,16 @@ where
             if let Some(project_id) = get_header_value(&req, "x-project-id") // Convert HeaderValue to &str
                 .and_then(|value| Uuid::parse_str(value).ok())
             {
-                let project_account = get_project_account(db_pool, user_account.id, project_id)
-                    .await
-                    .map_err(GenericError::UnexpectedError)?;
+                let project_account = if user_account.user_role != UserType::Admin.to_string() {
+                    get_project_account(db_pool, user_account.id, project_id)
+                        .await
+                        .map_err(GenericError::UnexpectedError)?
+                } else {
+                    fetch_project_account_model_by_id(db_pool, Some(project_id))
+                        .await
+                        .map_err(GenericError::UnexpectedError)?
+                        .map(|model| model.into_schema())
+                };
                 let extracted_project_account = project_account.ok_or_else(|| {
                     GenericError::ValidationError("project Account doesn't exist".to_string())
                 })?;
@@ -178,7 +191,7 @@ where
     }
 }
 
-pub struct ProjectAccountValidation {}
+pub struct ProjectAccountValidation;
 
 impl<S> Transform<S, ServiceRequest> for ProjectAccountValidation
 where

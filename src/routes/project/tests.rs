@@ -4,7 +4,8 @@ pub mod tests {
     use crate::email::EmailObject;
     use crate::routes::project::schemas::{CreateprojectAccount, ProjectAccount};
     use crate::routes::project::utils::{
-        create_project_account, get_basic_project_account_by_user_id, get_project_account,
+        create_project_account, fetch_project_account_model_by_id, get_basic_project_accounts,
+        get_basic_project_accounts_by_user_id, get_project_account,
         validate_project_account_active, validate_user_project_permission,
     };
 
@@ -105,15 +106,23 @@ pub mod tests {
         assert!(project_res.is_ok());
         let project_id = project_res.unwrap();
         let fetch_basic_project_obj_res =
-            get_basic_project_account_by_user_id(user_id, &pool).await;
+            get_basic_project_accounts_by_user_id(user_id, &pool).await;
         assert!(fetch_basic_project_obj_res.is_ok());
 
         let fetch_basic_project_obj_res =
-            get_basic_project_account_by_user_id(user_id, &pool).await;
+            get_basic_project_accounts_by_user_id(user_id, &pool).await;
         assert!(fetch_basic_project_obj_res.is_ok());
+
+        let fetch_basic_business_objs = get_basic_project_accounts(&pool).await;
+        eprint!("Basic Project Accounts: {:?}", fetch_basic_business_objs);
+        assert!(fetch_basic_business_objs.is_ok());
 
         let fetch_project_obj_res = get_project_account(&pool, user_id, project_id).await;
         assert!(fetch_project_obj_res.is_ok());
+
+        let fetch_business_obj_by_id =
+            fetch_project_account_model_by_id(&pool, Some(project_id)).await;
+        eprint!("Business Account List: {:?}", fetch_business_obj_by_id);
 
         let delete_bus_res = hard_delete_project_account(&pool, project_id).await;
         assert!(delete_bus_res.is_ok());
@@ -192,7 +201,7 @@ pub mod tests {
         let user_id = user_res.unwrap();
         let project_res = setup_project(&pool, mobile_no, "project@example.com").await;
         let project_id = project_res.unwrap();
-        let project_account_list_res = get_basic_project_account_by_user_id(user_id, &pool).await;
+        let project_account_list_res = get_basic_project_accounts_by_user_id(user_id, &pool).await;
         assert!(project_account_list_res.is_ok());
         let project_account_list = project_account_list_res.unwrap();
         let frst_project_account = project_account_list.first().unwrap();

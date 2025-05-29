@@ -12,13 +12,25 @@ pub struct ProjectAccountModel {
     pub name: String,
     pub vectors: Json<Vec<UserVector>>,
     pub is_active: Status,
+    pub is_deleted: bool,
+    pub verified: bool,
 }
 
 impl ProjectAccountModel {
-    pub fn into_schema(self) -> BasicprojectAccount {
+    pub fn into_basic_schema(self) -> BasicprojectAccount {
         BasicprojectAccount {
             id: self.id,
             name: self.name,
+        }
+    }
+    pub fn into_schema(self) -> ProjectAccount {
+        ProjectAccount {
+            id: self.id,
+            name: self.name.to_string(),
+            vectors: self.vectors.0.to_owned(),
+            is_active: self.is_active.to_owned(),
+            is_deleted: self.is_deleted,
+            verified: self.verified,
         }
     }
 }

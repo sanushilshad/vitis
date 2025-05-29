@@ -4,7 +4,7 @@ use utoipa::TupleUnit;
 
 use crate::{
     errors::GenericError,
-    routes::user::schemas::UserAccount,
+    routes::user::schemas::{UserAccount, UserType},
     schemas::{GenericResponse, RequestMetaData},
 };
 
@@ -14,8 +14,7 @@ use super::{
         ProjectPermissionRequest,
     },
     utils::{
-        create_project_account, get_basic_project_account_by_user_id, get_project_account,
-        validate_user_project_permission,
+        create_project_account, get_basic_project_accounts, get_basic_project_accounts_by_user_id, get_project_account, validate_user_project_permission
     },
 };
 
@@ -170,9 +169,16 @@ pub async fn list_project_req(
     db_pool: web::Data<PgPool>,
     user_account: UserAccount,
 ) -> Result<web::Json<GenericResponse<Vec<BasicprojectAccount>>>, GenericError> {
-    let project_obj = get_basic_project_account_by_user_id(user_account.id, &db_pool)
-        .await
-        .map_err(GenericError::UnexpectedError)?;
+    // let project_obj = get_basic_project_account_by_user_id(user_account.id, &db_pool)
+    //     .await
+    //     .map_err(GenericError::UnexpectedError)?;
+
+    let project_obj = if user_account.user_role != UserType::Superadmin.to_string() {
+        get_basic_project_accounts_by_user_id(user_account.id, &db_pool).await
+    } else {
+        get_basic_project_accounts(&db_pool).await
+    }
+    .map_err(GenericError::UnexpectedError)?;
     Ok(web::Json(GenericResponse::success(
         "Sucessfully fetched all associated project accounts.",
         project_obj,

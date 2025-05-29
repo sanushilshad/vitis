@@ -4,8 +4,8 @@ pub mod tests {
     use crate::email::EmailObject;
     use crate::routes::user::schemas::{AuthenticationScope, CreateUserAccount, UserType};
     use crate::routes::user::utils::{
-        get_stored_credentials, get_user, hard_delete_user_account, register_user, send_otp,
-        verify_otp, verify_password,
+        get_stored_credentials, get_user, hard_delete_user_account, reactivate_user_account,
+        register_user, send_otp, soft_delete_user_account, verify_otp, verify_password,
     };
 
     use crate::tests::tests::get_test_pool;
@@ -141,6 +141,80 @@ pub mod tests {
         let otp_obj = otp_res.unwrap().unwrap();
         let verify_otp = verify_otp(&pool, &SecretString::from(otp), &otp_obj).await;
         assert!(verify_otp.is_ok());
+        let delete_res = hard_delete_user_account(
+            &pool,
+            &format!("{}{}", INTERNATIONAL_DIALING_CODE, mobile_no),
+        )
+        .await;
+        assert!(delete_res.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_user_user_soft_delete() {
+        let pool = get_test_pool().await;
+        let passsword = "123";
+        let mobile_no = "1234567899";
+        let user_res = setup_user(
+            &pool,
+            "testuser12",
+            "testuser12@example.com",
+            mobile_no,
+            passsword,
+        )
+        .await;
+        assert!(user_res.is_ok());
+        let user_id = user_res.unwrap();
+        let _ = soft_delete_user_account(&pool, &user_id.to_string(), user_id).await;
+        let user_obj = get_user(
+            vec![&format!("{}{}", INTERNATIONAL_DIALING_CODE, mobile_no)],
+            &pool,
+        )
+        .await
+        .unwrap();
+        assert!(user_obj.is_deleted == true);
+
+        let delete_res = hard_delete_user_account(
+            &pool,
+            &format!("{}{}", INTERNATIONAL_DIALING_CODE, mobile_no),
+        )
+        .await;
+        assert!(delete_res.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_reactivate_soft_deleted_user() {
+        let pool = get_test_pool().await;
+        let passsword = "123";
+        let mobile_no = "1234567812";
+        let user_res = setup_user(
+            &pool,
+            "testuser15",
+            "testuser15@example.com",
+            mobile_no,
+            passsword,
+        )
+        .await;
+        assert!(user_res.is_ok());
+        let user_id = user_res.unwrap();
+        let _ = soft_delete_user_account(&pool, &user_id.to_string(), user_id).await;
+        let user_obj = get_user(
+            vec![&format!("{}{}", INTERNATIONAL_DIALING_CODE, mobile_no)],
+            &pool,
+        )
+        .await
+        .unwrap();
+        assert!(user_obj.is_deleted == true);
+
+        let reactivate_res = reactivate_user_account(&pool, user_obj.id, user_obj.id).await;
+        assert!(reactivate_res.is_ok());
+        let user_obj = get_user(
+            vec![&format!("{}{}", INTERNATIONAL_DIALING_CODE, mobile_no)],
+            &pool,
+        )
+        .await
+        .unwrap();
+        assert!(user_obj.is_deleted == false);
+
         let delete_res = hard_delete_user_account(
             &pool,
             &format!("{}{}", INTERNATIONAL_DIALING_CODE, mobile_no),
