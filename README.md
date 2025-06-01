@@ -256,3 +256,7 @@ The API Docmentation can be found at `https://{{domain}}/docs/` after running th
 * [ ] Integrate SMS.
 * [ ] Integrate Whatsapp.
 * [ ] Integrate Slack. (Ongoing)
+* [ ] Integrate Whatsapp.
+
+## MILESTONE 7 (OPTIONAL):
+* [ ] Integrate Kafka.
