@@ -190,44 +190,69 @@ The API Docmentation can be found at `https://{{domain}}/docs/` after running th
 }
 ```
 
-## MILESTONE 1:
-* [x] Setup the project structure.
+## MILESTONE 1 (USER ACCOUNT  + LEAVE MANAGEMENT):
+* [x] Setup the application structure.
 * [x] Create user account creation API.
 * [x] Create user account Authentication API.
 * [x] Create user account fetch API.
+* [x] Create user account deletion API.
+* [x] Create user account reactivation API.
+* [x] Create User Setting creation API.
+* [x] Create User Setting fetch API.
+* [ ] Add restricted leave management API.
+* [ ] Add causual leave request API.
+* [ ] Add causual leave approval API.
+* [ ] Add leave fetch API.
+* [ ] Add leave deletion API.
+* [ ] Add leave edit API.
+* [ ] Add auto-slack alert notification.
+* [ ] Fetch All Minimal User Account API.
+* [ ] Fetch allowed Setting detail API for user.
+* [ ] Create User Setting edit API.
+* [ ] Create user account edit API.
+
+
+## MILESTONE 2 (PROJECT MANAGEMENT):
 * [x] Create project creation API.
 * [x] List all project of a user data API.
 * [x] Fetch project data API.
-* [x] Create user account deletion API.
-* [x] Create user account reactivation API.
-* [ ] Create user account edit API.
-* [ ] Create project deletion API.
+* [x] Create Project Setting fetch API.
+* [x] Create Project Setting creation API.
+* [x] Create Project Setting fetch API.
+* [x] Create user-project association API.
+* [ ] Fetch allowed Setting detail API for a project.
+* [ ] Create project deletion API (if admin else remove the association).
+* [ ] Create fetch all user associated to a project API.
 * [ ] Create project edit API.
-* [ ] Fetch All Minimal User Account API.
-
-## MILESTONE 2:
-* [x] Create Setting creation API.
-* [x] Create Setting fetch API.
-* [ ] Create Setting edit API.
+* [ ] Create Project Setting edit API.
 
 
-## MILESTONE 3:
-* [ ] Create project task creation API.
-* [ ] Create project task deletion API.
-* [ ] Create project task edit API.
-* [ ] Create project task assignment API.
-* [ ] Create project task unassignment API.
-* [ ] Create project task status update API.
+## MILESTONE 3 (ROLE AND PERMISSION MANAGEMENT):
+* [ ] Create Role fetch API.
+* [ ] Create role permissions assigment API.
+* [ ] Create Permission fetch API.
+* [ ] Create role permissions assigment edit API.
+
+
+## MILESTONE 4 (ON-CALL MANAGEMENT):
 * [ ] Create On-call creation API.
 * [ ] Create On-call fetch API.
 * [ ] Create On-call history fetch API.
 
-## MILESTONE 4:
-* [ ] Create Permission fetch API.
-* [ ] Create Role fetch API.
-* [ ] Create user-project association API.
-* [ ] Create user-project deletion API.
-* [ ] Create role permissions assigment API.
-* [ ] Create role permissions assigment edit API.
-* [ ] Create project fetch API.
+
+## MILESTONE 5 (TASK MANAGEMENT):
+* [ ] Create project task assignment API.
+* [ ] Create project task unassignment API.
+* [ ] Create project task status update API.
 * [ ] Create project task fetch API.
+* [ ] Create project task creation API.
+* [ ] Create project task deletion API.
+* [ ] Create project task edit API.
+
+
+## MILESTONE 6:
+* [x] Integrate Websocket.
+* [ ] Integrate Email.
+* [ ] Integrate SMS.
+* [ ] Integrate Whatsapp.
+* [ ] Integrate Slack. (Ongoing)

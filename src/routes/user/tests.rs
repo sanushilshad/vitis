@@ -2,7 +2,7 @@
 pub mod tests {
     use crate::constants::INTERNATIONAL_DIALING_CODE;
     use crate::email::EmailObject;
-    use crate::routes::user::schemas::{AuthenticationScope, CreateUserAccount, UserType};
+    use crate::routes::user::schemas::{AuthenticationScope, CreateUserAccount, RoleType};
     use crate::routes::user::utils::{
         get_stored_credentials, get_user, hard_delete_user_account, reactivate_user_account,
         register_user, send_otp, soft_delete_user_account, verify_otp, verify_password,
@@ -62,7 +62,7 @@ pub mod tests {
             display_name: "Test User".to_string(),
             is_test_user: false,
             international_dialing_code: INTERNATIONAL_DIALING_CODE.to_string(),
-            user_type: UserType::User,
+            user_type: RoleType::Developer,
             password: SecretString::from(password),
         };
         let user_result = register_user(pool, &user_account).await?;

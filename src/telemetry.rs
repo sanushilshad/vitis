@@ -1,4 +1,5 @@
-use opentelemetry::trace::TracerProvider as _;
+use opentelemetry::trace::TracerProvider;
+
 use tracing::{Subscriber, subscriber::set_global_default};
 use tracing_log::LogTracer;
 use tracing_subscriber::fmt::MakeWriter;
@@ -35,13 +36,12 @@ pub fn get_subscriber_with_jeager<Sink>(
 where
     Sink: for<'a> MakeWriter<'a> + Send + Sync + 'static,
 {
-    let tracer = opentelemetry_sdk::trace::TracerProvider::builder()
+    let tracer = opentelemetry_sdk::trace::SdkTracerProvider::builder()
         .with_batch_exporter(
             opentelemetry_otlp::SpanExporter::builder()
                 .with_tonic()
                 .build()
                 .expect("Couldn't create OTLP tracer"),
-            opentelemetry_sdk::runtime::Tokio,
         )
         .build()
         .tracer(name);

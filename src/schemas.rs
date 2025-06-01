@@ -4,6 +4,7 @@ use actix_web::{FromRequest, HttpMessage};
 
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
+use uuid::Uuid;
 
 use std::fmt::Debug;
 use std::future::{Ready, ready};
@@ -90,4 +91,28 @@ impl FromRequest for RequestMetaData {
 pub enum DeleteType {
     Hard,
     Soft,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub struct WebSocketParam {
+    pub user_id: Option<Uuid>,
+    pub business_id: Option<Uuid>,
+    pub device_id: Option<String>,
+}
+
+pub trait WSKeyTrait {
+    fn get_ws_key(&self) -> String;
+}
+
+impl WSKeyTrait for WebSocketParam {
+    fn get_ws_key(&self) -> String {
+        format!(
+            "{}#{}#{}",
+            self.user_id.map_or("NA".to_string(), |id| id.to_string()),
+            self.business_id
+                .map_or("NA".to_string(), |id| id.to_string()),
+            self.device_id.clone().unwrap_or("NA".to_string())
+        )
+    }
 }

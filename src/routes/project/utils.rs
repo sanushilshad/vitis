@@ -4,7 +4,7 @@ use super::{
     errors::ProjectAccountError, models::ProjectAccountModel, schemas::CreateprojectAccount,
 };
 use crate::routes::user::schemas::{
-    AuthenticationScope, BulkAuthMechanismInsert, UserAccount, UserType, UserVector, VectorType,
+    AuthenticationScope, BulkAuthMechanismInsert, RoleType, UserAccount, UserVector, VectorType,
 };
 use crate::routes::user::utils::get_role;
 use crate::schemas::{MaskingType, Status};
@@ -145,7 +145,7 @@ pub async fn create_project_account(
         .context("Failed to acquire a Postgres connection from the pool")?;
     let project_account_id =
         save_project_account(&mut transaction, user_account, create_project_obj).await?;
-    if let Some(role_obj) = get_role(pool, &UserType::Admin).await? {
+    if let Some(role_obj) = get_role(pool, &RoleType::Admin).await? {
         if role_obj.is_deleted || role_obj.role_status == Status::Inactive {
             return Err(ProjectAccountError::InvalidRoleError(
                 "Role is deleted / Inactive".to_string(),
@@ -356,4 +356,36 @@ pub async fn get_basic_project_accounts(
         .collect();
 
     Ok(business_account_list)
+}
+
+#[tracing::instrument(name = "associate user to project", skip(pool))]
+pub async fn associate_user_to_project(
+    pool: &PgPool,
+    user_id: Uuid,
+    project_id: Uuid,
+    role_id: Uuid,
+    created_by: Uuid,
+) -> Result<(), anyhow::Error> {
+    let _ = sqlx::query!(
+        r#"
+        INSERT INTO project_user_relationship 
+        (id, user_id, project_id, role_id, verified, created_on, created_by)
+        VALUES ($1, $2, $3, $4, $5, $6, $7)
+        "#,
+        Uuid::new_v4(),
+        user_id,
+        project_id,
+        role_id,
+        false,
+        Utc::now(),
+        created_by
+    )
+    .execute(pool)
+    .await
+    .map_err(|e| {
+        tracing::error!("Failed to execute query: {:?}", e);
+        anyhow::Error::new(e)
+            .context("A database failure occurred while associating user to project")
+    })?;
+    Ok(())
 }

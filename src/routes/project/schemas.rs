@@ -9,7 +9,7 @@ use uuid::Uuid;
 
 use crate::email::EmailObject;
 use crate::errors::GenericError;
-use crate::routes::user::schemas::UserVector;
+use crate::routes::user::schemas::{RoleType, UserVector};
 use crate::schemas::Status;
 use anyhow::anyhow;
 
@@ -94,32 +94,17 @@ impl FromRequest for ProjectPermissionRequest {
 
 #[derive(Debug, Serialize, Clone, Deserialize, PartialEq)]
 pub enum PermissionType {
-    #[serde(rename = "read:address")]
-    ReadAddress,
-    #[serde(rename = "list:address")]
-    ListAddress,
-    #[serde(rename = "list:address:self")]
-    ListAddressSelf,
-    #[serde(rename = "update:address:self")]
-    UpdateAddressSelf,
-    #[serde(rename = "delete:address:self")]
-    DeleteAddressSelf,
-    #[serde(rename = "create:address")]
-    CreateAddress,
     #[serde(rename = "create:setting")]
     CreateSetting,
+    #[serde(rename = "associate:user-project")]
+    AssociateUserProject,
 }
 
 impl fmt::Display for PermissionType {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let display_str = match self {
-            PermissionType::ReadAddress => "read:address",
-            PermissionType::ListAddress => "list:address",
-            PermissionType::ListAddressSelf => "list:address:self",
-            PermissionType::UpdateAddressSelf => "update:address:self",
-            PermissionType::DeleteAddressSelf => "delete:address:self",
-            PermissionType::CreateAddress => "create:address",
             PermissionType::CreateSetting => "create:setting",
+            PermissionType::AssociateUserProject => "associate:user-project",
         };
         write!(f, "{}", display_str)
     }
@@ -229,3 +214,28 @@ impl FromRequest for ProjectAccount {
 //         })
 //     }
 // }
+
+#[allow(dead_code)]
+#[derive(Debug, Deserialize, Serialize, ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct ProjectUserAssociationRequest {
+    #[schema(value_type = String)]
+    pub user_id: Uuid,
+    pub role: RoleType,
+}
+
+impl FromRequest for ProjectUserAssociationRequest {
+    type Error = GenericError;
+    type Future = LocalBoxFuture<'static, Result<Self, Self::Error>>;
+
+    fn from_request(req: &HttpRequest, payload: &mut Payload) -> Self::Future {
+        let fut = web::Json::<Self>::from_request(req, payload);
+
+        Box::pin(async move {
+            match fut.await {
+                Ok(json) => Ok(json.into_inner()),
+                Err(e) => Err(GenericError::ValidationError(e.to_string())),
+            }
+        })
+    }
+}

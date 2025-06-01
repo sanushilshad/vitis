@@ -11,8 +11,8 @@ use crate::{
 use super::{
     errors::{AuthError, UserRegistrationError},
     schemas::{
-        AuthData, AuthenticateRequest, AuthenticationScope, CreateUserAccount, SendOTPRequest,
-        UserAccount, UserType, VectorType,
+        AuthData, AuthenticateRequest, AuthenticationScope, CreateUserAccount, RoleType,
+        SendOTPRequest, UserAccount, VectorType,
     },
     utils::{
         fetch_user, get_auth_data, get_stored_credentials, hard_delete_user_account,
@@ -53,7 +53,7 @@ pub async fn register_user_account_req(
     meta_data: RequestMetaData,
     user_settings: web::Data<UserConfig>,
 ) -> Result<web::Json<GenericResponse<()>>, GenericError> {
-    let admin_role = [UserType::Admin, UserType::Superadmin];
+    let admin_role = [RoleType::Admin, RoleType::Superadmin];
     if admin_role.contains(&body.user_type) && !user_settings.admin_list.contains(&body.mobile_no) {
         return Err(UserRegistrationError::InsufficientPrevilegeError(
             "Insufficient previlege to register Admin/Superadmin".to_string(),

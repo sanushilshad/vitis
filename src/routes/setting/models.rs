@@ -7,7 +7,7 @@ use uuid::Uuid;
 pub struct BulkSettingCreateModel {
     pub id_list: Vec<Uuid>,
     pub user_id_list: Vec<Option<Uuid>>,
-    pub project_id_list: Vec<Uuid>,
+    pub project_id_list: Vec<Option<Uuid>>,
     pub setting_id_list: Vec<Uuid>,
     pub value_list: Vec<String>,
     pub created_on_list: Vec<DateTime<Utc>>,

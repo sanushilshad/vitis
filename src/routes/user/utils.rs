@@ -18,7 +18,7 @@ use crate::utils::spawn_blocking_with_tracing;
 use sqlx::{Transaction, Postgres, Executor};
 use super::errors::AuthError;
 use super::models::{AuthMechanismModel, UserAccountModel, UserRoleModel};
-use super::schemas::{AccountRole, AuthData, AuthMechanism, AuthenticateRequest, AuthenticationScope, BulkAuthMechanismInsert, CreateUserAccount, JWTClaims, UserAccount, UserType, UserVector, VectorType};
+use super::schemas::{AccountRole, AuthData, AuthMechanism, AuthenticateRequest, AuthenticationScope, BulkAuthMechanismInsert, CreateUserAccount, JWTClaims, UserAccount, RoleType, UserVector, VectorType};
 use anyhow::anyhow;
 
 #[tracing::instrument(
@@ -286,7 +286,7 @@ pub async fn save_user(
 
 // test case not needed
 #[tracing::instrument(name = "get_role_model", skip(pool))]
-pub async fn get_role_model(pool: &PgPool, role_type: &UserType) -> Result<Option<UserRoleModel>, anyhow::Error> {
+pub async fn get_role_model(pool: &PgPool, role_type: &RoleType) -> Result<Option<UserRoleModel>, anyhow::Error> {
     let row: Option<UserRoleModel> = sqlx::query_as!(
         UserRoleModel,
         r#"SELECT id, role_name, role_status as "role_status!:Status", created_on, created_by, is_deleted from role where role_name  = $1"#,
@@ -300,7 +300,7 @@ pub async fn get_role_model(pool: &PgPool, role_type: &UserType) -> Result<Optio
 
 // test case not needed
 #[tracing::instrument(name = "get_role", skip(pool))]
-pub async fn get_role(pool: &PgPool, role_type: &UserType) -> Result<Option<AccountRole>, anyhow::Error> {
+pub async fn get_role(pool: &PgPool, role_type: &RoleType) -> Result<Option<AccountRole>, anyhow::Error> {
     let role_model = get_role_model(pool, role_type).await?;
     match role_model {
         Some(role) => {

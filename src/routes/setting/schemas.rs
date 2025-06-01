@@ -15,13 +15,13 @@ pub struct CreateSettingData {
 
 #[derive(Deserialize, Debug, ToSchema)]
 #[serde(rename_all = "camelCase")]
-pub struct CreateSettingRequest {
+pub struct CreateProjectSettingRequest {
     #[schema(value_type = String)]
     pub user_id: Option<Uuid>,
     pub settings: Vec<CreateSettingData>,
 }
 
-impl FromRequest for CreateSettingRequest {
+impl FromRequest for CreateProjectSettingRequest {
     type Error = GenericError;
     type Future = LocalBoxFuture<'static, Result<Self, Self::Error>>;
 
@@ -81,4 +81,26 @@ pub struct Settings {
 #[derive(Serialize, Debug, ToSchema)]
 pub struct SettingData {
     pub settings: Vec<Settings>,
+}
+
+#[derive(Deserialize, Debug, ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct CreateUserSettingRequest {
+    pub settings: Vec<CreateSettingData>,
+}
+
+impl FromRequest for CreateUserSettingRequest {
+    type Error = GenericError;
+    type Future = LocalBoxFuture<'static, Result<Self, Self::Error>>;
+
+    fn from_request(req: &HttpRequest, payload: &mut Payload) -> Self::Future {
+        let fut = web::Json::<Self>::from_request(req, payload);
+
+        Box::pin(async move {
+            match fut.await {
+                Ok(json) => Ok(json.into_inner()),
+                Err(e) => Err(GenericError::ValidationError(e.to_string())),
+            }
+        })
+    }
 }

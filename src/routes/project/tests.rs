@@ -4,20 +4,22 @@ pub mod tests {
     use crate::email::EmailObject;
     use crate::routes::project::schemas::{CreateprojectAccount, ProjectAccount};
     use crate::routes::project::utils::{
-        create_project_account, fetch_project_account_model_by_id, get_basic_project_accounts,
-        get_basic_project_accounts_by_user_id, get_project_account,
+        associate_user_to_project, create_project_account, fetch_project_account_model_by_id,
+        get_basic_project_accounts, get_basic_project_accounts_by_user_id, get_project_account,
         validate_project_account_active, validate_user_project_permission,
     };
 
+    use crate::routes::user::schemas::RoleType;
     use crate::routes::user::tests::tests::setup_user;
     use crate::routes::user::utils::{
-        get_user, hard_delete_project_account, hard_delete_user_account,
+        get_role, get_user, hard_delete_project_account, hard_delete_user_account,
     };
 
     use crate::schemas::Status;
 
     use crate::tests::tests::get_test_pool;
     use sqlx::PgPool;
+    use tokio::join;
     use uuid::Uuid;
 
     #[tokio::test]
@@ -214,5 +216,68 @@ pub mod tests {
         )
         .await;
         assert!(delete_res.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_project_user_association() {
+        let pool = get_test_pool().await;
+
+        let mobile_no_1 = "12345678939";
+        let mobile_no_2 = "12345678949";
+        let mobile_with_code_1 = format!("{}{}", INTERNATIONAL_DIALING_CODE, mobile_no_1);
+        let mobile_with_code_2 = format!("{}{}", INTERNATIONAL_DIALING_CODE, mobile_no_2);
+        // Create two users concurrently
+        let (user_res_1, user_res_2) = join!(
+            setup_user(
+                &pool,
+                "testuser13",
+                "testuser13@example.com",
+                mobile_no_1,
+                "testuser@123",
+            ),
+            setup_user(
+                &pool,
+                "testuser14",
+                "testuser14@example.com",
+                mobile_no_2,
+                "testuser@123",
+            )
+        );
+
+        let user_id_1 = user_res_1.unwrap();
+        let user_id_2 = user_res_2.unwrap();
+
+        // Project and role fetching can happen concurrently
+        let (project_res, role_obj_opt) = join!(
+            setup_project(&pool, mobile_no_1, "project@example.com"),
+            get_role(&pool, &RoleType::Developer),
+        );
+
+        let project_id = project_res.unwrap();
+        let role_obj_opt = role_obj_opt.unwrap();
+        assert!(role_obj_opt.is_some());
+        let role_obj = role_obj_opt.unwrap();
+        // Associate user to project
+        let user_project_association =
+            associate_user_to_project(&pool, user_id_2, project_id, role_obj.id, user_id_1).await;
+        assert!(user_project_association.is_ok());
+
+        // Fetch and assert association
+        let fetched_association = get_project_account(&pool, user_id_2, project_id)
+            .await
+            .unwrap();
+        assert!(fetched_association.is_some());
+
+        // Perform deletions concurrently
+
+        let (delete_bus_res, delete_res_1, delete_res_2) = join!(
+            hard_delete_project_account(&pool, project_id),
+            hard_delete_user_account(&pool, &mobile_with_code_1,),
+            hard_delete_user_account(&pool, &mobile_with_code_2),
+        );
+
+        assert!(delete_bus_res.is_ok());
+        assert!(delete_res_1.is_ok());
+        assert!(delete_res_2.is_ok());
     }
 }

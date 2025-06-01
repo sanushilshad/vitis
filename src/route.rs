@@ -27,7 +27,6 @@ pub fn routes(cfg: &mut web::ServiceConfig) {
         .service(
             web::scope("/setting")
                 .configure(setting_routes)
-                .wrap(ProjectAccountValidation)
                 .wrap(HeaderValidation)
                 .wrap(RequireAuth {
                     allow_deleted_user: false,

@@ -18,22 +18,22 @@ use uuid::Uuid;
 #[derive(Serialize, Deserialize, Debug, sqlx::Type, PartialEq, ToSchema)]
 #[sqlx(type_name = "user_type", rename_all = "snake_case")]
 #[serde(rename_all = "snake_case")]
-pub enum UserType {
+pub enum RoleType {
     Guest,
-    User,
-    Member,
+    Developer,
+    Maintainer,
     Agent,
     Superadmin,
     Admin,
 }
 
-impl fmt::Display for UserType {
+impl fmt::Display for RoleType {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{:?}", self)
     }
 }
 
-impl UserType {
+impl RoleType {
     pub fn to_lowercase_string(&self) -> String {
         format!("{:?}", self).to_lowercase()
     }
@@ -51,7 +51,7 @@ pub struct CreateUserAccount {
     pub email: EmailObject,
     pub display_name: String,
     pub is_test_user: bool,
-    pub user_type: UserType,
+    pub user_type: RoleType,
 }
 
 impl CreateUserAccount {
@@ -101,24 +101,24 @@ impl FromRequest for AuthenticateRequest {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug)]
-#[serde(rename_all = "snake_case")]
-pub enum CreateUserType {
-    Guest,
-    User,
-    Member,
-    Agent,
-}
-impl From<CreateUserType> for UserType {
-    fn from(create_user_type: CreateUserType) -> Self {
-        match create_user_type {
-            CreateUserType::Guest => UserType::Guest,
-            CreateUserType::User => UserType::User,
-            CreateUserType::Member => UserType::Member,
-            CreateUserType::Agent => UserType::Agent,
-        }
-    }
-}
+// #[derive(Serialize, Deserialize, Debug)]
+// #[serde(rename_all = "snake_case")]
+// pub enum CreateUserType {
+//     Guest,
+//     Member,
+//     Developer,
+//     Maintainer,
+// }
+// impl From<CreateUserType> for UserType {
+//     fn from(create_user_type: CreateUserType) -> Self {
+//         match create_user_type {
+//             CreateUserType::Guest => UserType::Guest,
+//             CreateUserType::Maintainer => UserType::Maintainer,
+//             CreateUserType::Developer => UserType::Developer,
+//             CreateUserType::Agent => UserType::Agent,
+//         }
+//     }
+// }
 
 #[derive(Serialize, Deserialize, Debug, sqlx::Type, ToSchema, PartialEq)]
 #[serde(rename_all = "snake_case")]

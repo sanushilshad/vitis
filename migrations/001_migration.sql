@@ -4,9 +4,8 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
 CREATE TYPE user_type AS ENUM (
   'guest',
-  'user',
-  'member',
-  'agent',
+  'developer',
+  'maintainer',
   'superadmin',
   'admin'
 );
@@ -231,6 +230,6 @@ CREATE TABLE IF NOT EXISTS setting_value (
 ALTER TABLE setting_value ADD CONSTRAINT fk_user_id FOREIGN KEY (user_id)  REFERENCES user_account(id) ON DELETE CASCADE;
 ALTER TABLE setting_value ADD CONSTRAINT fk_project_id FOREIGN KEY (project_id) REFERENCES project_account(id) ON DELETE CASCADE;
 ALTER TABLE setting_value ADD CONSTRAINT fk_setting FOREIGN KEY (setting_id) REFERENCES setting (id) ON DELETE CASCADE;
-ALTER TABLE setting_value ADD CONSTRAINT user_project_id_uq UNIQUE (setting_id, user_id, project_id);
+ALTER TABLE setting_value ADD CONSTRAINT user_project_id_uq UNIQUE NULLS NOT DISTINCT(setting_id, user_id, project_id);
 CREATE UNIQUE INDEX IF NOT EXISTS uq_setting_project ON setting_value (setting_id, project_id) WHERE user_id IS NULL;
 
