@@ -1,0 +1,65 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        INSERT INTO auth_mechanism (id, user_id, auth_scope, auth_identifier, secret, is_active, created_on, created_by)\n        SELECT * FROM UNNEST($1::uuid[], $2::uuid[], $3::user_auth_identifier_scope[], $4::text[], $5::text[], $6::status[], $7::TIMESTAMP[], $8::text[])\n        ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "UuidArray",
+        "UuidArray",
+        {
+          "Custom": {
+            "name": "user_auth_identifier_scope[]",
+            "kind": {
+              "Array": {
+                "Custom": {
+                  "name": "user_auth_identifier_scope",
+                  "kind": {
+                    "Enum": [
+                      "otp",
+                      "password",
+                      "google",
+                      "facebook",
+                      "microsoft",
+                      "apple",
+                      "token",
+                      "auth_app",
+                      "qr",
+                      "email"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        "TextArray",
+        "TextArray",
+        {
+          "Custom": {
+            "name": "status[]",
+            "kind": {
+              "Array": {
+                "Custom": {
+                  "name": "status",
+                  "kind": {
+                    "Enum": [
+                      "active",
+                      "inactive",
+                      "pending",
+                      "archived"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        "TimestampArray",
+        "TextArray"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "356b6abb7007bac55199c65c168eb3f7144a2ce7da355c56f1fb8bfd3d0fd96e"
+}

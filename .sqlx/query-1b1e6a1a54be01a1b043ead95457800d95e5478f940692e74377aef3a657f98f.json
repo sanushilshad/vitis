@@ -1,0 +1,24 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        SELECT  p.permission_name\n        FROM project_user_relationship bur\n        INNER JOIN role_permission rp ON bur.role_id = rp.role_id\n        INNER JOIN permission p ON rp.permission_id = p.id\n        WHERE bur.user_id = $1\n          AND bur.project_id = $2\n          AND rp.is_deleted = FALSE\n          AND p.is_deleted = FALSE\n          AND p.permission_name = ANY($3::text[])\n        ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "permission_name",
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid",
+        "TextArray"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "1b1e6a1a54be01a1b043ead95457800d95e5478f940692e74377aef3a657f98f"
+}

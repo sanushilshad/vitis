@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        UPDATE user_account \n        SET is_deleted = false,\n        updated_on = $2,\n        updated_by = $3\n        WHERE id = $1\n        ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Timestamptz",
+        "Uuid"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "9bf405d9e477ac5c3b93d7f4b4e80bc30aa1c0189b9d0bb1d85dc3ab3780143a"
+}

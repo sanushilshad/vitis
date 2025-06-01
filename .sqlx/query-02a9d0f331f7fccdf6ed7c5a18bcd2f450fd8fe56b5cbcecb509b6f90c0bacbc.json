@@ -1,0 +1,20 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        INSERT INTO project_user_relationship \n        (id, user_id, project_id, role_id, verified, created_on, created_by)\n        VALUES ($1, $2, $3, $4, $5, $6, $7)\n        ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid",
+        "Uuid",
+        "Uuid",
+        "Bool",
+        "Timestamptz",
+        "Uuid"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "02a9d0f331f7fccdf6ed7c5a18bcd2f450fd8fe56b5cbcecb509b6f90c0bacbc"
+}
