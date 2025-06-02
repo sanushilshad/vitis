@@ -101,6 +101,7 @@ pub struct WebSocketParam {
     pub device_id: Option<String>,
 }
 
+#[allow(dead_code)]
 pub trait WSKeyTrait {
     fn get_ws_key(&self) -> String;
 }

@@ -54,6 +54,7 @@ async fn run(
     let application_obj = web::Data::new(configuration.application);
     let user_obj = web::Data::new(configuration.user);
     let ws_server = web::Data::new(websocket::Server::new().start());
+    let email_client = web::Data::new(configuration.email.client());
     let server = HttpServer::new(move || {
         App::new()
             //.app_data(web::JsonConfig::default().limit(1024 * 1024 * 50))
@@ -65,6 +66,8 @@ async fn run(
             .app_data(application_obj.clone())
             .app_data(user_obj.clone())
             .app_data(ws_server.clone())
+            .app_data(email_client.clone())
+            // .app_data(generic_email_client.clone())
             .configure(routes)
     })
     .workers(workers)

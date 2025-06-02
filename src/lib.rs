@@ -2,6 +2,7 @@ pub mod commands;
 mod configuration;
 mod constants;
 mod email;
+pub mod email_client;
 mod errors;
 mod handlers;
 pub mod middlewares;

@@ -1,1 +1,1 @@
-INSERT INTO setting(id, label, key, value_type,  is_deleted, created_on, created_by, is_editable) VALUES(uuid_generate_v4(), 'Time Zone', 'time_zone', 'string', false, CURRENT_TIMESTAMP,  '00000000-0000-0000-0000-000000000000', true);
+INSERT INTO setting(id, label, key, value_type,  is_deleted, created_on, created_by, is_editable, is_global, is_user, is_project) VALUES(uuid_generate_v4(), 'Time Zone', 'time_zone', 'string', false, CURRENT_TIMESTAMP,  '00000000-0000-0000-0000-000000000000', true, true, true, true);

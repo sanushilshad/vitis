@@ -85,6 +85,13 @@ export WEBSOCKET__TOKEN=""
 export WEBSOCKET__BASE_URL="http://0.0.0.0:8229"
 export WEBSOCKET__TIMEOUT_MILLISECONDS=600000
 
+## EMAIL VARIABLES
+export EMAIL__USERNAME=""
+export EMAIL__PASSWORD=""
+export EMAIL__BASE_URL=""
+export EMAIL__SENDER_EMAIL=""
+export EMAIL__TIMEOUT_MILLISECONDS=10000
+
 ```
 
 
@@ -199,7 +206,7 @@ The API Docmentation can be found at `https://{{domain}}/docs/` after running th
 * [x] Create user account reactivation API.
 * [x] Create User Setting creation API.
 * [x] Create User Setting fetch API.
-* [ ] Add restricted leave management API.
+* [ ] Add restricted leave management API.  (Ongoing)
 * [ ] Add causual leave request API.
 * [ ] Add causual leave approval API.
 * [ ] Add leave fetch API.
@@ -252,10 +259,10 @@ The API Docmentation can be found at `https://{{domain}}/docs/` after running th
 
 ## MILESTONE 6:
 * [x] Integrate Websocket.
-* [ ] Integrate Email.
+* [x] Integrate Email.
 * [ ] Integrate SMS.
 * [ ] Integrate Whatsapp.
-* [ ] Integrate Slack. (Ongoing)
+* [ ] Integrate Slack.
 * [ ] Integrate Whatsapp.
 
 ## MILESTONE 7 (OPTIONAL):

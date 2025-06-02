@@ -4,6 +4,9 @@ use sqlx::ConnectOptions;
 use sqlx::postgres::PgConnectOptions;
 use uuid::Uuid;
 
+use crate::email::EmailObject;
+use crate::email_client::SmtpEmailClient;
+
 #[derive(Debug, Deserialize, Clone)]
 pub struct DatabaseConfig {
     pub username: String,
@@ -70,9 +73,34 @@ pub struct Config {
     pub application: ApplicationConfig,
     pub secret: SecretConfig,
     pub user: UserConfig,
+    pub email: EmailClientConfig,
 }
 
 #[derive(Debug, Deserialize, Clone)]
 pub struct UserConfig {
     pub admin_list: Vec<String>,
+}
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct EmailClientConfig {
+    pub base_url: String,
+    pub username: String,
+    pub password: SecretString,
+    pub sender_email: String,
+    pub timeout_milliseconds: u64,
+}
+impl EmailClientConfig {
+    pub fn sender(&self) -> Result<EmailObject, String> {
+        EmailObject::parse(self.sender_email.to_owned())
+    }
+
+    pub fn timeout(&self) -> std::time::Duration {
+        std::time::Duration::from_millis(self.timeout_milliseconds)
+    }
+    pub fn client(&self) -> SmtpEmailClient {
+        SmtpEmailClient::new(self).expect("Failed to create SmtpEmailClient")
+    }
+    // pub fn personal_client(&self) -> SmtpEmailClient {
+    //     SmtpEmailClient::new_personal().expect("Failed to create SmtpEmailClient")
+    // }
 }

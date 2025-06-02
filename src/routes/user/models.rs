@@ -4,7 +4,7 @@ use sqlx::{FromRow, types::Json};
 use uuid::Uuid;
 
 use super::schemas::{AccountRole, AuthMechanism, AuthenticationScope, UserAccount, UserVector};
-use crate::schemas::Status;
+use crate::{email::EmailObject, schemas::Status};
 #[derive(Debug, FromRow)]
 pub struct AuthMechanismModel {
     pub id: Uuid,
@@ -56,7 +56,7 @@ impl UserAccountModel {
             id: self.id,
             mobile_no: self.mobile_no,
             username: self.username,
-            email: self.email,
+            email: EmailObject::new(self.email),
             is_active: self.is_active,
             display_name: self.display_name,
             vectors: vectors_option,
