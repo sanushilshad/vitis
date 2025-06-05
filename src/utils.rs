@@ -185,3 +185,16 @@ pub fn pascal_to_snake_case(pascal_case: &str) -> String {
 pub fn get_header_value<'a>(req: &'a ServiceRequest, header_name: &'a str) -> Option<&'a str> {
     req.headers().get(header_name).and_then(|h| h.to_str().ok())
 }
+
+pub fn to_title_case(s: &str) -> String {
+    s.split_whitespace()
+        .map(|word| {
+            let mut chars = word.chars();
+            match chars.next() {
+                Some(f) => f.to_uppercase().collect::<String>() + &chars.as_str().to_lowercase(),
+                None => String::new(),
+            }
+        })
+        .collect::<Vec<_>>()
+        .join(" ")
+}

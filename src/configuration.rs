@@ -82,12 +82,19 @@ pub struct UserConfig {
 }
 
 #[derive(Debug, Deserialize, Clone)]
+pub struct PersonalEmailClientConfig {
+    pub message_id_suffix: String,
+    pub base_url: String,
+}
+
+#[derive(Debug, Deserialize, Clone)]
 pub struct EmailClientConfig {
     pub base_url: String,
     pub username: String,
     pub password: SecretString,
     pub sender_email: String,
     pub timeout_milliseconds: u64,
+    pub personal: PersonalEmailClientConfig,
 }
 impl EmailClientConfig {
     pub fn sender(&self) -> Result<EmailObject, String> {

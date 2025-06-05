@@ -10,6 +10,7 @@ pub mod tests {
                 models::SettingModel,
                 schemas::{
                     CreateProjectSettingRequest, CreateSettingData, CreateUserSettingRequest,
+                    SettingType,
                 },
                 utils::{
                     create_project_setting, create_user_setting, fetch_setting, get_setting_value,
@@ -40,9 +41,10 @@ pub mod tests {
         let user_id = user_res.unwrap();
         let project_res = setup_project(&pool, mobile_no, "project@example.com").await;
         let project_id = project_res.unwrap();
-        let valid_settings = fetch_setting(&pool, &vec![setting_key.to_string()])
-            .await
-            .unwrap();
+        let valid_settings =
+            fetch_setting(&pool, &vec![setting_key.to_string()], SettingType::Project)
+                .await
+                .unwrap();
         let setting_map: HashMap<String, SettingModel> = valid_settings
             .into_iter()
             .map(|setting| (setting.key.to_owned(), setting))
@@ -105,9 +107,10 @@ pub mod tests {
 
         let user_id = user_res.unwrap();
 
-        let valid_settings = fetch_setting(&pool, &vec![setting_key.to_string()])
-            .await
-            .unwrap();
+        let valid_settings =
+            fetch_setting(&pool, &vec![setting_key.to_string()], SettingType::User)
+                .await
+                .unwrap();
         let setting_map: HashMap<String, SettingModel> = valid_settings
             .into_iter()
             .map(|setting| (setting.key.to_owned(), setting))

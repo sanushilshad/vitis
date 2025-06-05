@@ -10,9 +10,9 @@ use crate::routes::user::utils::get_role;
 use crate::schemas::{MaskingType, Status};
 use anyhow::Context;
 use chrono::Utc;
+use sqlx::QueryBuilder;
 use sqlx::{Execute, Executor, PgPool, Postgres, Transaction};
 use uuid::Uuid;
-
 #[tracing::instrument(name = "create user account")]
 pub fn create_vector_from_project_account(
     project_account: &CreateprojectAccount,
@@ -178,8 +178,6 @@ pub async fn fetch_project_account_models_by_user_account(
     pool: &PgPool,
     user_id: Uuid,
 ) -> Result<Vec<ProjectAccountModel>, anyhow::Error> {
-    use sqlx::QueryBuilder;
-
     let mut query_builder = QueryBuilder::new(
         r#"
         SELECT 

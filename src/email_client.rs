@@ -2,10 +2,7 @@
 use async_trait::async_trait;
 use lettre::{
     AsyncSmtpTransport, AsyncTransport, Message, Tokio1Executor,
-    message::{
-        SinglePart,
-        header::{Header, HeaderName, Headers, MessageId},
-    },
+    message::SinglePart,
     transport::smtp::{PoolConfig, authentication::Credentials},
 };
 
@@ -81,7 +78,8 @@ use crate::{configuration::EmailClientConfig, email::EmailObject};
 pub trait GenericEmailService: Send + Sync {
     async fn send_text_email(
         &self,
-        to: &str,
+        to: &EmailObject,
+        cc: &Option<Vec<EmailObject>>,
         subject: &str,
         body: String,
         message_id: Option<String>,
@@ -90,9 +88,12 @@ pub trait GenericEmailService: Send + Sync {
 
     async fn send_html_email(
         &self,
-        to: &str,
+        to: &EmailObject,
+        cc: &Option<Vec<EmailObject>>,
         subject: &str,
         body: String,
+        message_id: Option<String>,
+        in_reply_to: Option<String>,
     ) -> Result<(), Box<dyn std::error::Error>>;
 }
 
@@ -105,7 +106,8 @@ pub struct SmtpEmailClient {
 impl GenericEmailService for DummyEmailClient {
     async fn send_text_email(
         &self,
-        _to: &str,
+        _to: &EmailObject,
+        _cc: &Option<Vec<EmailObject>>,
         _subject: &str,
         _body: String,
         _message_id: Option<String>,
@@ -116,9 +118,12 @@ impl GenericEmailService for DummyEmailClient {
 
     async fn send_html_email(
         &self,
-        _to: &str,
+        _to: &EmailObject,
+        _cc: &Option<Vec<EmailObject>>,
         _subject: &str,
         _body: String,
+        _message_id: Option<String>,
+        _in_reply_to: Option<String>,
     ) -> Result<(), Box<dyn std::error::Error>> {
         Ok(())
     }
@@ -128,7 +133,7 @@ impl SmtpEmailClient {
     #[tracing::instrument]
     // pub fn new(email_config: &EmailClientConfig) -> Result<Self, Box<dyn std::error::Error>> {
     pub fn new_personal(
-        sender: EmailObject,
+        sender: &EmailObject,
         key: SecretString,
         base_url: &str,
     ) -> Result<Self, Box<dyn std::error::Error>> {
@@ -142,6 +147,10 @@ impl SmtpEmailClient {
 
         tracing::info!("SMTP connection created succuessfully");
         Ok(Self { sender, mailer })
+    }
+
+    pub fn generate_message_id(&self, domain: &str) -> String {
+        format!("<{}@{}>", Uuid::new_v4(), domain)
     }
 
     #[tracing::instrument]
@@ -174,24 +183,23 @@ impl SmtpEmailClient {
 impl GenericEmailService for SmtpEmailClient {
     async fn send_text_email(
         &self,
-        to: &str,
+        to: &EmailObject,
+        cc: &Option<Vec<EmailObject>>,
         subject: &str,
         body: String,
         message_id: Option<String>,
         in_reply_to: Option<String>,
     ) -> Result<(), Box<dyn std::error::Error>> {
         tracing::info!("SMTP Parameters: {:?}", self.mailer);
-        // let generated_id = format!("<{}@example.com>", Uuid::new_v4());
-        // let message_id: MessageId = generated_id.parse().expect("Invalid Message-ID format");
         let mut builder = Message::builder()
             .from(self.sender.as_ref().parse()?)
-            .to(to.parse()?)
-            // .header(Headers::new(
-            //     HeaderName::new("Message-ID"),
-            //     "1911421".clone(),
-            // )).
+            .to(to.get().parse()?)
             .message_id(message_id);
-
+        if let Some(cc_list) = cc {
+            for cc_email in cc_list {
+                builder = builder.cc(cc_email.get().parse()?);
+            }
+        }
         if let Some(mid) = &in_reply_to {
             builder = builder
                 .in_reply_to(mid.to_owned())
@@ -208,18 +216,33 @@ impl GenericEmailService for SmtpEmailClient {
     async fn send_html_email(
         &self,
         // mailer: &AsyncSmtpTransport<Tokio1Executor>,
-        to: &str,
+        to: &EmailObject,
+        cc: &Option<Vec<EmailObject>>,
         subject: &str,
-        _body: String,
+        body: String,
+        message_id: Option<String>,
+        in_reply_to: Option<String>,
     ) -> Result<(), Box<dyn std::error::Error>> {
         tracing::info!("SMTP Parameters: {:?}", self.mailer);
-        let email = Message::builder()
+        let mut builder = Message::builder()
             .from(self.sender.as_ref().parse()?)
-            .to(to.parse()?)
+            .to(to.get().parse()?)
+            .message_id(message_id);
+
+        if let Some(cc_list) = cc {
+            for cc_email in cc_list {
+                builder = builder.cc(cc_email.get().parse()?);
+            }
+        }
+        if let Some(mid) = &in_reply_to {
+            builder = builder
+                .in_reply_to(mid.to_owned())
+                .references(mid.to_owned());
+        };
+
+        let email = builder
             .subject(subject)
-            .singlepart(SinglePart::html(String::from(
-                "<p><b>Hello</b>, <i>Grape</i>! <img src=cid:123></p>",
-            )))?;
+            .singlepart(SinglePart::html(body))?;
 
         tracing::info!("Sending HTML Email");
         self.mailer.send(email).await?;

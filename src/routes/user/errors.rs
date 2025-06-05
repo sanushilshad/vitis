@@ -46,12 +46,12 @@ impl From<UserRegistrationError> for GenericError {
 }
 
 #[derive(thiserror::Error)]
+#[allow(dead_code)]
 pub enum AuthError {
     #[error("{0}")]
     InvalidCredentials(String),
     #[error(transparent)]
     UnexpectedError(#[from] anyhow::Error),
-
     #[error("{0}")]
     UnexpectedCustomError(String),
     #[error("{0}")]

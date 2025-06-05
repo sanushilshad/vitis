@@ -193,6 +193,7 @@ CREATE TABLE IF NOT EXISTS setting (
   id uuid PRIMARY KEY,
   label TEXT NOT NULL,
   key TEXT NOT NULL,
+  description TEXT,
   enum_id uuid,
   is_editable BOOLEAN NOT NULL DEFAULT true,
   value_type TEXT NOT NULL,
@@ -237,7 +238,48 @@ ALTER TABLE setting_value ADD CONSTRAINT user_project_id_uq UNIQUE NULLS NOT DIS
 CREATE UNIQUE INDEX IF NOT EXISTS uq_setting_project ON setting_value (setting_id, project_id) WHERE user_id IS NULL;
 
 
+CREATE TYPE leave_status AS ENUM (
+  'approved',
+  'rejected',
+  'cancelled',
+  'requested'
+);
 
 
-CREATE TABLE IF NOT EXISTS 
 
+
+CREATE TYPE leave_period AS ENUM (
+  'half_day',
+  'full_day'
+);
+
+CREATE TYPE leave_type AS ENUM (
+  'medical',
+  'casual',
+  'restricted',
+  'common'
+);
+
+
+CREATE TABLE IF NOT EXISTS leave (
+  id uuid PRIMARY KEY,
+  user_id uuid NOT NULL,
+  status leave_status NOT NULL,
+  type leave_type NOT NULL,
+  period leave_period NOT NULL,
+  date TIMESTAMPTZ NOT NULL,
+  reason TEXT,
+  created_on TIMESTAMPTZ NOT NULL,
+  updated_on TIMESTAMPTZ,
+  deleted_on TIMESTAMPTZ,
+  created_by uuid NOT NULL,
+  updated_by uuid,
+  deleted_by uuid,
+  email_message_id TEXT,
+  is_deleted BOOLEAN NOT NULL DEFAULT false
+);
+
+ALTER TABLE leave ADD CONSTRAINT leave_uq UNIQUE (user_id, period, date);
+ALTER TABLE leave ADD CONSTRAINT fk_user_id FOREIGN KEY (user_id)  REFERENCES user_account(id) ON DELETE CASCADE;
+CREATE INDEX leave_user_idx ON leave (user_id);
+CREATE INDEX leave_created_on_idx ON leave (created_on);

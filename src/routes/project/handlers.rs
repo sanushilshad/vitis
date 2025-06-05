@@ -94,7 +94,7 @@ pub async fn fetch_project_req(
 ) -> Result<web::Json<GenericResponse<ProjectAccount>>, GenericError> {
     let project_account = get_project_account(&db_pool, user_account.id, body.id)
         .await
-        .map_err(GenericError::UnexpectedError)?
+        .map_err(|e| GenericError::DatabaseError(e.to_string(), e))?
         .ok_or_else(|| {
             GenericError::ValidationError("project account does not exist.".to_string())
         })?;
@@ -188,7 +188,7 @@ pub async fn list_project_req(
     } else {
         get_basic_project_accounts(&db_pool).await
     }
-    .map_err(GenericError::UnexpectedError)?;
+    .map_err(|e| GenericError::DatabaseError(e.to_string(), e))?;
     Ok(web::Json(GenericResponse::success(
         "Sucessfully fetched all associated project accounts.",
         project_obj,
@@ -235,17 +235,16 @@ pub async fn user_project_association_req(
 
     let (role_obj_res, assocated_user_res) = tokio::join!(role_obj_task, assocated_user_task);
 
-    let assocated_user = assocated_user_res.map_err(|_| {
-        GenericError::UnexpectedCustomError(
+    let assocated_user = assocated_user_res.map_err(|e| {
+        GenericError::DatabaseError(
             "Something went wrong while fetching existing user-project association".to_owned(),
+            e,
         )
     })?;
 
     let role_obj = role_obj_res
-        .map_err(|_| {
-            GenericError::UnexpectedCustomError(
-                "Something went wrong while fetching role".to_string(),
-            )
+        .map_err(|e| {
+            GenericError::DatabaseError("Something went wrong while fetching role".to_string(), e)
         })?
         .ok_or_else(|| GenericError::ValidationError("role does not exist.".to_string()))?;
 
@@ -254,7 +253,7 @@ pub async fn user_project_association_req(
             "User already associated with project".to_owned(),
         ));
     }
-    let _ = associate_user_to_project(
+    associate_user_to_project(
         &db_pool,
         req.user_id,
         project_account.id,

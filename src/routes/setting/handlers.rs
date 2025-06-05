@@ -13,6 +13,7 @@ use super::{
     models::SettingModel,
     schemas::{
         CreateProjectSettingRequest, CreateUserSettingRequest, FetchSettingRequest, SettingData,
+        SettingType,
     },
     utils::{create_project_setting, create_user_setting, fetch_setting, get_setting_value},
 };
@@ -47,7 +48,7 @@ pub async fn create_project_config_req(
     project_account: ProjectAccount,
 ) -> Result<web::Json<GenericResponse<()>>, GenericError> {
     let key_list: Vec<String> = body.settings.iter().map(|a| a.key.to_owned()).collect();
-    let valid_settings = fetch_setting(&pool, &key_list)
+    let valid_settings = fetch_setting(&pool, &key_list, SettingType::Project)
         .await
         .map_err(|e| GenericError::DatabaseError(e.to_string(), e))?;
     let setting_map: HashMap<String, SettingModel> = valid_settings
@@ -109,7 +110,7 @@ pub async fn create_user_config_req(
     user: UserAccount,
 ) -> Result<web::Json<GenericResponse<()>>, GenericError> {
     let key_list: Vec<String> = body.settings.iter().map(|a| a.key.to_owned()).collect();
-    let valid_settings = fetch_setting(&pool, &key_list)
+    let valid_settings = fetch_setting(&pool, &key_list, SettingType::User)
         .await
         .map_err(|e| GenericError::DatabaseError(e.to_string(), e))?;
     let setting_map: HashMap<String, SettingModel> = valid_settings

@@ -9,7 +9,7 @@ use crate::{
 };
 
 use super::{
-    errors::{AuthError, UserRegistrationError},
+    errors::UserRegistrationError,
     schemas::{
         AuthData, AuthenticateRequest, AuthenticationScope, CreateUserAccount, RoleType,
         SendOTPRequest, UserAccount, VectorType,
@@ -127,13 +127,7 @@ pub async fn authenticate_req(
                 "Please Verify your mobile no".to_string(),
             ));
         } else {
-            update_user_verification_status(&pool, VectorType::MobileNo, user_id, true)
-                .await
-                .map_err(|_| {
-                    AuthError::UnexpectedCustomError(
-                        "Something went wrong while updating user data".to_string(),
-                    )
-                })?;
+            update_user_verification_status(&pool, VectorType::MobileNo, user_id, true).await?;
         }
     }
 
@@ -202,9 +196,10 @@ pub async fn send_otp_req(
 ) -> Result<web::Json<GenericResponse<()>>, GenericError> {
     let credential = get_stored_credentials(&req.mobile_no, &AuthenticationScope::Otp, &pool)
         .await
-        .map_err(|_| {
-            GenericError::UnexpectedCustomError(
+        .map_err(|e| {
+            GenericError::DatabaseError(
                 "Something went wrong while fetching auth details".to_string(),
+                e,
             )
         })?
         .ok_or_else(|| GenericError::UnexpectedCustomError("User not found".to_string()))?;
@@ -267,7 +262,7 @@ pub async fn delete_user(
             .await
             .map_err(|e| {
                 tracing::error!("Soft delete failed: {:?}", e);
-                GenericError::UnexpectedCustomError("Failed to soft delete user".to_string())
+                GenericError::DatabaseError("Failed to soft delete user".to_string(), e)
             })?;
         }
         DeleteType::Hard => {
@@ -275,7 +270,7 @@ pub async fn delete_user(
                 .await
                 .map_err(|e| {
                     tracing::error!("Hard delete failed: {:?}", e);
-                    GenericError::UnexpectedCustomError("Failed to hard delete user".to_string())
+                    GenericError::DatabaseError("Failed to hard delete user".to_string(), e)
                 })?;
         }
     }
@@ -311,16 +306,16 @@ pub async fn reactivate_user_req(
     pool: web::Data<PgPool>,
     user_account: UserAccount,
 ) -> Result<web::Json<GenericResponse<()>>, GenericError> {
-    if user_account.is_deleted == false {
+    if !user_account.is_deleted {
         return Err(GenericError::ValidationError(
             "User is not deleted".to_string(),
         ));
     }
-    let _ = reactivate_user_account(&pool, user_account.id, user_account.id)
+    reactivate_user_account(&pool, user_account.id, user_account.id)
         .await
         .map_err(|e| {
             tracing::error!("Soft delete failed: {:?}", e);
-            GenericError::UnexpectedCustomError("Failed to reactivate deleted user".to_string())
+            GenericError::DatabaseError("Failed to reactivate deleted user".to_string(), e)
         })?;
     Ok(web::Json(GenericResponse::success(
         "Successfully reactivated user.",

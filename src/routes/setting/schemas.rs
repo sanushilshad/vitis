@@ -1,3 +1,5 @@
+use std::fmt;
+
 use crate::errors::GenericError;
 use actix_http::Payload;
 use actix_web::{FromRequest, HttpRequest, web};
@@ -78,6 +80,32 @@ pub struct Settings {
     pub project_level: Vec<Setting>,
 }
 
+impl Settings {
+    pub fn compute_setting(&self) -> Option<String> {
+        if !self.user_level.is_empty() {
+            return self.user_level.first().map(|obj| obj.value.to_owned());
+        }
+        if !self.project_level.is_empty() {
+            return self.project_level.first().map(|obj| obj.value.to_owned());
+        }
+        if !self.global_level.is_empty() {
+            return self.global_level.first().map(|obj| obj.value.to_owned());
+        }
+        None
+    }
+}
+
+pub trait SettingsExt {
+    fn get_setting(&self, key: &str) -> Option<String>;
+}
+
+impl SettingsExt for Vec<Settings> {
+    fn get_setting(&self, key: &str) -> Option<String> {
+        self.iter()
+            .find(|setting| setting.key == key)
+            .and_then(|setting| setting.compute_setting())
+    }
+}
 #[derive(Serialize, Debug, ToSchema)]
 pub struct SettingData {
     pub settings: Vec<Settings>,
@@ -102,5 +130,50 @@ impl FromRequest for CreateUserSettingRequest {
                 Err(e) => Err(GenericError::ValidationError(e.to_string())),
             }
         })
+    }
+}
+
+#[derive(Deserialize, Debug, ToSchema, PartialEq)]
+pub enum SettingType {
+    // Global,
+    User,
+    Project,
+}
+
+impl SettingType {
+    // pub fn as_str(&self) -> &str {
+    //     match self {
+    //         // SettingType::Global => "global",
+    //         SettingType::User => "user",
+    //         SettingType::Project => "project",
+    //     }
+    // }
+}
+
+#[derive(Serialize, Debug)]
+pub enum SettingKey {
+    EmailAppPassword,
+    TotalCommonLeaveCount,
+    TotalRestrictedLeaveCount,
+    TotalMedicalLeaveCount,
+    TotalCasualLeaveCount,
+    FinancialYearStart, // TimeZone,
+
+    LeaveRequestTemplate,
+}
+
+impl fmt::Display for SettingKey {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let display_str = match self {
+            SettingKey::EmailAppPassword => "email_app_password",
+            SettingKey::TotalCommonLeaveCount => "total_common_leave_count",
+            SettingKey::TotalRestrictedLeaveCount => "total_restricted_leave_count",
+            SettingKey::TotalMedicalLeaveCount => "total_medical_leave_count",
+            SettingKey::TotalCasualLeaveCount => "total_casual_leave_count",
+            SettingKey::FinancialYearStart => "financial_year_start",
+            SettingKey::LeaveRequestTemplate => "leave_request_template",
+            // SettingKey::TimeZone => "time_zone",
+        };
+        write!(f, "{}", display_str)
     }
 }

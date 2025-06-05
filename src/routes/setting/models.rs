@@ -14,7 +14,7 @@ pub struct BulkSettingCreateModel {
     pub created_by_list: Vec<Uuid>,
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Debug, FromRow)]
 pub struct SettingModel {
     pub id: Uuid,
     pub key: String,

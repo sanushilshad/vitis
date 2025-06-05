@@ -3,7 +3,8 @@ use std::collections::HashMap;
 use super::{
     models::{BulkSettingCreateModel, SettingModel, SettingValueModel},
     schemas::{
-        CreateProjectSettingRequest, CreateSettingData, CreateUserSettingRequest, Setting, Settings,
+        CreateProjectSettingRequest, CreateSettingData, CreateUserSettingRequest, Setting,
+        SettingType, Settings,
     },
 };
 use chrono::DateTime;
@@ -14,28 +15,53 @@ use uuid::Uuid;
 pub async fn fetch_setting(
     pool: &PgPool,
     key_list: &Vec<String>,
+    r#type: SettingType,
 ) -> Result<Vec<SettingModel>, anyhow::Error> {
-    let rows: Vec<SettingModel> = sqlx::query_as!(
-        SettingModel,
+    // let rows: Vec<SettingModel> = sqlx::query_as!(
+    //     SettingModel,
+    //     r#"
+    //     SELECT id, key, is_editable
+    //     FROM setting
+    //     WHERE key = ANY($1) AND is_deleted=false
+    //     "#,
+    //     key_list
+    // )
+    // .fetch_all(pool)
+    // .await
+    // .map_err(|e| {
+    //     tracing::error!("Failed to execute query: {:?}", e);
+    //     anyhow::Error::new(e).context("A database failure occurred while fetching setting")
+    // })?;
+
+    let mut query_builder = QueryBuilder::new(
         r#"
         SELECT id, key, is_editable
         FROM setting
-        WHERE key = ANY($1) AND is_deleted=false
+        WHERE is_deleted = false
         "#,
-        key_list
-    )
-    .fetch_all(pool)
-    .await
-    .map_err(|e| {
-        tracing::error!("Failed to execute query: {:?}", e);
-        anyhow::Error::new(e).context("A database failure occurred while fetching setting")
-    })?;
+    );
 
+    query_builder.push(" AND key = ANY(");
+    query_builder.push_bind(key_list);
+    query_builder.push(")");
+
+    match r#type {
+        SettingType::Project => {
+            query_builder.push(" AND is_project = true");
+        }
+        SettingType::User => {
+            query_builder.push(" AND is_user = true");
+        }
+    }
+
+    let query = query_builder.build_query_as::<SettingModel>();
+
+    let rows = query.fetch_all(pool).await?;
     Ok(rows)
 }
 
 fn get_setting_bulk_insert_data(
-    settings: &Vec<CreateSettingData>,
+    settings: &[CreateSettingData],
     user_id: Option<Uuid>,
     created_by: Uuid,
     project_account_id: Option<Uuid>,
@@ -195,7 +221,7 @@ async fn fetch_setting_value_model(
     Ok(rows)
 }
 
-fn get_setting_value_from_model(data_models: Vec<SettingValueModel>) -> Vec<Settings> {
+pub fn get_setting_value_from_model(data_models: Vec<SettingValueModel>) -> Vec<Settings> {
     let mut settings_map: HashMap<String, Settings> = HashMap::new();
 
     for model in data_models.into_iter() {

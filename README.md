@@ -206,9 +206,8 @@ The API Docmentation can be found at `https://{{domain}}/docs/` after running th
 * [x] Create user account reactivation API.
 * [x] Create User Setting creation API.
 * [x] Create User Setting fetch API.
-* [ ] Add restricted leave management API.  (Ongoing)
-* [ ] Add causual leave request API.
-* [ ] Add causual leave approval API.
+* [x] Add leave request management API.  
+* [ ] Add causual leave approval API. (Ongoing)
 * [ ] Add leave fetch API.
 * [ ] Add leave deletion API.
 * [ ] Add leave edit API.

@@ -4,6 +4,7 @@ use crate::route::routes;
 use crate::websocket;
 use actix::Actor;
 use actix_cors::Cors;
+use actix_files::Files;
 use actix_web::dev::Server;
 use actix_web::{App, HttpServer, web};
 use sqlx::postgres::{PgPool, PgPoolOptions};
@@ -55,9 +56,11 @@ async fn run(
     let user_obj = web::Data::new(configuration.user);
     let ws_server = web::Data::new(websocket::Server::new().start());
     let email_client = web::Data::new(configuration.email.client());
+    let email_config = web::Data::new(configuration.email);
     let server = HttpServer::new(move || {
         App::new()
             //.app_data(web::JsonConfig::default().limit(1024 * 1024 * 50))
+            .service(Files::new("/static", "static").show_files_listing())
             .wrap(SaveRequestResponse)
             .wrap(Cors::permissive())
             .wrap(TracingLogger::default())
@@ -67,7 +70,7 @@ async fn run(
             .app_data(user_obj.clone())
             .app_data(ws_server.clone())
             .app_data(email_client.clone())
-            // .app_data(generic_email_client.clone())
+            .app_data(email_config.clone())
             .configure(routes)
     })
     .workers(workers)

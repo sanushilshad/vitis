@@ -19,6 +19,14 @@ impl EmailObject {
     pub fn get(&self) -> &str {
         &self.0
     }
+
+    pub fn get_domain(&self) -> Result<&str, String> {
+        if let Some(domain) = self.0.split('@').nth(1) {
+            Ok(domain)
+        } else {
+            Err(format!("{} does not contain a valid domain.", self.0))
+        }
+    }
     #[allow(dead_code)]
     pub fn new(email: String) -> Self {
         EmailObject(email)
