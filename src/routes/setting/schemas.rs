@@ -160,6 +160,7 @@ pub enum SettingKey {
     FinancialYearStart, // TimeZone,
 
     LeaveRequestTemplate,
+    LeaveStatusUpdateTemplate,
 }
 
 impl fmt::Display for SettingKey {
@@ -172,6 +173,7 @@ impl fmt::Display for SettingKey {
             SettingKey::TotalCasualLeaveCount => "total_casual_leave_count",
             SettingKey::FinancialYearStart => "financial_year_start",
             SettingKey::LeaveRequestTemplate => "leave_request_template",
+            SettingKey::LeaveStatusUpdateTemplate => "leave_status_update_template",
             // SettingKey::TimeZone => "time_zone",
         };
         write!(f, "{}", display_str)

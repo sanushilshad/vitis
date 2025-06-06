@@ -98,6 +98,14 @@ pub enum PermissionType {
     CreateSetting,
     #[serde(rename = "associate:user-project")]
     AssociateUserProject,
+    #[serde(rename = "create:leave-request:self")]
+    CreateLeaveRequestSelf,
+    #[serde(rename = "create:leave-request")]
+    CreateLeaveRequest,
+    #[serde(rename = "approve:leave-request")]
+    ApproveLeaveRequest,
+    #[serde(rename = "update:leave-request-status")]
+    UpdateLeaveRequestStatus,
 }
 
 impl fmt::Display for PermissionType {
@@ -105,6 +113,10 @@ impl fmt::Display for PermissionType {
         let display_str = match self {
             PermissionType::CreateSetting => "create:setting",
             PermissionType::AssociateUserProject => "associate:user-project",
+            PermissionType::CreateLeaveRequestSelf => "create:leave-request:self",
+            PermissionType::CreateLeaveRequest => "create:leave-request",
+            PermissionType::ApproveLeaveRequest => "approve:leave-request",
+            PermissionType::UpdateLeaveRequestStatus => "update:leave-request-status",
         };
         write!(f, "{}", display_str)
     }

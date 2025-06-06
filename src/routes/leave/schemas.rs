@@ -6,9 +6,9 @@ use actix_web::{FromRequest, HttpRequest, web};
 use chrono::{DateTime, Utc};
 use futures::future::LocalBoxFuture;
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 use utoipa::ToSchema;
 use uuid::Uuid;
-
 #[derive(Serialize, Deserialize, Debug, ToSchema, sqlx::Type)]
 #[sqlx(type_name = "leave_type", rename_all = "snake_case")]
 #[serde(rename_all = "snake_case")]
@@ -57,8 +57,9 @@ pub struct CreateLeaveData {
     pub date: chrono::NaiveDate,
 }
 
-#[derive(Serialize, Deserialize, Debug, sqlx::Type)]
+#[derive(Serialize, Deserialize, Debug, sqlx::Type, ToSchema, PartialEq)]
 #[sqlx(type_name = "leave_status", rename_all = "snake_case")]
+#[serde(rename_all = "snake_case")]
 pub enum LeaveStatus {
     Approved,
     Rejected,
@@ -97,7 +98,8 @@ impl FromRequest for CreateLeaveRequest {
 #[derive(Debug)]
 pub struct BulkLeaveRequestInsert<'a> {
     pub id: Vec<Uuid>,
-    pub user_id_list: Vec<Uuid>,
+    pub sender_id: Vec<Uuid>,
+    pub receiver_id: Vec<Uuid>,
     pub created_on: Vec<DateTime<Utc>>,
     pub created_by: Vec<Uuid>,
     pub leave_type: Vec<&'a LeaveType>,
@@ -106,6 +108,7 @@ pub struct BulkLeaveRequestInsert<'a> {
     pub status: Vec<LeaveStatus>,
     pub reason: Vec<Option<&'a str>>,
     pub email_message_id: Vec<Option<&'a str>>,
+    pub cc: Vec<Option<Value>>,
 }
 
 #[derive(Serialize)]
@@ -114,15 +117,88 @@ pub struct LeaveRequestEmailContext<'a> {
     dates: Vec<String>,
     reason: &'a str,
     receiver: &'a str,
+    r#type: &'a LeaveType,
 }
 
 impl<'a> LeaveRequestEmailContext<'a> {
-    pub fn new(name: &'a str, dates: Vec<String>, reason: &'a str, receiver: &'a str) -> Self {
+    pub fn new(
+        name: &'a str,
+        dates: Vec<String>,
+        reason: &'a str,
+        receiver: &'a str,
+        r#type: &'a LeaveType,
+    ) -> Self {
         Self {
             name,
             dates,
             reason,
             receiver,
+            r#type,
+        }
+    }
+}
+
+#[derive(Deserialize, Debug, ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct UpdateLeaveStatusRequest {
+    #[schema(value_type = String)]
+    pub id: Uuid,
+    pub status: LeaveStatus,
+}
+
+impl FromRequest for UpdateLeaveStatusRequest {
+    type Error = GenericError;
+    type Future = LocalBoxFuture<'static, Result<Self, Self::Error>>;
+
+    fn from_request(req: &HttpRequest, payload: &mut Payload) -> Self::Future {
+        let fut = web::Json::<Self>::from_request(req, payload);
+
+        Box::pin(async move {
+            match fut.await {
+                Ok(json) => Ok(json.into_inner()),
+                Err(e) => Err(GenericError::ValidationError(e.to_string())),
+            }
+        })
+    }
+}
+
+#[derive(Deserialize, Debug, ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct LeaveData {
+    #[schema(value_type = String)]
+    pub id: Uuid,
+    pub r#type: LeaveType,
+    pub period: LeavePeriod,
+    pub date: DateTime<Utc>,
+    pub reason: Option<String>,
+    pub status: LeaveStatus,
+    #[schema(value_type = String)]
+    pub sender_id: Uuid,
+    pub email_message_id: Option<String>,
+    pub cc: Option<Vec<EmailObject>>,
+    pub is_deleted: bool,
+}
+
+#[derive(Serialize)]
+pub struct LeaveRequestStatusEmailContext<'a> {
+    name: &'a str,
+    receiver: &'a str,
+    status: &'a LeaveStatus,
+    pub date: &'a DateTime<Utc>,
+}
+
+impl<'a> LeaveRequestStatusEmailContext<'a> {
+    pub fn new(
+        name: &'a str,
+        receiver: &'a str,
+        status: &'a LeaveStatus,
+        date: &'a DateTime<Utc>,
+    ) -> Self {
+        Self {
+            name,
+            receiver,
+            status,
+            date,
         }
     }
 }

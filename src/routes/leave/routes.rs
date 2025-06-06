@@ -1,8 +1,30 @@
 use actix_web::web;
 
-use super::handlers::create_leave_req;
+use crate::{middlewares::UserPermissionValidation, routes::project::schemas::PermissionType};
+
+use super::handlers::{create_leave_req, update_leave_status_req};
 
 pub fn leave_routes(cfg: &mut web::ServiceConfig) {
-    cfg.route("/create", web::post().to(create_leave_req));
-    cfg.route("/delete", web::delete().to(create_leave_req));
+    cfg.route(
+        "/create",
+        web::post()
+            .to(create_leave_req)
+            .wrap(UserPermissionValidation {
+                permission_list: vec![
+                    PermissionType::CreateLeaveRequestSelf.to_string(),
+                    PermissionType::CreateLeaveRequest.to_string(),
+                ],
+            }),
+    );
+    cfg.route(
+        "/status/update",
+        web::patch()
+            .to(update_leave_status_req)
+            .wrap(UserPermissionValidation {
+                permission_list: vec![
+                    PermissionType::ApproveLeaveRequest.to_string(),
+                    PermissionType::UpdateLeaveRequestStatus.to_string(), // PermissionType::CreateLeaveRequest.to_string(),
+                ],
+            }),
+    );
 }

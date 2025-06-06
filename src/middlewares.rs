@@ -3,9 +3,9 @@ use crate::errors::GenericError;
 use crate::routes::project::schemas::{AllowedPermission, ProjectAccount};
 use crate::routes::project::utils::{
     fetch_project_account_model_by_id, get_project_account, validate_project_account_active,
-    validate_user_project_permission,
+    validate_user_permission, validate_user_project_permission,
 };
-use crate::routes::user::schemas::{UserAccount, RoleType};
+use crate::routes::user::schemas::{RoleType, UserAccount};
 use crate::routes::user::utils::get_user;
 use crate::schemas::{RequestMetaData, Status};
 use crate::utils::{decode_token, get_header_value};
@@ -452,6 +452,91 @@ where
     fn new_transform(&self, service: S) -> Self::Future {
         // Wrap the AuthMiddleware instance in a Result and return it.
         ready(Ok(ProjectPermissionMiddleware {
+            service: Rc::new(service),
+            permission_list: self.permission_list.clone(),
+        }))
+    }
+}
+
+pub struct UserPermissionMiddleware<S> {
+    service: Rc<S>,
+    pub permission_list: Vec<String>,
+}
+impl<S> Service<ServiceRequest> for UserPermissionMiddleware<S>
+where
+    S: Service<ServiceRequest, Response = ServiceResponse<actix_web::body::BoxBody>, Error = Error>
+        + 'static,
+{
+    type Response = ServiceResponse<actix_web::body::BoxBody>;
+    type Error = Error;
+    type Future = LocalBoxFuture<'static, Result<Self::Response, Error>>;
+
+    forward_ready!(service);
+
+    /// Handles incoming requests.
+    fn call(&self, req: ServiceRequest) -> Self::Future {
+        let srv = Rc::clone(&self.service);
+
+        let permission_list = self.permission_list.clone();
+
+        Box::pin(async move {
+            let db_pool = req.app_data::<web::Data<PgPool>>().unwrap();
+            let user_account = req
+                .extensions()
+                .get::<UserAccount>()
+                .ok_or_else(|| {
+                    GenericError::ValidationError("User Account doesn't exist".to_string())
+                })?
+                .to_owned();
+
+            let permission_list =
+                validate_user_permission(db_pool, user_account.id, &permission_list)
+                    .await
+                    .map_err(|e| {
+                        GenericError::DatabaseError(
+                            "Something went wrong while fetching user permission".to_owned(),
+                            e,
+                        )
+                    })?;
+            if permission_list.is_empty() {
+                let (request, _pl) = req.into_parts();
+                return Ok(ServiceResponse::from_err(
+                    GenericError::InsufficientPrevilegeError(
+                        "User doesn't have sufficient permission for the given action".to_owned(),
+                    ),
+                    request,
+                ));
+            }
+
+            req.extensions_mut()
+                .insert::<AllowedPermission>(AllowedPermission { permission_list });
+
+            let res = srv.call(req).await?;
+            Ok(res)
+        })
+    }
+}
+
+// Middleware factory for project account validation.
+pub struct UserPermissionValidation {
+    pub permission_list: Vec<String>,
+}
+
+impl<S> Transform<S, ServiceRequest> for UserPermissionValidation
+where
+    S: Service<ServiceRequest, Response = ServiceResponse<actix_web::body::BoxBody>, Error = Error>
+        + 'static,
+{
+    type Response = ServiceResponse<actix_web::body::BoxBody>;
+    type Error = Error;
+    type Transform = UserPermissionMiddleware<S>;
+    type InitError = ();
+    type Future = Ready<Result<Self::Transform, Self::InitError>>;
+
+    /// Creates and returns a new AuthMiddleware wrapped in a Result.
+    fn new_transform(&self, service: S) -> Self::Future {
+        // Wrap the AuthMiddleware instance in a Result and return it.
+        ready(Ok(UserPermissionMiddleware {
             service: Rc::new(service),
             permission_list: self.permission_list.clone(),
         }))

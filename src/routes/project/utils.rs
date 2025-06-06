@@ -387,3 +387,33 @@ pub async fn associate_user_to_project(
     })?;
     Ok(())
 }
+
+pub async fn validate_user_permission(
+    pool: &PgPool,
+    user_id: Uuid,
+    action_list: &Vec<String>,
+) -> Result<Vec<String>, anyhow::Error> {
+    let permission_list = sqlx::query_scalar!(
+        r#"
+        SELECT  p.permission_name
+        FROM user_role bur
+        INNER JOIN role_permission rp ON bur.role_id = rp.role_id
+        INNER JOIN permission p ON rp.permission_id = p.id
+        WHERE bur.user_id = $1
+          AND rp.is_deleted = FALSE
+          AND p.is_deleted = FALSE
+          AND p.permission_name = ANY($2::text[])
+        "#,
+        user_id,
+        action_list
+    )
+    .fetch_all(pool)
+    .await
+    .map_err(|e| {
+        tracing::error!("Failed to execute query: {:?}", e);
+        anyhow::Error::new(e)
+            .context("A database failure occurred while fetching permission to database")
+    })?;
+
+    Ok(permission_list)
+}

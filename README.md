@@ -207,16 +207,15 @@ The API Docmentation can be found at `https://{{domain}}/docs/` after running th
 * [x] Create User Setting creation API.
 * [x] Create User Setting fetch API.
 * [x] Add leave request management API.  
-* [ ] Add causual leave approval API. (Ongoing)
+* [x] Add causual leave approval API. 
 * [ ] Add leave fetch API.
-* [ ] Add leave deletion API.
-* [ ] Add leave edit API.
+* [ ] Add leave deletion API. (Ongoing)
 * [ ] Add auto-slack alert notification.
 * [ ] Fetch All Minimal User Account API.
 * [ ] Fetch allowed Setting detail API for user.
 * [ ] Create User Setting edit API.
 * [ ] Create user account edit API.
-
+* [ ] Add websocket notification to all APIs
 
 ## MILESTONE 2 (PROJECT MANAGEMENT):
 * [x] Create project creation API.

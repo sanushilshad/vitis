@@ -223,10 +223,10 @@ CREATE TABLE IF NOT EXISTS setting_value (
   file_path TEXT,
   template TEXT,
   is_deleted BOOLEAN NOT NULL DEFAULT false,
-  created_on TIMESTAMPTZ,
+  created_on TIMESTAMPTZ NOT NULL,
   updated_on TIMESTAMPTZ,
   deleted_on TIMESTAMPTZ,
-  created_by TEXT,
+  created_by TEXT NOT NULL,
   updated_by TEXT,
   deleted_by TEXT
 );
@@ -263,7 +263,8 @@ CREATE TYPE leave_type AS ENUM (
 
 CREATE TABLE IF NOT EXISTS leave (
   id uuid PRIMARY KEY,
-  user_id uuid NOT NULL,
+  sender_id uuid NOT NULL,
+  receiver_id uuid NOT NULL,
   status leave_status NOT NULL,
   type leave_type NOT NULL,
   period leave_period NOT NULL,
@@ -276,10 +277,11 @@ CREATE TABLE IF NOT EXISTS leave (
   updated_by uuid,
   deleted_by uuid,
   email_message_id TEXT,
+  cc JSONB,
   is_deleted BOOLEAN NOT NULL DEFAULT false
 );
 
-ALTER TABLE leave ADD CONSTRAINT leave_uq UNIQUE (user_id, period, date);
-ALTER TABLE leave ADD CONSTRAINT fk_user_id FOREIGN KEY (user_id)  REFERENCES user_account(id) ON DELETE CASCADE;
-CREATE INDEX leave_user_idx ON leave (user_id);
+CREATE UNIQUE INDEX leave_uq ON leave (sender_id, period, date) WHERE is_deleted = false;
+ALTER TABLE leave ADD CONSTRAINT fk_user_id FOREIGN KEY (sender_id)  REFERENCES user_account(id) ON DELETE CASCADE;
+CREATE INDEX leave_user_idx ON leave (sender_id);
 CREATE INDEX leave_created_on_idx ON leave (created_on);

@@ -19,10 +19,10 @@ use uuid::Uuid;
 #[sqlx(type_name = "user_type", rename_all = "snake_case")]
 #[serde(rename_all = "snake_case")]
 pub enum RoleType {
-    Guest,
+    // Guest,
     Developer,
     Maintainer,
-    Agent,
+    // Agent,
     Superadmin,
     Admin,
 }
