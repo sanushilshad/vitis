@@ -208,13 +208,15 @@ The API Docmentation can be found at `https://{{domain}}/docs/` after running th
 * [x] Create User Setting fetch API.
 * [x] Add leave request management API.  
 * [x] Add causual leave approval API. 
-* [ ] Add leave fetch API.
-* [ ] Add leave deletion API. (Ongoing)
-* [ ] Add auto-slack alert notification.
-* [ ] Fetch All Minimal User Account API.
+* [x] Add leave deletion API.
+* [x] Add leave fetch API.
+* [ ] Fetch All Minimal User Account API. (Ongoing)
 * [ ] Fetch allowed Setting detail API for user.
 * [ ] Create User Setting edit API.
 * [ ] Create user account edit API.
+* [ ] Fetch Global Setting.
+
+* [ ] Add auto-slack alert notification.
 * [ ] Add websocket notification to all APIs
 
 ## MILESTONE 2 (PROJECT MANAGEMENT):
@@ -261,7 +263,6 @@ The API Docmentation can be found at `https://{{domain}}/docs/` after running th
 * [ ] Integrate SMS.
 * [ ] Integrate Whatsapp.
 * [ ] Integrate Slack.
-* [ ] Integrate Whatsapp.
 
 ## MILESTONE 7 (OPTIONAL):
 * [ ] Integrate Kafka.

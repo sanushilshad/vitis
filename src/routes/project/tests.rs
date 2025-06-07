@@ -1,6 +1,6 @@
 #[cfg(test)]
 pub mod tests {
-    use crate::constants::INTERNATIONAL_DIALING_CODE;
+    use crate::constants::DUMMY_INTERNATIONAL_DIALING_CODE;
     use crate::email::EmailObject;
     use crate::routes::project::schemas::{CreateprojectAccount, ProjectAccount};
     use crate::routes::project::utils::{
@@ -71,7 +71,10 @@ pub mod tests {
         email: &str,
     ) -> Result<Uuid, Box<dyn std::error::Error>> {
         let user_obj = get_user(
-            vec![&format!("{}{}", INTERNATIONAL_DIALING_CODE, mobile_no)],
+            vec![&format!(
+                "{}{}",
+                DUMMY_INTERNATIONAL_DIALING_CODE, mobile_no
+            )],
             pool,
         )
         .await;
@@ -82,7 +85,7 @@ pub mod tests {
             mobile_no: mobile_no.to_string(),
             email: EmailObject::new(email.to_string()),
 
-            international_dialing_code: INTERNATIONAL_DIALING_CODE.to_string(),
+            international_dialing_code: DUMMY_INTERNATIONAL_DIALING_CODE.to_string(),
         };
         let project_res_obj =
             create_project_account(pool, &user_obj.unwrap(), &create_project_obj).await?;
@@ -130,7 +133,7 @@ pub mod tests {
         assert!(delete_bus_res.is_ok());
         let delete_res = hard_delete_user_account(
             &pool,
-            &format!("{}{}", INTERNATIONAL_DIALING_CODE, mobile_no),
+            &format!("{}{}", DUMMY_INTERNATIONAL_DIALING_CODE, mobile_no),
         )
         .await;
         assert!(delete_res.is_ok());
@@ -171,7 +174,7 @@ pub mod tests {
         assert!(permission_res.unwrap().len() == 0);
         let _ = hard_delete_user_account(
             &pool,
-            &format!("{}{}", INTERNATIONAL_DIALING_CODE, mobile_no),
+            &format!("{}{}", DUMMY_INTERNATIONAL_DIALING_CODE, mobile_no),
         )
         .await;
         let _ = hard_delete_project_account(&pool, project_id).await;
@@ -212,7 +215,7 @@ pub mod tests {
         assert!(delete_bus_res.is_ok());
         let delete_res = hard_delete_user_account(
             &pool,
-            &format!("{}{}", INTERNATIONAL_DIALING_CODE, mobile_no),
+            &format!("{}{}", DUMMY_INTERNATIONAL_DIALING_CODE, mobile_no),
         )
         .await;
         assert!(delete_res.is_ok());
@@ -224,8 +227,8 @@ pub mod tests {
 
         let mobile_no_1 = "12345678939";
         let mobile_no_2 = "12345678949";
-        let mobile_with_code_1 = format!("{}{}", INTERNATIONAL_DIALING_CODE, mobile_no_1);
-        let mobile_with_code_2 = format!("{}{}", INTERNATIONAL_DIALING_CODE, mobile_no_2);
+        let mobile_with_code_1 = format!("{}{}", DUMMY_INTERNATIONAL_DIALING_CODE, mobile_no_1);
+        let mobile_with_code_2 = format!("{}{}", DUMMY_INTERNATIONAL_DIALING_CODE, mobile_no_2);
         // Create two users concurrently
         let (user_res_1, user_res_2) = join!(
             setup_user(

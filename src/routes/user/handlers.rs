@@ -285,7 +285,7 @@ pub async fn delete_user(
     patch,
     path = "/user/reactivate",
     tag = "User Account",
-    description = "API for reactivating deleted User Account",
+    description = "API for reactivation deleted User Account",
     summary = "User Account Reactivating API",
     request_body(content = SendOTPRequest, description = "Request Body"),
     responses(

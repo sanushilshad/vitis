@@ -1,6 +1,6 @@
 #[cfg(test)]
 pub mod tests {
-    use crate::constants::INTERNATIONAL_DIALING_CODE;
+    use crate::constants::DUMMY_INTERNATIONAL_DIALING_CODE;
     use crate::email::EmailObject;
     use crate::routes::user::schemas::{AuthenticationScope, CreateUserAccount, RoleType};
     use crate::routes::user::utils::{
@@ -28,7 +28,10 @@ pub mod tests {
         assert!(user_res.is_ok());
         assert!(
             get_user(
-                vec![&format!("{}{}", INTERNATIONAL_DIALING_CODE, mobile_no)],
+                vec![&format!(
+                    "{}{}",
+                    DUMMY_INTERNATIONAL_DIALING_CODE, mobile_no
+                )],
                 &pool
             )
             .await
@@ -61,7 +64,7 @@ pub mod tests {
             mobile_no: mobile_no.to_string(),
             display_name: "Test User".to_string(),
             is_test_user: false,
-            international_dialing_code: INTERNATIONAL_DIALING_CODE.to_string(),
+            international_dialing_code: DUMMY_INTERNATIONAL_DIALING_CODE.to_string(),
             user_type: RoleType::Developer,
             password: SecretString::from(password),
         };
@@ -84,7 +87,7 @@ pub mod tests {
         .await;
         assert!(user_res.is_ok());
         let auth_res = get_stored_credentials(
-            &format!("{}{}", INTERNATIONAL_DIALING_CODE, mobile_no),
+            &format!("{}{}", DUMMY_INTERNATIONAL_DIALING_CODE, mobile_no),
             &AuthenticationScope::Password,
             &pool,
         )
@@ -99,7 +102,7 @@ pub mod tests {
         assert!(password_res.is_err());
         let delete_res = hard_delete_user_account(
             &pool,
-            &format!("{}{}", INTERNATIONAL_DIALING_CODE, mobile_no),
+            &format!("{}{}", DUMMY_INTERNATIONAL_DIALING_CODE, mobile_no),
         )
         .await;
         assert!(delete_res.is_ok());
@@ -121,7 +124,7 @@ pub mod tests {
         assert!(user_res.is_ok());
 
         let otp_res = get_stored_credentials(
-            &format!("{}{}", INTERNATIONAL_DIALING_CODE, mobile_no),
+            &format!("{}{}", DUMMY_INTERNATIONAL_DIALING_CODE, mobile_no),
             &AuthenticationScope::Otp,
             &pool,
         )
@@ -133,7 +136,7 @@ pub mod tests {
         let send_otp = send_otp(&pool, otp, 30, otp_res_obj).await;
         assert!(send_otp.is_ok());
         let otp_res = get_stored_credentials(
-            &format!("{}{}", INTERNATIONAL_DIALING_CODE, mobile_no),
+            &format!("{}{}", DUMMY_INTERNATIONAL_DIALING_CODE, mobile_no),
             &AuthenticationScope::Otp,
             &pool,
         )
@@ -143,7 +146,7 @@ pub mod tests {
         assert!(verify_otp.is_ok());
         let delete_res = hard_delete_user_account(
             &pool,
-            &format!("{}{}", INTERNATIONAL_DIALING_CODE, mobile_no),
+            &format!("{}{}", DUMMY_INTERNATIONAL_DIALING_CODE, mobile_no),
         )
         .await;
         assert!(delete_res.is_ok());
@@ -166,7 +169,10 @@ pub mod tests {
         let user_id = user_res.unwrap();
         let _ = soft_delete_user_account(&pool, &user_id.to_string(), user_id).await;
         let user_obj = get_user(
-            vec![&format!("{}{}", INTERNATIONAL_DIALING_CODE, mobile_no)],
+            vec![&format!(
+                "{}{}",
+                DUMMY_INTERNATIONAL_DIALING_CODE, mobile_no
+            )],
             &pool,
         )
         .await
@@ -175,7 +181,7 @@ pub mod tests {
 
         let delete_res = hard_delete_user_account(
             &pool,
-            &format!("{}{}", INTERNATIONAL_DIALING_CODE, mobile_no),
+            &format!("{}{}", DUMMY_INTERNATIONAL_DIALING_CODE, mobile_no),
         )
         .await;
         assert!(delete_res.is_ok());
@@ -198,7 +204,10 @@ pub mod tests {
         let user_id = user_res.unwrap();
         let _ = soft_delete_user_account(&pool, &user_id.to_string(), user_id).await;
         let user_obj = get_user(
-            vec![&format!("{}{}", INTERNATIONAL_DIALING_CODE, mobile_no)],
+            vec![&format!(
+                "{}{}",
+                DUMMY_INTERNATIONAL_DIALING_CODE, mobile_no
+            )],
             &pool,
         )
         .await
@@ -208,7 +217,10 @@ pub mod tests {
         let reactivate_res = reactivate_user_account(&pool, user_obj.id, user_obj.id).await;
         assert!(reactivate_res.is_ok());
         let user_obj = get_user(
-            vec![&format!("{}{}", INTERNATIONAL_DIALING_CODE, mobile_no)],
+            vec![&format!(
+                "{}{}",
+                DUMMY_INTERNATIONAL_DIALING_CODE, mobile_no
+            )],
             &pool,
         )
         .await
@@ -217,7 +229,7 @@ pub mod tests {
 
         let delete_res = hard_delete_user_account(
             &pool,
-            &format!("{}{}", INTERNATIONAL_DIALING_CODE, mobile_no),
+            &format!("{}{}", DUMMY_INTERNATIONAL_DIALING_CODE, mobile_no),
         )
         .await;
         assert!(delete_res.is_ok());

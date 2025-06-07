@@ -3,7 +3,7 @@ pub mod tests {
     use std::collections::HashMap;
 
     use crate::{
-        constants::INTERNATIONAL_DIALING_CODE,
+        constants::DUMMY_INTERNATIONAL_DIALING_CODE,
         routes::{
             project::tests::tests::setup_project,
             setting::{
@@ -85,7 +85,7 @@ pub mod tests {
         assert!(data[0].user_level.len() == 1);
         let _ = hard_delete_user_account(
             &pool,
-            &format!("{}{}", INTERNATIONAL_DIALING_CODE, mobile_no),
+            &format!("{}{}", DUMMY_INTERNATIONAL_DIALING_CODE, mobile_no),
         )
         .await;
         let _ = hard_delete_project_account(&pool, project_id).await;
@@ -132,7 +132,7 @@ pub mod tests {
 
         let _ = hard_delete_user_account(
             &pool,
-            &format!("{}{}", INTERNATIONAL_DIALING_CODE, mobile_no),
+            &format!("{}{}", DUMMY_INTERNATIONAL_DIALING_CODE, mobile_no),
         )
         .await;
     }

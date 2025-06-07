@@ -18,7 +18,6 @@ pub struct CreateSettingData {
 #[derive(Deserialize, Debug, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct CreateProjectSettingRequest {
-    #[schema(value_type = String)]
     pub user_id: Option<Uuid>,
     pub settings: Vec<CreateSettingData>,
 }
@@ -64,7 +63,6 @@ impl FromRequest for FetchSettingRequest {
 #[derive(Serialize, Debug, ToSchema)]
 pub struct Setting {
     pub value: String,
-    #[schema(value_type = String)]
     pub id: Uuid,
 }
 
@@ -157,10 +155,11 @@ pub enum SettingKey {
     TotalRestrictedLeaveCount,
     TotalMedicalLeaveCount,
     TotalCasualLeaveCount,
-    FinancialYearStart, // TimeZone,
+    FinancialYearStart,
 
     LeaveRequestTemplate,
     LeaveStatusUpdateTemplate,
+    TimeZone,
 }
 
 impl fmt::Display for SettingKey {
@@ -174,7 +173,7 @@ impl fmt::Display for SettingKey {
             SettingKey::FinancialYearStart => "financial_year_start",
             SettingKey::LeaveRequestTemplate => "leave_request_template",
             SettingKey::LeaveStatusUpdateTemplate => "leave_status_update_template",
-            // SettingKey::TimeZone => "time_zone",
+            SettingKey::TimeZone => "time_zone",
         };
         write!(f, "{}", display_str)
     }

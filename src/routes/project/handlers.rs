@@ -107,7 +107,7 @@ pub async fn fetch_project_req(
 #[utoipa::path(
     post,
     path = "/project/permission",
-    tag = "Permission",
+    tag = "project Account",
     description = "API for checking the permission of a project.",
     summary = "project Account Permission API",
     request_body(content = ProjectPermissionRequest, description = "Request Body"),
@@ -196,7 +196,7 @@ pub async fn list_project_req(
 }
 
 #[utoipa::path(
-    get,
+    post,
     path = "/user/assocation",
     tag = "project Account",
     description = "API for association of user with project account",

@@ -48,7 +48,6 @@ impl FromRequest for CreateprojectAccount {
 #[derive(Deserialize, Debug, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct ProjectFetchRequest {
-    #[schema(value_type = String)]
     pub id: Uuid,
 }
 
@@ -72,7 +71,6 @@ impl FromRequest for ProjectFetchRequest {
 #[serde(rename_all = "camelCase")]
 pub struct ProjectPermissionRequest {
     pub action_list: Vec<String>,
-    #[schema(value_type = String)]
     pub project_id: Uuid,
 }
 
@@ -158,7 +156,6 @@ impl FromRequest for AllowedPermission {
 #[derive(Debug, Serialize, ToSchema)]
 pub struct BasicprojectAccount {
     pub name: String,
-    #[schema(value_type = String)]
     pub id: Uuid,
 }
 
@@ -166,7 +163,6 @@ pub struct BasicprojectAccount {
 #[derive(Debug, Deserialize, Clone, Serialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct ProjectAccount {
-    #[schema(value_type = String)]
     pub id: Uuid,
     pub name: String,
     pub vectors: Vec<UserVector>,
@@ -231,7 +227,6 @@ impl FromRequest for ProjectAccount {
 #[derive(Debug, Deserialize, Serialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct ProjectUserAssociationRequest {
-    #[schema(value_type = String)]
     pub user_id: Uuid,
     pub role: RoleType,
 }

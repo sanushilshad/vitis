@@ -198,7 +198,6 @@ pub struct BulkAuthMechanismInsert {
 #[derive(Debug, Serialize, Deserialize, Clone, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct UserAccount {
-    #[schema(value_type = String)]
     pub id: Uuid,
     pub username: String,
     pub mobile_no: String,

@@ -2,7 +2,9 @@ use actix_web::web;
 
 use crate::{middlewares::UserPermissionValidation, routes::project::schemas::PermissionType};
 
-use super::handlers::{create_leave_req, update_leave_status_req};
+use super::handlers::{
+    create_leave_req, leave_request_deletion_req, leave_request_fetch_req, update_leave_status_req,
+};
 
 pub fn leave_routes(cfg: &mut web::ServiceConfig) {
     cfg.route(
@@ -27,4 +29,6 @@ pub fn leave_routes(cfg: &mut web::ServiceConfig) {
                 ],
             }),
     );
+    cfg.route("/delete/{id}", web::delete().to(leave_request_deletion_req));
+    cfg.route("/fetch", web::post().to(leave_request_fetch_req));
 }
