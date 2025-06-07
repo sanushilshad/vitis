@@ -274,6 +274,8 @@ pub async fn get_leave_count(
           AND type = $4
           AND status != $5 AND status != $6
           AND is_deleted = false 
+          AND status !='rejected'
+          AND status !='cancelled'
         "#,
         user_id,
         start_date,

@@ -215,7 +215,6 @@ The API Docmentation can be found at `https://{{domain}}/docs/` after running th
 * [ ] Create User Setting edit API.
 * [ ] Create user account edit API.
 * [ ] Fetch Global Setting.
-
 * [ ] Add auto-slack alert notification.
 * [ ] Add websocket notification to all APIs
 
