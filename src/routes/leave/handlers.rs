@@ -309,7 +309,6 @@ pub async fn update_leave_status_req(
     tag = "Leave",
     summary = "Leave Request Deletion API",
     path = "/leave/delete",
-    request_body(content = UpdateLeaveStatusRequest, description = "Request Body"),
     responses(
         (status=200, description= "project Account created successfully", body= GenericResponse<TupleUnit>),
         (status=400, description= "Invalid Request body", body= GenericResponse<TupleUnit>),
@@ -370,7 +369,7 @@ pub async fn leave_request_deletion_req(
     tag = "Leave",
     summary = "Leave Request Fetch API",
     path = "/leave/fetch",
-    request_body(content = UpdateLeaveStatusRequest, description = "Request Body"),
+    request_body(content = FetchLeaveRequest, description = "Request Body"),
     responses(
         (status=200, description= "project Account created successfully", body= GenericResponse<Vec<LeaveData>>),
         (status=400, description= "Invalid Request body", body= GenericResponse<TupleUnit>),

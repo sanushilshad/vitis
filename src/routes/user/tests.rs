@@ -4,13 +4,15 @@ pub mod tests {
     use crate::email::EmailObject;
     use crate::routes::user::schemas::{AuthenticationScope, CreateUserAccount, RoleType};
     use crate::routes::user::utils::{
-        get_stored_credentials, get_user, hard_delete_user_account, reactivate_user_account,
-        register_user, send_otp, soft_delete_user_account, verify_otp, verify_password,
+        get_minimal_user_list, get_stored_credentials, get_user, hard_delete_user_account,
+        reactivate_user_account, register_user, send_otp, soft_delete_user_account, verify_otp,
+        verify_password,
     };
 
     use crate::tests::tests::get_test_pool;
     use secrecy::SecretString;
     use sqlx::PgPool;
+    use tokio::join;
     use uuid::Uuid;
 
     #[tokio::test]
@@ -233,5 +235,48 @@ pub mod tests {
         )
         .await;
         assert!(delete_res.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_user_list() {
+        let pool = get_test_pool().await;
+        let passsword = "123";
+        let mobile_no_1 = "1234567814";
+        let mobile_no_2 = "1234567815";
+        let (user_res_1, user_res_2) = join!(
+            setup_user(
+                &pool,
+                "testuser23",
+                "testuser23@example.com",
+                mobile_no_1,
+                passsword,
+            ),
+            setup_user(
+                &pool,
+                "testuser24",
+                "testuser24@example.com",
+                mobile_no_2,
+                passsword,
+            ),
+        );
+        assert!(user_res_1.is_ok());
+        assert!(user_res_2.is_ok());
+        let user_list = get_minimal_user_list(&pool, None, 1, 0).await;
+        assert!(user_list.is_ok());
+        assert!(user_list.unwrap().len() == 2);
+
+        let user_list = get_minimal_user_list(&pool, Some("testuser24"), 1, 0).await;
+        assert!(user_list.is_ok());
+        assert!(user_list.unwrap().len() == 1);
+
+        let full_mobile_no_1 = format!("{}{}", DUMMY_INTERNATIONAL_DIALING_CODE, mobile_no_1);
+        let full_mobile_no_2 = format!("{}{}", DUMMY_INTERNATIONAL_DIALING_CODE, mobile_no_2);
+        let (delete_res_1, delete_res_2) = join!(
+            hard_delete_user_account(&pool, &full_mobile_no_1),
+            hard_delete_user_account(&pool, &full_mobile_no_2),
+        );
+
+        assert!(delete_res_1.is_ok());
+        assert!(delete_res_2.is_ok());
     }
 }

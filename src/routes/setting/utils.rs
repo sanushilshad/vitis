@@ -144,13 +144,13 @@ pub async fn create_project_setting(
 
 pub async fn create_user_setting(
     pool: &PgPool,
-    settings: &Vec<CreateSettingData>,
+    settings: &[CreateSettingData],
     user_id: Uuid,
     created_by: Uuid,
     setting_map: &HashMap<String, &SettingModel>,
 ) -> Result<(), anyhow::Error> {
     let bulk_data =
-        get_setting_bulk_insert_data(&settings, Some(user_id), created_by, None, setting_map);
+        get_setting_bulk_insert_data(settings, Some(user_id), created_by, None, setting_map);
     create_setting(pool, bulk_data).await?;
 
     Ok(())

@@ -7,7 +7,7 @@ use jsonwebtoken::{
  encode, Algorithm as JWTAlgorithm, EncodingKey, Header
 };
 use secrecy::{ExposeSecret, SecretString};
-use sqlx::PgPool;
+use sqlx::{PgPool, QueryBuilder};
 use uuid::Uuid;
 
 use crate::configuration::Jwt;
@@ -17,8 +17,8 @@ use crate::schemas::{  MaskingType, Status};
 use crate::utils::spawn_blocking_with_tracing;
 use sqlx::{Transaction, Postgres, Executor};
 use super::errors::AuthError;
-use super::models::{AuthMechanismModel, UserAccountModel, UserRoleModel};
-use super::schemas::{AccountRole, AuthData, AuthMechanism, AuthenticateRequest, AuthenticationScope, BulkAuthMechanismInsert, CreateUserAccount, JWTClaims, UserAccount, RoleType, UserVector, VectorType};
+use super::models::{AuthMechanismModel, MinimalUserAccountModel, UserAccountModel, UserRoleModel};
+use super::schemas::{AccountRole, AuthData, AuthMechanism, AuthenticateRequest, AuthenticationScope, BulkAuthMechanismInsert, CreateUserAccount, JWTClaims, MinimalUserAccount, RoleType, UserAccount, UserVector, VectorType};
 use anyhow::anyhow;
 
 #[tracing::instrument(
@@ -689,5 +689,53 @@ pub async fn reactivate_user_account(
             .context("A database failure occurred while reactivating user")
         })?;
     Ok(())
+}
+
+
+
+#[tracing::instrument(name = "Get user Account", skip(pool))]
+pub async fn fetch_minimal_user_list(
+    pool: &PgPool,
+    query: Option<&str>,
+    offset: i32,
+    limit: i32,
+) -> Result<Vec<MinimalUserAccountModel>, anyhow::Error> {
+    let mut query_builder = QueryBuilder::new(
+        r#"
+        SELECT display_name, mobile_no, id
+        FROM user_account
+        WHERE 1=1
+        "#,
+    );
+
+    if let Some(query) = query {
+        let pattern = format!("%{}%", query);
+        query_builder.push(" AND (");
+        query_builder.push("LOWER(email) ILIKE ");
+        query_builder.push_bind(pattern.clone());
+        query_builder.push(" OR LOWER(display_name) ILIKE ");
+        query_builder.push_bind(pattern.clone());
+        query_builder.push(" OR LOWER(mobile_no) ILIKE ");
+        query_builder.push_bind(pattern.clone());
+        query_builder.push(" OR LOWER(username) ILIKE ");
+        query_builder.push_bind(pattern);
+        query_builder.push(")");
+    }
+    let query = query_builder.build_query_as::<MinimalUserAccountModel>();
+    let rows = query.fetch_all(pool).await.map_err(|e| { 
+        tracing::error!("Failed to execute query: {:?}", e);
+        anyhow::Error::new(e)
+            .context("A database failure occurred while fetching users")
+        })?;
+    Ok(rows)
+}
+
+
+
+
+pub async fn get_minimal_user_list(pool: &PgPool, query: Option<&str>, limit: i32, offset: i32) -> Result<Vec<MinimalUserAccount>, anyhow::Error>{
+    let data_models = fetch_minimal_user_list(pool, query, limit, offset).await?;
+    let data = data_models.into_iter().map(|a|a.into_schema()).collect();
+    Ok(data)
 }
 

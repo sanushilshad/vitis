@@ -1,6 +1,6 @@
 use std::{fs, io};
 
-use crate::configuration::{Config, DatabaseConfig};
+use crate::configuration::DatabaseConfig;
 use crate::errors::CustomJWTTokenError;
 use crate::models::NotficationDataModel;
 use crate::routes::user::schemas::JWTClaims;
@@ -8,7 +8,6 @@ use crate::websocket::MessageToClient;
 use actix_web::dev::ServiceRequest;
 use actix_web::rt::task::JoinHandle;
 use chrono::Utc;
-use config::{ConfigError, Environment};
 use core::str;
 use jsonwebtoken::{Algorithm as JWTAlgorithm, DecodingKey, Validation, decode};
 use secrecy::{ExposeSecret, SecretString};

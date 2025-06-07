@@ -3,7 +3,9 @@ use secrecy::SecretString;
 use sqlx::{FromRow, types::Json};
 use uuid::Uuid;
 
-use super::schemas::{AccountRole, AuthMechanism, AuthenticationScope, UserAccount, UserVector};
+use super::schemas::{
+    AccountRole, AuthMechanism, AuthenticationScope, MinimalUserAccount, UserAccount, UserVector,
+};
 use crate::{email::EmailObject, schemas::Status};
 #[derive(Debug, FromRow)]
 pub struct AuthMechanismModel {
@@ -34,7 +36,7 @@ impl AuthMechanismModel {
     }
 }
 
-#[derive(Debug, sqlx::FromRow)]
+#[derive(Debug, FromRow)]
 pub struct UserAccountModel {
     pub id: Uuid,
     pub username: String,
@@ -86,6 +88,23 @@ impl UserRoleModel {
             role_name: self.role_name,
             role_status: self.role_status,
             is_deleted: self.is_deleted,
+        }
+    }
+}
+
+#[derive(Debug, FromRow)]
+pub struct MinimalUserAccountModel {
+    pub id: Uuid,
+    pub mobile_no: String,
+    pub display_name: String,
+}
+
+impl MinimalUserAccountModel {
+    pub fn into_schema(self) -> MinimalUserAccount {
+        MinimalUserAccount {
+            id: self.id,
+            mobile_no: self.mobile_no,
+            display_name: self.display_name,
         }
     }
 }

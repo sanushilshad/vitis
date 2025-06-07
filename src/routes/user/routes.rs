@@ -1,8 +1,11 @@
 use super::handlers::{
     authenticate_req, delete_user, fetch_user_req, reactivate_user_req, register_user_account_req,
-    send_otp_req,
+    send_otp_req, user_list_req,
 };
-use crate::middlewares::RequireAuth;
+use crate::{
+    middlewares::{RequireAuth, UserPermissionValidation},
+    routes::project::schemas::PermissionType,
+};
 
 use actix_web::web;
 pub fn user_routes(cfg: &mut web::ServiceConfig) {
@@ -26,5 +29,16 @@ pub fn user_routes(cfg: &mut web::ServiceConfig) {
             web::patch().to(reactivate_user_req).wrap(RequireAuth {
                 allow_deleted_user: true,
             }),
+        )
+        .route(
+            "/list",
+            web::post()
+                .to(user_list_req)
+                .wrap(UserPermissionValidation {
+                    permission_list: vec![PermissionType::ListUsers.to_string()],
+                })
+                .wrap(RequireAuth {
+                    allow_deleted_user: false,
+                }),
         );
 }

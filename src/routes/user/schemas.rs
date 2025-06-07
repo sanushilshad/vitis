@@ -315,3 +315,36 @@ impl FromRequest for SendOTPRequest {
         })
     }
 }
+
+#[derive(Debug, Serialize, Deserialize, Clone, ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct MinimalUserAccount {
+    pub id: Uuid,
+    pub mobile_no: String,
+    pub display_name: String,
+}
+
+#[derive(Deserialize, Debug, ToSchema)]
+#[serde(rename_all = "camelCase")]
+#[allow(dead_code)]
+pub struct ListUserAccountRequest {
+    pub query: Option<String>,
+    pub offset: i32,
+    pub limit: i32,
+}
+
+impl FromRequest for ListUserAccountRequest {
+    type Error = GenericError;
+    type Future = LocalBoxFuture<'static, Result<Self, Self::Error>>;
+
+    fn from_request(req: &HttpRequest, payload: &mut Payload) -> Self::Future {
+        let fut = web::Json::<Self>::from_request(req, payload);
+
+        Box::pin(async move {
+            match fut.await {
+                Ok(json) => Ok(json.into_inner()),
+                Err(e) => Err(GenericError::ValidationError(e.to_string())),
+            }
+        })
+    }
+}

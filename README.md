@@ -197,7 +197,7 @@ The API Docmentation can be found at `https://{{domain}}/docs/` after running th
 }
 ```
 
-## MILESTONE 1 (12/19) (USER ACCOUNT  + LEAVE MANAGEMENT):
+## MILESTONE 1 (13/19) (USER ACCOUNT  + LEAVE MANAGEMENT):
 * [x] Setup the application structure.
 * [x] Create user account creation API.
 * [x] Create user account Authentication API.
@@ -210,7 +210,7 @@ The API Docmentation can be found at `https://{{domain}}/docs/` after running th
 * [x] Add causual leave approval API. 
 * [x] Add leave deletion API.
 * [x] Add leave fetch API.
-* [ ] Fetch All Minimal User Account API. (Ongoing)
+* [x] Fetch All Minimal User Account API. (Ongoing)
 * [ ] Fetch allowed Setting detail API for user.
 * [ ] Create User Setting edit API.
 * [ ] Create user account edit API.

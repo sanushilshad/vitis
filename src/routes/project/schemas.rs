@@ -106,6 +106,8 @@ pub enum PermissionType {
     ApproveLeaveRequest,
     #[serde(rename = "update:leave-request-status")]
     UpdateLeaveRequestStatus,
+    #[serde(rename = "list:users")]
+    ListUsers,
 }
 
 impl fmt::Display for PermissionType {
@@ -118,6 +120,7 @@ impl fmt::Display for PermissionType {
             PermissionType::ApproveLeaveRequest => "approve:leave-request",
             PermissionType::UpdateLeaveRequestStatus => "update:leave-request-status",
             PermissionType::CreateSettingSelf => "create_setting_self",
+            PermissionType::ListUsers => "list:users",
         };
         write!(f, "{}", display_str)
     }
