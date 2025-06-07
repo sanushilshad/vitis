@@ -1,3 +1,4 @@
+use config::{ConfigError, Environment};
 use secrecy::{ExposeSecret, SecretString};
 use serde::Deserialize;
 use sqlx::ConnectOptions;
@@ -6,6 +7,7 @@ use uuid::Uuid;
 
 use crate::email::EmailObject;
 use crate::email_client::SmtpEmailClient;
+use crate::pulsar_client::PulsarClient;
 
 #[derive(Debug, Deserialize, Clone)]
 pub struct DatabaseConfig {
@@ -68,12 +70,27 @@ pub struct SecretConfig {
 }
 
 #[derive(Debug, Deserialize, Clone)]
+pub struct PulsarConfig {
+    pub topic: String,
+    pub consumer: String,
+    pub subscription: String,
+    pub url: String,
+}
+
+impl PulsarConfig {
+    pub async fn client(self) -> Result<PulsarClient, pulsar::Error> {
+        PulsarClient::new(self.url, self.topic).await
+    }
+}
+
+#[derive(Debug, Deserialize, Clone)]
 pub struct Config {
     pub database: DatabaseConfig,
     pub application: ApplicationConfig,
     pub secret: SecretConfig,
     pub user: UserConfig,
     pub email: EmailClientConfig,
+    pub pulsar: PulsarConfig,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -110,4 +127,18 @@ impl EmailClientConfig {
     // pub fn personal_client(&self) -> SmtpEmailClient {
     //     SmtpEmailClient::new_personal().expect("Failed to create SmtpEmailClient")
     // }
+}
+
+pub fn get_configuration() -> Result<Config, ConfigError> {
+    let builder = config::Config::builder()
+        .add_source(Environment::default().separator("__"))
+        .add_source(
+            Environment::with_prefix("LIST")
+                .try_parsing(true)
+                .separator("__")
+                .keep_prefix(false)
+                .list_separator(","),
+        )
+        .build()?;
+    builder.try_deserialize::<Config>()
 }

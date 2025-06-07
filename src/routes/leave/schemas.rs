@@ -18,6 +18,7 @@ pub enum LeaveType {
     Casual,
     Restricted,
     Common, // Global
+    Unpaid,
 }
 
 impl fmt::Display for LeaveType {
@@ -27,6 +28,7 @@ impl fmt::Display for LeaveType {
             LeaveType::Casual => "casual",
             LeaveType::Restricted => "restricted",
             LeaveType::Common => "common",
+            LeaveType::Unpaid => "unpaid",
         };
         write!(f, "{}", display_str)
     }
@@ -39,6 +41,7 @@ impl LeaveType {
             LeaveType::Casual => SettingKey::TotalCasualLeaveCount,
             LeaveType::Restricted => SettingKey::TotalRestrictedLeaveCount,
             LeaveType::Common => SettingKey::TotalCommonLeaveCount,
+            LeaveType::Unpaid => SettingKey::UnpaidLeaveCount,
         }
     }
 }

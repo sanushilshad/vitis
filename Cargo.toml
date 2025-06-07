@@ -4,23 +4,34 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+actix = "0.13.5"
+actix-cors = "0.7"
+actix-files = "0.6"
 actix-http =  "3.11"
 actix-web = "4.11.0"
-actix = "0.13.5"
+actix-web-actors = "4.3.1"
 anyhow = "1.0.98"
 argon2 = { version = "0.5", default-features = false, features = ["std"] }
+async-trait = "0.1.88"
+bigdecimal = { version = "0.4.5", features = ["serde"] }
 chrono = { version = "0.4.41", features = ["serde"] }
+chrono-tz = { version = "0.10.3" }
 config = { version = "0.15.11", default-features = false}
 futures = "0.3.31"
 jsonwebtoken = "9.3.1"
+# rdkafka = { version = "0.37", features = [ "ssl", "sasl", "cmake-build"] }
+lettre = { version = "0.11.17", default-features = false, features = ["smtp-transport", "tokio1-rustls-tls", "hostname", "builder", "pool", "tracing"] }
 opentelemetry = "0.29.1"
 opentelemetry-otlp = { version = "0.29.0" , features = ["grpc-tonic"] }
 opentelemetry_sdk = { version = "0.29.0", features = ["rt-tokio"] }
+pulsar = "6.3.1"
 rand = "0.8.5"
+reqwest = { version = "0.12.19", default-features = false, features = ["json", "rustls-tls"] }
 secrecy = { version = "0.10.3", features = ["serde"] }
 serde = { version = "1.0.219", features = ["derive"] }
 serde_json = { version = "1.0.140", default-features = false}
-sqlx = { version = "0.8.5", default-features = false, features = ["runtime-tokio-rustls", "macros", "postgres", "uuid", "chrono", "bigdecimal"] }
+sqlx = { version = "0.8.5", default-features = false, features = ["runtime-tokio-rustls", "macros", "postgres", "uuid", "chrono", "bigdecimal", "json"] }
+tera = "1.20.0"
 thiserror = "2.0.12"
 tokio = { version = "1.44.1", features = ["macros", "rt-multi-thread"] }
 tracing = { version = "0.1.41", features = ["log"] }
@@ -33,15 +44,8 @@ utoipa-swagger-ui = { version = "9.0.2", features = ["actix-web"] }
 utoipauto = "0.2.0"
 uuid = { version = "1.16.0", default-features = false, features = ["v4", "serde"] }
 validator = {version="0.20.0", features = ["derive"]}
-reqwest = { version = "0.12.19", default-features = false, features = ["json", "rustls-tls"] }
-actix-cors = "0.7"
-lettre = { version = "0.11.17", default-features = false, features = ["smtp-transport", "tokio1-rustls-tls", "hostname", "builder", "pool", "tracing"] }
-actix-web-actors = "4.3.1"
-async-trait = "0.1.88"
-bigdecimal = { version = "0.4.5", features = ["serde"] }
-actix-files = "0.6"
-tera = "1.20.0"
-chrono-tz = { version = "0.10.3" }
+
+
 
 [dev-dependencies]
 once_cell = "1.21.3"
@@ -49,6 +53,7 @@ fake = "3.1.0"
 quickcheck = "1.0.3"
 quickcheck_macros = "1"
 dotenv="0.15.0"
+
 
 [lib]
 path="src/lib.rs"

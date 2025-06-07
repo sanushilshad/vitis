@@ -2,10 +2,7 @@ use std::collections::HashMap;
 
 use super::{
     models::{BulkSettingCreateModel, SettingModel, SettingValueModel},
-    schemas::{
-        CreateProjectSettingRequest, CreateSettingData, CreateUserSettingRequest, Setting,
-        SettingType, Settings,
-    },
+    schemas::{CreateProjectSettingRequest, CreateSettingData, Setting, SettingType, Settings},
 };
 use chrono::DateTime;
 use chrono::Utc;
@@ -65,7 +62,7 @@ fn get_setting_bulk_insert_data(
     user_id: Option<Uuid>,
     created_by: Uuid,
     project_account_id: Option<Uuid>,
-    setting_map: &HashMap<String, SettingModel>,
+    setting_map: &HashMap<String, &SettingModel>,
 ) -> BulkSettingCreateModel {
     let mut id_list = vec![];
     let mut user_id_list = vec![];
@@ -131,7 +128,7 @@ pub async fn create_project_setting(
     setting_req: &CreateProjectSettingRequest,
     created_by: Uuid,
     project_account_id: Uuid,
-    setting_map: &HashMap<String, SettingModel>,
+    setting_map: &HashMap<String, &SettingModel>,
 ) -> Result<(), anyhow::Error> {
     let bulk_data = get_setting_bulk_insert_data(
         &setting_req.settings,
@@ -147,17 +144,13 @@ pub async fn create_project_setting(
 
 pub async fn create_user_setting(
     pool: &PgPool,
-    setting_req: &CreateUserSettingRequest,
+    settings: &Vec<CreateSettingData>,
     user_id: Uuid,
-    setting_map: &HashMap<String, SettingModel>,
+    created_by: Uuid,
+    setting_map: &HashMap<String, &SettingModel>,
 ) -> Result<(), anyhow::Error> {
-    let bulk_data = get_setting_bulk_insert_data(
-        &setting_req.settings,
-        Some(user_id),
-        user_id,
-        None,
-        setting_map,
-    );
+    let bulk_data =
+        get_setting_bulk_insert_data(&settings, Some(user_id), created_by, None, setting_map);
     create_setting(pool, bulk_data).await?;
 
     Ok(())

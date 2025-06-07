@@ -1,19 +1,21 @@
 use std::{fs, io};
 
+use crate::configuration::{Config, DatabaseConfig};
+use crate::errors::CustomJWTTokenError;
+use crate::models::NotficationDataModel;
+use crate::routes::user::schemas::JWTClaims;
+use crate::websocket::MessageToClient;
 use actix_web::dev::ServiceRequest;
+use actix_web::rt::task::JoinHandle;
+use chrono::Utc;
 use config::{ConfigError, Environment};
-
-use uuid::Uuid;
-
 use core::str;
 use jsonwebtoken::{Algorithm as JWTAlgorithm, DecodingKey, Validation, decode};
 use secrecy::{ExposeSecret, SecretString};
-use sqlx::{Connection, Executor, PgConnection, PgPool};
-
-use crate::configuration::{Config, DatabaseConfig};
-use crate::errors::CustomJWTTokenError;
-use crate::routes::user::schemas::JWTClaims;
-use actix_web::rt::task::JoinHandle;
+use serde_json::Value;
+use sqlx::types::Json;
+use sqlx::{Connection, Executor, PgConnection, PgPool, Postgres, Transaction};
+use uuid::Uuid;
 
 #[tracing::instrument(name = "Decode JWT token")]
 pub fn decode_token<T: Into<String> + std::fmt::Debug>(
@@ -46,20 +48,6 @@ pub fn error_chain_fmt(
         current = cause.source();
     }
     Ok(())
-}
-
-pub fn get_configuration() -> Result<Config, ConfigError> {
-    let builder = config::Config::builder()
-        .add_source(Environment::default().separator("__"))
-        .add_source(
-            Environment::with_prefix("LIST")
-                .try_parsing(true)
-                .separator("__")
-                .keep_prefix(false)
-                .list_separator(","),
-        )
-        .build()?;
-    builder.try_deserialize::<Config>()
 }
 
 #[tracing::instrument(name = "Execute Queries")]
@@ -197,4 +185,76 @@ pub fn to_title_case(s: &str) -> String {
         })
         .collect::<Vec<_>>()
         .join(" ")
+}
+
+#[tracing::instrument(name = "save_notification_to_database", skip(pool))]
+pub async fn save_notification_to_database(
+    pool: &PgPool,
+    websocket_id: &str,
+    data: &Value,
+) -> Result<(), anyhow::Error> {
+    sqlx::query!(
+        r#"
+        INSERT INTO pending_notification (id, data, connection_id,  created_on)
+        VALUES ($1, $2, $3, $4)
+        "#,
+        Uuid::new_v4(),
+        data,
+        websocket_id,
+        Utc::now(),
+    )
+    .execute(pool)
+    .await
+    .map_err(|e| {
+        tracing::error!("Failed to execute query: {:?}", e);
+        anyhow::Error::new(e).context("A database failure occurred while saving ONDC order request")
+    })?;
+    Ok(())
+}
+
+#[tracing::instrument(name = "fetch_notifications_by_connection_id", skip(transaction))]
+pub async fn fetch_notifications_by_connection_id(
+    transaction: &mut Transaction<'_, Postgres>,
+    connection_id: &str,
+) -> Result<Vec<NotficationDataModel>, anyhow::Error> {
+    let records = sqlx::query_as!(
+        NotficationDataModel,
+        r#"
+        SELECT data as "data: Json<MessageToClient>", connection_id
+        FROM pending_notification
+        WHERE connection_id = $1 ORDER BY created_on
+        FOR UPDATE
+        "#,
+        connection_id
+    )
+    .fetch_all(&mut **transaction)
+    .await
+    .map_err(|e| {
+        tracing::error!("Failed to execute query: {:?}", e);
+        anyhow::Error::new(e).context("A database failure occurred while fetching notifications")
+    })?;
+
+    Ok(records)
+}
+
+#[tracing::instrument(name = "delete_notifications_by_connection_id", skip(transaction))]
+pub async fn delete_notifications_by_connection_id(
+    transaction: &mut Transaction<'_, Postgres>,
+    connection_id: &str,
+) -> Result<u64, anyhow::Error> {
+    let result = sqlx::query!(
+        r#"
+        DELETE FROM pending_notification
+        WHERE connection_id = $1
+        "#,
+        connection_id
+    )
+    .execute(&mut **transaction) // Explicitly dereference the transaction
+    .await
+    .map_err(|e| {
+        tracing::error!("Failed to execute delete query: {:?}", e);
+        anyhow::Error::new(e).context("Failed to delete notifications for the given connection_id")
+    })?;
+
+    Ok(result.rows_affected()) // Return the number of rows deleted
 }

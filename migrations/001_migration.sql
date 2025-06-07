@@ -257,7 +257,8 @@ CREATE TYPE leave_type AS ENUM (
   'medical',
   'casual',
   'restricted',
-  'common'
+  'common',
+  'unpaid'
 );
 
 
@@ -285,3 +286,11 @@ CREATE UNIQUE INDEX leave_uq ON leave (sender_id, period, date) WHERE is_deleted
 ALTER TABLE leave ADD CONSTRAINT fk_user_id FOREIGN KEY (sender_id)  REFERENCES user_account(id) ON DELETE CASCADE;
 CREATE INDEX leave_user_idx ON leave (sender_id);
 CREATE INDEX leave_created_on_idx ON leave (created_on);
+
+
+CREATE TABLE IF NOT EXISTS pending_notification(
+    id uuid PRIMARY KEY,
+    data JSONB NOT NULL,
+    connection_id TEXT NOT NULL,
+    created_on TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+);

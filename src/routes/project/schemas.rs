@@ -94,6 +94,8 @@ impl FromRequest for ProjectPermissionRequest {
 pub enum PermissionType {
     #[serde(rename = "create:setting")]
     CreateSetting,
+    #[serde(rename = "create:setting:self")]
+    CreateSettingSelf,
     #[serde(rename = "associate:user-project")]
     AssociateUserProject,
     #[serde(rename = "create:leave-request:self")]
@@ -115,6 +117,7 @@ impl fmt::Display for PermissionType {
             PermissionType::CreateLeaveRequest => "create:leave-request",
             PermissionType::ApproveLeaveRequest => "approve:leave-request",
             PermissionType::UpdateLeaveRequestStatus => "update:leave-request-status",
+            PermissionType::CreateSettingSelf => "create_setting_self",
         };
         write!(f, "{}", display_str)
     }

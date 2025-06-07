@@ -8,10 +8,7 @@ pub mod tests {
             project::tests::tests::setup_project,
             setting::{
                 models::SettingModel,
-                schemas::{
-                    CreateProjectSettingRequest, CreateSettingData, CreateUserSettingRequest,
-                    SettingType,
-                },
+                schemas::{CreateProjectSettingRequest, CreateSettingData, SettingType},
                 utils::{
                     create_project_setting, create_user_setting, fetch_setting, get_setting_value,
                 },
@@ -45,8 +42,8 @@ pub mod tests {
             fetch_setting(&pool, &vec![setting_key.to_string()], SettingType::Project)
                 .await
                 .unwrap();
-        let setting_map: HashMap<String, SettingModel> = valid_settings
-            .into_iter()
+        let setting_map: HashMap<String, &SettingModel> = valid_settings
+            .iter()
             .map(|setting| (setting.key.to_owned(), setting))
             .collect();
         let req_user_level = CreateProjectSettingRequest {
@@ -111,18 +108,17 @@ pub mod tests {
             fetch_setting(&pool, &vec![setting_key.to_string()], SettingType::User)
                 .await
                 .unwrap();
-        let setting_map: HashMap<String, SettingModel> = valid_settings
-            .into_iter()
+        let setting_map: HashMap<String, &SettingModel> = valid_settings
+            .iter()
             .map(|setting| (setting.key.to_owned(), setting))
             .collect();
-        let req = CreateUserSettingRequest {
-            settings: vec![CreateSettingData {
-                key: setting_key.to_owned(),
-                value: "Asia/Kolkata".to_string(),
-            }],
-        };
+        let setting = vec![CreateSettingData {
+            key: setting_key.to_owned(),
+            value: "Asia/Kolkata".to_string(),
+        }];
 
-        let create_setting_res = create_user_setting(&pool, &req, user_id, &setting_map).await;
+        let create_setting_res =
+            create_user_setting(&pool, &setting, user_id, user_id, &setting_map).await;
         assert!(create_setting_res.is_ok());
         let data_res =
             get_setting_value(&pool, &vec![setting_key.to_string()], None, user_id).await;

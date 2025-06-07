@@ -1,7 +1,9 @@
 use actix_web::web;
 
 use crate::{
-    middlewares::{ProjectAccountValidation, ProjectPermissionValidation},
+    middlewares::{
+        ProjectAccountValidation, ProjectPermissionValidation, UserPermissionValidation,
+    },
     routes::project::schemas::PermissionType,
 };
 
@@ -20,7 +22,17 @@ pub fn setting_routes(cfg: &mut web::ServiceConfig) {
             })
             .wrap(ProjectAccountValidation),
     );
-    cfg.route("/user/create", web::post().to(create_user_config_req));
+    cfg.route(
+        "/user/create",
+        web::post()
+            .to(create_user_config_req)
+            .wrap(UserPermissionValidation {
+                permission_list: vec![
+                    PermissionType::CreateSetting.to_string(),
+                    PermissionType::CreateSettingSelf.to_string(),
+                ],
+            }),
+    );
     cfg.route(
         "/project/fetch",
         web::post()

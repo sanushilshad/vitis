@@ -1,9 +1,8 @@
 use secrecy::ExposeSecret;
 
 use crate::{
-    configuration::Config,
-    routes::user::utils::generate_jwt_token_for_user,
-    utils::{configure_database, get_configuration},
+    configuration::Config, configuration::get_configuration,
+    routes::user::utils::generate_jwt_token_for_user, utils::configure_database,
 };
 
 #[tracing::instrument(name = "Default Migration")]

@@ -1,5 +1,6 @@
 use crate::configuration::{Config, DatabaseConfig};
 use crate::middlewares::SaveRequestResponse;
+use crate::pulsar_client::AppState;
 use crate::route::routes;
 use crate::websocket;
 use actix::Actor;
@@ -9,6 +10,7 @@ use actix_web::dev::Server;
 use actix_web::{App, HttpServer, web};
 use sqlx::postgres::{PgPool, PgPoolOptions};
 use std::net::TcpListener;
+use tokio::sync::Mutex;
 use tracing_actix_web::TracingLogger;
 pub struct Application {
     port: u16,
@@ -57,6 +59,17 @@ async fn run(
     let ws_server = web::Data::new(websocket::Server::new().start());
     let email_client = web::Data::new(configuration.email.client());
     let email_config = web::Data::new(configuration.email);
+    let pulsar_client = configuration.pulsar.client().await?;
+    let consumer = pulsar_client
+        .get_consumer("ws_consumer".to_owned(), "ws_subscription".to_owned())
+        .await;
+    pulsar_client
+        .start_consumer(db_pool.clone(), consumer, ws_server.clone())
+        .await;
+    let producer = pulsar_client.get_producer().await;
+    let pulsar_producer = web::Data::new(AppState {
+        producer: Mutex::new(producer),
+    });
     let server = HttpServer::new(move || {
         App::new()
             //.app_data(web::JsonConfig::default().limit(1024 * 1024 * 50))
@@ -71,6 +84,7 @@ async fn run(
             .app_data(ws_server.clone())
             .app_data(email_client.clone())
             .app_data(email_config.clone())
+            .app_data(pulsar_producer.clone())
             .configure(routes)
     })
     .workers(workers)

@@ -1,7 +1,7 @@
 use vitis::commands::run_custom_commands;
+use vitis::configuration::get_configuration;
 use vitis::startup::Application;
 use vitis::telemetry::{get_subscriber_with_jeager, init_subscriber};
-use vitis::utils::get_configuration;
 #[actix_web::main]
 async fn main() -> anyhow::Result<()> {
     let args: Vec<String> = std::env::args().collect();

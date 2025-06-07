@@ -197,7 +197,7 @@ The API Docmentation can be found at `https://{{domain}}/docs/` after running th
 }
 ```
 
-## MILESTONE 1 (USER ACCOUNT  + LEAVE MANAGEMENT):
+## MILESTONE 1 (12/19) (USER ACCOUNT  + LEAVE MANAGEMENT):
 * [x] Setup the application structure.
 * [x] Create user account creation API.
 * [x] Create user account Authentication API.
@@ -256,12 +256,19 @@ The API Docmentation can be found at `https://{{domain}}/docs/` after running th
 * [ ] Create project task edit API.
 
 
-## MILESTONE 6:
+## MILESTONE 6 (QA LIVE BUILD MILESTONE):
+* [ ] In-progress
+
+
+## MILESTONE 7 (Expense Management):
+* [ ] In-progress
+
+## MILESTONE 8:
 * [x] Integrate Websocket.
 * [x] Integrate Email.
+* [x] Integrate Pulsar.
 * [ ] Integrate SMS.
 * [ ] Integrate Whatsapp.
 * [ ] Integrate Slack.
 
-## MILESTONE 7 (OPTIONAL):
-* [ ] Integrate Kafka.
+

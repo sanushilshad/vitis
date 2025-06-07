@@ -1,12 +1,15 @@
 pub mod commands;
-mod configuration;
+pub mod configuration;
 mod constants;
 mod email;
 pub mod email_client;
 mod errors;
 mod handlers;
+pub mod kafka_client;
 pub mod middlewares;
+mod models;
 mod openapi;
+pub mod pulsar_client;
 mod route;
 mod routes;
 mod schemas;

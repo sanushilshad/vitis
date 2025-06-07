@@ -1,8 +1,8 @@
 #[cfg(test)]
 pub mod tests {
 
+    use crate::configuration::get_configuration;
     use crate::startup::get_connection_pool;
-    use crate::utils::get_configuration;
     use dotenv::dotenv;
 
     use sqlx::PgPool;

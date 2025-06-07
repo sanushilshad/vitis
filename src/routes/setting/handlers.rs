@@ -5,8 +5,12 @@ use sqlx::PgPool;
 use utoipa::TupleUnit;
 
 use crate::{
-    errors::GenericError, routes::project::schemas::ProjectAccount,
-    routes::user::schemas::UserAccount, schemas::GenericResponse,
+    errors::GenericError,
+    routes::{
+        project::schemas::{AllowedPermission, PermissionType, ProjectAccount},
+        user::schemas::UserAccount,
+    },
+    schemas::GenericResponse,
 };
 
 use super::{
@@ -51,8 +55,8 @@ pub async fn create_project_config_req(
     let valid_settings = fetch_setting(&pool, &key_list, SettingType::Project)
         .await
         .map_err(|e| GenericError::DatabaseError(e.to_string(), e))?;
-    let setting_map: HashMap<String, SettingModel> = valid_settings
-        .into_iter()
+    let setting_map: HashMap<String, &SettingModel> = valid_settings
+        .iter()
         .filter(|e| e.is_editable)
         .map(|setting| (setting.key.to_owned(), setting))
         .collect();
@@ -108,33 +112,58 @@ pub async fn create_user_config_req(
     body: CreateUserSettingRequest,
     pool: web::Data<PgPool>,
     user: UserAccount,
+    permissions: AllowedPermission,
 ) -> Result<web::Json<GenericResponse<()>>, GenericError> {
     let key_list: Vec<String> = body.settings.iter().map(|a| a.key.to_owned()).collect();
     let valid_settings = fetch_setting(&pool, &key_list, SettingType::User)
         .await
         .map_err(|e| GenericError::DatabaseError(e.to_string(), e))?;
-    let setting_map: HashMap<String, SettingModel> = valid_settings
-        .into_iter()
-        .filter(|e| e.is_editable)
-        .map(|setting| (setting.key.to_owned(), setting))
+    let mut setting_map = HashMap::new();
+    let mut restricted_keys = Vec::new();
+    let mut found_keys = HashSet::new();
+    let has_create_permission = permissions
+        .permission_list
+        .contains(&PermissionType::CreateSetting.to_string());
+    for setting in valid_settings.iter() {
+        found_keys.insert(&setting.key);
+
+        if !setting.is_editable {
+            restricted_keys.push(setting.key.clone());
+        }
+        setting_map.insert(setting.key.clone(), setting);
+    }
+
+    if !has_create_permission && !restricted_keys.is_empty() {
+        let restricted_keys_str = restricted_keys.join(", ");
+        return Err(GenericError::ValidationError(format!(
+            "Restricted key/s cannot be modified: {}",
+            restricted_keys_str
+        )));
+    }
+
+    let user_id = if has_create_permission {
+        body.user_id.unwrap_or(user.id)
+    } else {
+        user.id
+    };
+
+    let invalid_keys: Vec<&String> = key_list
+        .iter()
+        .filter(|key| !found_keys.contains(*key))
         .collect();
-    if setting_map.len() != key_list.len() {
-        let valid_keys_set: HashSet<&String> = setting_map.iter().map(|e| &e.1.key).collect();
-        let invalid_keys: Vec<&String> = key_list
-            .iter()
-            .filter(|key| !valid_keys_set.contains(key))
-            .collect();
+
+    if !invalid_keys.is_empty() {
         let invalid_keys_str = invalid_keys
             .iter()
             .map(|s| s.as_str())
             .collect::<Vec<&str>>()
             .join(", ");
         return Err(GenericError::ValidationError(format!(
-            "Invalid Key/s: {}",
+            "Invalid key/s not found in DB: {}",
             invalid_keys_str
         )));
     }
-    create_user_setting(&pool, &body, user.id, &setting_map)
+    create_user_setting(&pool, &body.settings, user_id, user.id, &setting_map)
         .await
         .map_err(|e| GenericError::DatabaseError(e.to_string(), e))?;
     Ok(web::Json(GenericResponse::success(

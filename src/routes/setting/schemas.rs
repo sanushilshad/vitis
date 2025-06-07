@@ -112,6 +112,7 @@ pub struct SettingData {
 #[derive(Deserialize, Debug, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct CreateUserSettingRequest {
+    pub user_id: Option<Uuid>,
     pub settings: Vec<CreateSettingData>,
 }
 
@@ -160,6 +161,7 @@ pub enum SettingKey {
     LeaveRequestTemplate,
     LeaveStatusUpdateTemplate,
     TimeZone,
+    UnpaidLeaveCount,
 }
 
 impl fmt::Display for SettingKey {
@@ -174,6 +176,7 @@ impl fmt::Display for SettingKey {
             SettingKey::LeaveRequestTemplate => "leave_request_template",
             SettingKey::LeaveStatusUpdateTemplate => "leave_status_update_template",
             SettingKey::TimeZone => "time_zone",
+            SettingKey::UnpaidLeaveCount => "unpaid_leave_count",
         };
         write!(f, "{}", display_str)
     }
