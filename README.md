@@ -197,7 +197,7 @@ The API Docmentation can be found at `https://{{domain}}/docs/` after running th
 }
 ```
 
-## MILESTONE 1 (13/19) (USER ACCOUNT  + LEAVE MANAGEMENT):
+## MILESTONE 1 (14/20) (USER ACCOUNT  + LEAVE MANAGEMENT + USER SETTING):
 * [x] Setup the application structure.
 * [x] Create user account creation API.
 * [x] Create user account Authentication API.
@@ -210,13 +210,14 @@ The API Docmentation can be found at `https://{{domain}}/docs/` after running th
 * [x] Add causual leave approval API. 
 * [x] Add leave deletion API.
 * [x] Add leave fetch API.
-* [x] Fetch All Minimal User Account API. (Ongoing)
-* [ ] Fetch allowed Setting detail API for user.
+* [x] Fetch All Minimal User Account API.
+* [x] Limit No of OTP Authentication.
+* [ ] Fetch allowed Setting detail API for user.  (Ongoing)
 * [ ] Create User Setting edit API.
 * [ ] Create user account edit API.
-* [ ] Fetch Global Setting.
+* [ ] Create Global Setting.
 * [ ] Add auto-slack alert notification.
-* [ ] Add websocket notification to all APIs
+* [ ] Add websocket notification to all APIs.
 
 ## MILESTONE 2 (PROJECT MANAGEMENT):
 * [x] Create project creation API.

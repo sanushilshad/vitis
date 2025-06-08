@@ -16,7 +16,7 @@ pub struct AuthMechanismModel {
     pub secret: Option<String>,
     pub is_active: Status,
     pub valid_upto: Option<DateTime<Utc>>,
-    // pub auth_context: AuthContextType,
+    pub retry_count: Option<i32>, // pub auth_context: AuthContextType,
 }
 
 impl AuthMechanismModel {
@@ -31,7 +31,7 @@ impl AuthMechanismModel {
             secret,
             is_active: self.is_active,
             valid_upto: self.valid_upto,
-            // auth_context: self.auth_context,
+            retry_count: self.retry_count, // auth_context: self.auth_context,
         }
     }
 }

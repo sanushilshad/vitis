@@ -14,22 +14,6 @@ pub async fn fetch_setting(
     key_list: &Vec<String>,
     r#type: SettingType,
 ) -> Result<Vec<SettingModel>, anyhow::Error> {
-    // let rows: Vec<SettingModel> = sqlx::query_as!(
-    //     SettingModel,
-    //     r#"
-    //     SELECT id, key, is_editable
-    //     FROM setting
-    //     WHERE key = ANY($1) AND is_deleted=false
-    //     "#,
-    //     key_list
-    // )
-    // .fetch_all(pool)
-    // .await
-    // .map_err(|e| {
-    //     tracing::error!("Failed to execute query: {:?}", e);
-    //     anyhow::Error::new(e).context("A database failure occurred while fetching setting")
-    // })?;
-
     let mut query_builder = QueryBuilder::new(
         r#"
         SELECT id, key, is_editable

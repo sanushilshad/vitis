@@ -1,4 +1,5 @@
 use actix_web::web;
+use rand::Rng;
 use sqlx::PgPool;
 use utoipa::TupleUnit;
 
@@ -209,13 +210,16 @@ pub async fn send_otp_req(
             "Auth Mechanism is disabled".to_string(),
         ));
     }
-    send_otp(&pool, "000", secret_obj.otp.expiry, credential)
-        .await
-        .map_err(|_| {
-            GenericError::UnexpectedCustomError(
-                "Something went wrong while sending OTP".to_string(),
-            )
-        })?;
+    send_otp(
+        &pool,
+        &rand::thread_rng().gen_range(1000..=9999).to_string(),
+        secret_obj.otp.expiry,
+        credential,
+    )
+    .await
+    .map_err(|_| {
+        GenericError::UnexpectedCustomError("Something went wrong while sending OTP".to_string())
+    })?;
 
     Ok(web::Json(GenericResponse::success(
         "Sucessfully send data.",

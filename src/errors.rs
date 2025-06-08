@@ -40,6 +40,8 @@ pub enum GenericError {
     DataNotFound(String),
     #[error("{0}")]
     DataAlreadyExist(String),
+    #[error("{0}")]
+    TooManyRequest(String),
 }
 
 impl std::fmt::Debug for GenericError {
@@ -61,6 +63,7 @@ impl ResponseError for GenericError {
             GenericError::InvalidData(_) => StatusCode::INTERNAL_SERVER_ERROR,
             GenericError::DataNotFound(_) => StatusCode::GONE,
             GenericError::DataAlreadyExist(_) => StatusCode::CONFLICT,
+            GenericError::TooManyRequest(_) => StatusCode::TOO_MANY_REQUESTS,
         }
     }
 
@@ -77,6 +80,7 @@ impl ResponseError for GenericError {
             GenericError::InvalidData(error_msg) => error_msg.to_string(),
             GenericError::DataNotFound(error_msg) => error_msg.to_string(),
             GenericError::DataAlreadyExist(error_msg) => error_msg.to_string(),
+            GenericError::TooManyRequest(error_msg) => error_msg.to_string(),
         };
 
         HttpResponse::build(status_code).json(GenericResponse::error(

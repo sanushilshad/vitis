@@ -65,6 +65,7 @@ CREATE TABLE IF NOT EXISTS auth_mechanism (
   created_on TIMESTAMPTZ,
   updated_on TIMESTAMPTZ,
   deleted_on TIMESTAMPTZ,
+  retry_count INTEGER, 
   created_by TEXT,
   updated_by TEXT,
   deleted_by TEXT,

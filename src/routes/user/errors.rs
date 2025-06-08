@@ -56,6 +56,8 @@ pub enum AuthError {
     UnexpectedCustomError(String),
     #[error("{0}")]
     DatabaseError(String, anyhow::Error),
+    #[error("{0}")]
+    TooManyRequest(String),
 }
 
 impl std::fmt::Debug for AuthError {
@@ -71,6 +73,7 @@ impl From<AuthError> for GenericError {
             AuthError::DatabaseError(message, error) => GenericError::DatabaseError(message, error),
             AuthError::InvalidCredentials(message) => GenericError::UnAuthorized(message),
             AuthError::UnexpectedCustomError(message) => GenericError::ValidationError(message),
+            AuthError::TooManyRequest(message) => GenericError::TooManyRequest(message),
         }
     }
 }

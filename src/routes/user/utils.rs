@@ -48,7 +48,7 @@ async fn get_auth_mechanism_model(username: &str,
     pool: &PgPool,
 ) -> Result<Option<AuthMechanismModel>, anyhow::Error> {
     let row: Option<AuthMechanismModel> = sqlx::query_as!(AuthMechanismModel, 
-        r#"SELECT a.id as id, user_id, auth_identifier, secret, a.is_active as "is_active: Status", auth_scope as "auth_scope: AuthenticationScope", valid_upto from auth_mechanism
+        r#"SELECT a.id as id, user_id, auth_identifier, retry_count, secret, a.is_active as "is_active: Status", auth_scope as "auth_scope: AuthenticationScope", valid_upto from auth_mechanism
         as a inner join user_account as b on a.user_id = b.id where (b.username = $1 OR b.mobile_no = $1 OR  b.email = $1)  AND auth_scope = $2"#,
         username,
         scope as &AuthenticationScope,
@@ -96,11 +96,30 @@ pub async fn verify_password(
 pub async fn reset_otp(pool: &PgPool, auth_mechanism: &AuthMechanism) -> Result<(), anyhow::Error> {
     let _updated_tutor_result = sqlx::query!(
         r#"UPDATE auth_mechanism SET
-        valid_upto = $1, secret = $2
+        valid_upto = $1, secret = $2, retry_count=0
         WHERE id = $3"#,
         None::<DateTime<Utc>>,
         None::<String>,
         auth_mechanism.id
+    )
+    .execute(pool)
+    .await
+    .map_err(|e| {
+        tracing::error!("Failed to execute update query: {:?}", e);
+        anyhow::anyhow!("Database error")
+    })?;
+    Ok(())
+}
+
+
+#[tracing::instrument(name = "Increment auth retry count")]
+pub async fn increment_auth_retry_count(pool: &PgPool, auth_mechanism_id: Uuid, retry_count: i32) -> Result<(), anyhow::Error> {
+    let _updated_tutor_result = sqlx::query!(
+        r#"UPDATE auth_mechanism SET
+        retry_count = $1
+        WHERE id = $2"#,
+        retry_count,
+        auth_mechanism_id
     )
     .execute(pool)
     .await
@@ -122,6 +141,12 @@ pub async fn verify_otp(
         .as_ref()
         .ok_or_else(|| AuthError::InvalidCredentials("Please Send the OTP".to_string()))?;
 
+    let retry_count = auth_mechanism.retry_count.unwrap_or(0);
+    if retry_count > 5 {
+        return Err(AuthError::TooManyRequest(format!(
+            "Max limit reached"
+        )));
+    }
     if let Some(valid_upto) = &auth_mechanism.valid_upto {
         if valid_upto <= &Utc::now() {
             return Err(AuthError::InvalidCredentials(
@@ -129,11 +154,16 @@ pub async fn verify_otp(
             ));
         }
     }
+    
     if otp.expose_secret() != secret.expose_secret() {
+
+        increment_auth_retry_count(&pool, auth_mechanism.id, retry_count+1).await.map_err(|_|
+            AuthError::UnexpectedCustomError("Something went wrong while updating failed authentication count".to_string()))?;
         return Err(AuthError::InvalidCredentials(
             "Invalid OTP".to_string(),
         ))?;
     }
+    
     reset_otp(pool, auth_mechanism).await.map_err(|e| {
         tracing::error!("Failed to execute verify_otp database query: {:?}", e);
         AuthError::DatabaseError(
@@ -160,6 +190,7 @@ pub async fn validate_user_credentials(
                 credentials.scope, credentials.identifier
             )));
         }
+
         user_id = Some(auth_mechanism.user_id);
         match credentials.scope {
             AuthenticationScope::Password => {
@@ -648,7 +679,8 @@ pub async fn send_otp(pool: &PgPool, otp: &str, expiry_in_sec: i64, credential: 
 
     sqlx::query!(
         r#"UPDATE auth_mechanism SET
-        valid_upto = $1, secret = $2
+        valid_upto = $1, secret = $2,
+        retry_count = 0
         WHERE id = $3"#,
         valid_upto,
         otp,
@@ -704,7 +736,7 @@ pub async fn fetch_minimal_user_list(
         r#"
         SELECT display_name, mobile_no, id
         FROM user_account
-        WHERE 1=1
+        WHERE is_deleted=false
         "#,
     );
 
