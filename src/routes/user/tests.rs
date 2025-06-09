@@ -1,12 +1,14 @@
 #[cfg(test)]
 pub mod tests {
     use crate::constants::DUMMY_INTERNATIONAL_DIALING_CODE;
-    use crate::email::EmailObject;
-    use crate::routes::user::schemas::{AuthenticationScope, CreateUserAccount, RoleType};
+    use crate::email::{self, EmailObject};
+    use crate::routes::user::schemas::{
+        AuthenticationScope, CreateUserAccount, EditUserAccount, RoleType, VectorType,
+    };
     use crate::routes::user::utils::{
         get_minimal_user_list, get_stored_credentials, get_user, hard_delete_user_account,
-        reactivate_user_account, register_user, send_otp, soft_delete_user_account, verify_otp,
-        verify_password,
+        reactivate_user_account, register_user, send_otp, soft_delete_user_account,
+        update_user_account, verify_otp, verify_password,
     };
 
     use crate::tests::tests::get_test_pool;
@@ -170,7 +172,7 @@ pub mod tests {
         assert!(user_res.is_ok());
         let user_id = user_res.unwrap();
         let _ = soft_delete_user_account(&pool, &user_id.to_string(), user_id).await;
-        let user_obj = get_user(
+        let user_obj_opt = get_user(
             vec![&format!(
                 "{}{}",
                 DUMMY_INTERNATIONAL_DIALING_CODE, mobile_no
@@ -179,6 +181,7 @@ pub mod tests {
         )
         .await
         .unwrap();
+        let user_obj = user_obj_opt.unwrap();
         assert!(user_obj.is_deleted == true);
 
         let delete_res = hard_delete_user_account(
@@ -205,7 +208,7 @@ pub mod tests {
         assert!(user_res.is_ok());
         let user_id = user_res.unwrap();
         let _ = soft_delete_user_account(&pool, &user_id.to_string(), user_id).await;
-        let user_obj = get_user(
+        let user_obj_opt = get_user(
             vec![&format!(
                 "{}{}",
                 DUMMY_INTERNATIONAL_DIALING_CODE, mobile_no
@@ -214,11 +217,12 @@ pub mod tests {
         )
         .await
         .unwrap();
+        let user_obj = user_obj_opt.unwrap();
         assert!(user_obj.is_deleted == true);
 
         let reactivate_res = reactivate_user_account(&pool, user_obj.id, user_obj.id).await;
         assert!(reactivate_res.is_ok());
-        let user_obj = get_user(
+        let user_obj_opt = get_user(
             vec![&format!(
                 "{}{}",
                 DUMMY_INTERNATIONAL_DIALING_CODE, mobile_no
@@ -227,6 +231,7 @@ pub mod tests {
         )
         .await
         .unwrap();
+        let user_obj = user_obj_opt.unwrap();
         assert!(user_obj.is_deleted == false);
 
         let delete_res = hard_delete_user_account(
@@ -278,5 +283,70 @@ pub mod tests {
 
         assert!(delete_res_1.is_ok());
         assert!(delete_res_2.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_user_account_list() {
+        let pool = get_test_pool().await;
+        let passsword = "123";
+        let mobile_no_1 = "1234567817";
+        let mobile_no_2 = "1234567813";
+        let email_1 = "testuser25@example.com";
+        let username_1 = "testuser25";
+        let username_2 = "testuser26";
+        let email_2 = "testuser26@example.com";
+        let display_name_2 = "mango";
+        let user_res = setup_user(&pool, username_1, email_1, mobile_no_1, passsword).await;
+        assert!(user_res.is_ok());
+        let user_id = user_res.unwrap();
+        let user_obj_opt = get_user(
+            vec![&format!(
+                "{}{}",
+                DUMMY_INTERNATIONAL_DIALING_CODE, mobile_no_1
+            )],
+            &pool,
+        )
+        .await
+        .unwrap();
+        assert!(user_obj_opt.is_some());
+        let user_obj = user_obj_opt.unwrap();
+        let edit_req = EditUserAccount {
+            username: username_2.to_string(),
+            mobile_no: mobile_no_2.to_string(),
+            international_dialing_code: DUMMY_INTERNATIONAL_DIALING_CODE.to_string(),
+            email: EmailObject::new(email_2.to_string()),
+            display_name: display_name_2.to_string(),
+        };
+
+        let update_res = update_user_account(&pool, &edit_req, &user_obj).await;
+        assert!(update_res.is_ok());
+        let user_obj_opt = get_user(vec![&user_id.to_string()], &pool).await.unwrap();
+        assert!(user_obj_opt.is_some());
+        let user_obj = user_obj_opt.unwrap();
+        assert!(user_obj.username == username_2);
+        assert!(user_obj.display_name == display_name_2);
+        assert!(user_obj.email.get() == email_2);
+        assert!(
+            &user_obj.mobile_no == &format!("{}{}", DUMMY_INTERNATIONAL_DIALING_CODE, mobile_no_2)
+        );
+        let mobile_vector = user_obj
+            .vectors
+            .iter()
+            .find(|a| a.key == VectorType::MobileNo);
+
+        let email_vector = user_obj.vectors.iter().find(|a| a.key == VectorType::Email);
+        assert!(mobile_vector.is_some());
+        assert!(email_vector.is_some());
+        assert!(
+            &mobile_vector.unwrap().value
+                == &format!("{}{}", DUMMY_INTERNATIONAL_DIALING_CODE, mobile_no_2)
+        );
+        assert!(&email_vector.unwrap().value == email_2);
+        let delete_res = hard_delete_user_account(
+            &pool,
+            &format!("{}{}", DUMMY_INTERNATIONAL_DIALING_CODE, mobile_no_2),
+        )
+        .await;
+        assert!(delete_res.is_ok());
     }
 }

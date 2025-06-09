@@ -70,7 +70,7 @@ pub mod tests {
         mobile_no: &str,
         email: &str,
     ) -> Result<Uuid, Box<dyn std::error::Error>> {
-        let user_obj = get_user(
+        let user_res = get_user(
             vec![&format!(
                 "{}{}",
                 DUMMY_INTERNATIONAL_DIALING_CODE, mobile_no
@@ -78,6 +78,7 @@ pub mod tests {
             pool,
         )
         .await;
+        let user_opt = user_res.unwrap();
         let create_project_obj = CreateprojectAccount {
             name: "Test Company".to_string(),
             is_test_account: false,
@@ -88,7 +89,7 @@ pub mod tests {
             international_dialing_code: DUMMY_INTERNATIONAL_DIALING_CODE.to_string(),
         };
         let project_res_obj =
-            create_project_account(pool, &user_obj.unwrap(), &create_project_obj).await?;
+            create_project_account(pool, &user_opt.unwrap(), &create_project_obj).await?;
         Ok(project_res_obj)
     }
 

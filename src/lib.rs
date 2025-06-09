@@ -13,6 +13,7 @@ pub mod pulsar_client;
 mod route;
 mod routes;
 mod schemas;
+pub mod slack_client;
 pub mod startup;
 pub mod telemetry;
 mod tests;

@@ -12,14 +12,15 @@ use crate::{
 use super::{
     errors::UserRegistrationError,
     schemas::{
-        AuthData, AuthenticateRequest, AuthenticationScope, CreateUserAccount,
+        AuthData, AuthenticateRequest, AuthenticationScope, CreateUserAccount, EditUserAccount,
         ListUserAccountRequest, MinimalUserAccount, RoleType, SendOTPRequest, UserAccount,
         VectorType,
     },
     utils::{
         fetch_user, get_auth_data, get_minimal_user_list, get_stored_credentials,
         hard_delete_user_account, reactivate_user_account, register_user, send_otp,
-        soft_delete_user_account, update_user_verification_status, validate_user_credentials,
+        soft_delete_user_account, update_user_account, update_user_verification_status,
+        validate_user_credentials,
     },
 };
 
@@ -364,5 +365,40 @@ pub async fn user_list_req(
     Ok(web::Json(GenericResponse::success(
         "Successfully fetched users.",
         data,
+    )))
+}
+
+#[utoipa::path(
+    patch,
+    path = "/edit",
+    tag = "User Account",
+    description = "API for editing user account",
+    summary = "List User Accounts API",
+    request_body(content = EditUserAccount, description = "Request Body"),
+    responses(
+        (status=200, description= "Sucessfully fetched user data.", body= GenericResponse<TupleUnit>),
+        (status=400, description= "Invalid Request body", body= GenericResponse<TupleUnit>),
+        (status=401, description= "Invalid Token", body= GenericResponse<TupleUnit>),
+	    (status=403, description= "Insufficient Previlege", body= GenericResponse<TupleUnit>),
+	    (status=410, description= "Data not found", body= GenericResponse<TupleUnit>),
+        (status=500, description= "Internal Server Error", body= GenericResponse<TupleUnit>)
+    ),
+    params(
+        ("x-request-id" = String, Header, description = "Request id"),
+        ("x-device-id" = String, Header, description = "Device id"),
+    )
+)]
+#[tracing::instrument(err, name = "User Account Edit", skip(pool), fields())]
+pub async fn user_edit_req(
+    data: EditUserAccount,
+    pool: web::Data<PgPool>,
+    user_account: UserAccount,
+) -> Result<web::Json<GenericResponse<()>>, GenericError> {
+    update_user_account(&pool, &data, &user_account)
+        .await
+        .map_err(|e| GenericError::UnexpectedCustomError(e.to_string()))?;
+    Ok(web::Json(GenericResponse::success(
+        "Successfully updated user.",
+        (),
     )))
 }

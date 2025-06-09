@@ -8,6 +8,7 @@ use uuid::Uuid;
 use crate::email::EmailObject;
 use crate::email_client::SmtpEmailClient;
 use crate::pulsar_client::PulsarClient;
+use crate::slack_client::SlackClient;
 
 #[derive(Debug, Deserialize, Clone)]
 pub struct DatabaseConfig {
@@ -91,6 +92,7 @@ pub struct Config {
     pub user: UserConfig,
     pub email: EmailClientConfig,
     pub pulsar: PulsarConfig,
+    pub slack: SlackConfig,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -124,9 +126,28 @@ impl EmailClientConfig {
     pub fn client(&self) -> SmtpEmailClient {
         SmtpEmailClient::new(self).expect("Failed to create SmtpEmailClient")
     }
-    // pub fn personal_client(&self) -> SmtpEmailClient {
-    //     SmtpEmailClient::new_personal().expect("Failed to create SmtpEmailClient")
-    // }
+}
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct SlackChannel {
+    leave: SecretString,
+}
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct SlackConfig {
+    base_url: String,
+    channel: SlackChannel,
+    timeout_milliseconds: u64,
+}
+
+impl SlackConfig {
+    pub fn client(self) -> SlackClient {
+        let timeout = self.timeout();
+        SlackClient::new(self.base_url, timeout, self.channel)
+    }
+    fn timeout(&self) -> std::time::Duration {
+        std::time::Duration::from_millis(self.timeout_milliseconds)
+    }
 }
 
 pub fn get_configuration() -> Result<Config, ConfigError> {

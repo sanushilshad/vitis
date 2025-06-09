@@ -91,8 +91,23 @@ export EMAIL__PASSWORD=""
 export EMAIL__BASE_URL=""
 export EMAIL__SENDER_EMAIL=""
 export EMAIL__TIMEOUT_MILLISECONDS=10000
+export EMAIL__PERSONAL__BASE_URL="smtp.gmail.com"
+export EMAIL__PERSONAL__MESSAGE_ID_SUFFIX="mail.gmail.com"
 
 ```
+
+## PULSAR VARIABLE
+export PULSAR__TOPIC="sanu"
+export PULSAR__CONSUMER="test_consumer"
+export PULSAR__SUBSCRIPTION="test_subscription"
+export PULSAR__URL="pulsar://localhost:6651"
+
+
+## SLACK VARIABLE
+export SLACK__BASE_URL="https://hooks.slack.com/services"
+export SLACK__CHANNEL__LEAVE=""
+export SLACK__TIMEOUT_MILLISECONDS=600000
+
 
 
 - In order to verify SQL queries at compile time, set the below config in `.env` file:
@@ -197,7 +212,7 @@ The API Docmentation can be found at `https://{{domain}}/docs/` after running th
 }
 ```
 
-## MILESTONE 1 (14/20) (USER ACCOUNT  + LEAVE MANAGEMENT + USER SETTING):
+## MILESTONE 1 (15/22) (USER ACCOUNT  + LEAVE MANAGEMENT + USER SETTING):
 * [x] Setup the application structure.
 * [x] Create user account creation API.
 * [x] Create user account Authentication API.
@@ -212,14 +227,24 @@ The API Docmentation can be found at `https://{{domain}}/docs/` after running th
 * [x] Add leave fetch API.
 * [x] Fetch All Minimal User Account API.
 * [x] Limit No of OTP Authentication.
-* [ ] Fetch allowed Setting detail API for user.  (Ongoing)
+* [x] Create user account edit API. (Ongoing)
+* [ ] Email Verification API.
+* [ ] Password Reset API.
+* [ ] Fetch allowed Setting detail API for user. 
 * [ ] Create User Setting edit API.
-* [ ] Create user account edit API.
 * [ ] Create Global Setting.
 * [ ] Add auto-slack alert notification.
 * [ ] Add websocket notification to all APIs.
 
-## MILESTONE 2 (PROJECT MANAGEMENT):
+
+## MILESTONE 2 (4/5):
+* [x] Integrate Websocket.
+* [x] Integrate Email.
+* [x] Integrate Pulsar.
+* [x] Integrate Slack.
+* [ ] Integrate Whatsapp.
+
+## MILESTONE 3 (7/12) (PROJECT MANAGEMENT):
 * [x] Create project creation API.
 * [x] List all project of a user data API.
 * [x] Fetch project data API.
@@ -234,20 +259,20 @@ The API Docmentation can be found at `https://{{domain}}/docs/` after running th
 * [ ] Create Project Setting edit API.
 
 
-## MILESTONE 3 (ROLE AND PERMISSION MANAGEMENT):
+## MILESTONE 4 (0/4) (ROLE AND PERMISSION MANAGEMENT):
 * [ ] Create Role fetch API.
 * [ ] Create role permissions assigment API.
 * [ ] Create Permission fetch API.
 * [ ] Create role permissions assigment edit API.
 
 
-## MILESTONE 4 (ON-CALL MANAGEMENT):
+## MILESTONE 5  (0/3) (ON-CALL MANAGEMENT):
 * [ ] Create On-call creation API.
 * [ ] Create On-call fetch API.
 * [ ] Create On-call history fetch API.
 
 
-## MILESTONE 5 (TASK MANAGEMENT):
+## MILESTONE 6 (0/7) (TASK MANAGEMENT):
 * [ ] Create project task assignment API.
 * [ ] Create project task unassignment API.
 * [ ] Create project task status update API.
@@ -257,19 +282,14 @@ The API Docmentation can be found at `https://{{domain}}/docs/` after running th
 * [ ] Create project task edit API.
 
 
-## MILESTONE 6 (QA LIVE BUILD MILESTONE):
+## MILESTONE 7 (QA LIVE BUILD MILESTONE):
 * [ ] In-progress
 
 
-## MILESTONE 7 (Expense Management):
+## MILESTONE 8 (Expense Management):
 * [ ] In-progress
 
-## MILESTONE 8:
-* [x] Integrate Websocket.
-* [x] Integrate Email.
-* [x] Integrate Pulsar.
-* [ ] Integrate SMS.
-* [ ] Integrate Whatsapp.
-* [ ] Integrate Slack.
+
+
 
 

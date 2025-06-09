@@ -1,6 +1,6 @@
 use super::handlers::{
     authenticate_req, delete_user, fetch_user_req, reactivate_user_req, register_user_account_req,
-    send_otp_req, user_list_req,
+    send_otp_req, user_edit_req, user_list_req,
 };
 use crate::{
     middlewares::{RequireAuth, UserPermissionValidation},
@@ -40,5 +40,11 @@ pub fn user_routes(cfg: &mut web::ServiceConfig) {
                 .wrap(RequireAuth {
                     allow_deleted_user: false,
                 }),
+        )
+        .route(
+            "/edit",
+            web::post().to(user_edit_req).wrap(RequireAuth {
+                allow_deleted_user: false,
+            }),
         );
 }

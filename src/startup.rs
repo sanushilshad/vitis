@@ -59,6 +59,7 @@ async fn run(
     let ws_server = web::Data::new(websocket::Server::new().start());
     let email_client = web::Data::new(configuration.email.client());
     let email_config = web::Data::new(configuration.email);
+    let slack_client = web::Data::new(configuration.slack.client());
     let pulsar_client = configuration.pulsar.client().await?;
     let consumer = pulsar_client
         .get_consumer("ws_consumer".to_owned(), "ws_subscription".to_owned())
@@ -85,6 +86,7 @@ async fn run(
             .app_data(email_client.clone())
             .app_data(email_config.clone())
             .app_data(pulsar_producer.clone())
+            .app_data(slack_client.clone())
             .configure(routes)
     })
     .workers(workers)

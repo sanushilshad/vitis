@@ -11,14 +11,16 @@ use sqlx::{PgPool, QueryBuilder};
 use uuid::Uuid;
 
 use crate::configuration::Jwt;
+use crate::email::EmailObject;
 // use crate::routes::project::utils::get_basic_project_account_by_user_id;
 use crate::routes::user::errors::UserRegistrationError;
+use crate::routes::user::schemas::HasFullMobileNumber;
 use crate::schemas::{  MaskingType, Status};
 use crate::utils::spawn_blocking_with_tracing;
 use sqlx::{Transaction, Postgres, Executor};
 use super::errors::AuthError;
 use super::models::{AuthMechanismModel, MinimalUserAccountModel, UserAccountModel, UserRoleModel};
-use super::schemas::{AccountRole, AuthData, AuthMechanism, AuthenticateRequest, AuthenticationScope, BulkAuthMechanismInsert, CreateUserAccount, JWTClaims, MinimalUserAccount, RoleType, UserAccount, UserVector, VectorType};
+use super::schemas::{AccountRole, AuthData, AuthMechanism, AuthenticateRequest, AuthenticationScope, BulkAuthMechanismInsert, CreateUserAccount, EditUserAccount, JWTClaims, MinimalUserAccount, RoleType, UserAccount, UserVector, VectorType};
 use anyhow::anyhow;
 
 #[tracing::instrument(
@@ -143,9 +145,9 @@ pub async fn verify_otp(
 
     let retry_count = auth_mechanism.retry_count.unwrap_or(0);
     if retry_count > 5 {
-        return Err(AuthError::TooManyRequest(format!(
-            "Max limit reached"
-        )));
+        return Err(AuthError::TooManyRequest(
+            "Max limit reached".to_string()
+        ));
     }
     if let Some(valid_upto) = &auth_mechanism.valid_upto {
         if valid_upto <= &Utc::now() {
@@ -157,7 +159,7 @@ pub async fn verify_otp(
     
     if otp.expose_secret() != secret.expose_secret() {
 
-        increment_auth_retry_count(&pool, auth_mechanism.id, retry_count+1).await.map_err(|_|
+        increment_auth_retry_count(pool, auth_mechanism.id, retry_count+1).await.map_err(|_|
             AuthError::UnexpectedCustomError("Something went wrong while updating failed authentication count".to_string()))?;
         return Err(AuthError::InvalidCredentials(
             "Invalid OTP".to_string(),
@@ -240,17 +242,10 @@ pub async fn fetch_user(
 
 
 
-// test case added
 #[tracing::instrument(name = "Get User by value list")]
-pub async fn get_user(value_list: Vec<&str>, pool: &PgPool) -> Result<UserAccount, anyhow::Error> {
-    match fetch_user(value_list, pool).await {
-        Ok(Some(user_obj)) => {
-            let user_account =user_obj.into_schema();
-            Ok(user_account)
-        }
-        Ok(None)=> Err(anyhow!("User doesn't exist")),
-        Err(err) => Err(anyhow!(err))
-    }
+pub async fn get_user(value_list: Vec<&str>, pool: &PgPool) -> Result<Option<UserAccount>, anyhow::Error> {
+    let user = fetch_user(value_list, pool).await?.map(|a|a.into_schema());
+    Ok(user)
 }
 
 
@@ -771,3 +766,97 @@ pub async fn get_minimal_user_list(pool: &PgPool, query: Option<&str>, limit: i3
     Ok(data)
 }
 
+fn generate_updated_user_vectors(
+    existing_vectors: &[UserVector],
+    mobile: &str,
+    email: &EmailObject,
+) -> Vec<UserVector> {
+    let mut updated_vectors = vec![];
+
+    let mut has_mobile = false;
+    let mut has_email = false;
+
+    for vector in existing_vectors {
+        match vector.key {
+            VectorType::MobileNo => {
+                has_mobile = true;
+                if vector.value != mobile {
+                    updated_vectors.push(UserVector {
+                        key: VectorType::MobileNo,
+                        value: mobile.to_owned(),
+                        masking: vector.masking.clone(),
+                        verified: false,
+                    });
+                } else {
+                    updated_vectors.push(vector.clone());
+                }
+            }
+            VectorType::Email => {
+                has_email = true;
+                if vector.value != email.get() {
+                    updated_vectors.push(UserVector {
+                        key: VectorType::Email,
+                        value: email.get().to_string(),
+                        masking: vector.masking.clone(),
+                        verified: false,
+                    });
+                } else {
+                    updated_vectors.push(vector.clone());
+                }
+            }
+        }
+    }
+
+    if !has_mobile {
+        updated_vectors.push(UserVector {
+            key: VectorType::MobileNo,
+            value: mobile.to_owned(),
+            masking: MaskingType::NA, // adjust if needed
+            verified: false,
+        });
+    }
+
+    if !has_email {
+        updated_vectors.push(UserVector {
+            key: VectorType::Email,
+            value: email.get().to_owned(),
+            masking: MaskingType::NA, // adjust if needed
+            verified: false,
+        });
+    }
+
+    updated_vectors
+}
+
+
+pub async fn update_user_account(pool: &PgPool, data: &EditUserAccount, user_account: &UserAccount) -> Result<(), anyhow::Error>{
+    let vector_list: Vec<UserVector> = generate_updated_user_vectors(&user_account.vectors, &data.get_full_mobile_no(), &data.email);
+    let _ = sqlx::query!(
+        r#"UPDATE user_account SET
+            username = $1,
+            international_dialing_code = $2,
+            mobile_no = $3,
+            email = $4,
+            display_name = $5,
+            vectors = $6,
+            updated_on = $7,
+            updated_by = $8
+        WHERE id = $9"#,
+        data.username,
+        data.international_dialing_code,
+        data.get_full_mobile_no(),
+        data.email.get(),
+        data.display_name,
+        sqlx::types::Json(vector_list) as sqlx::types::Json<Vec<UserVector>>,
+        Utc::now(),
+        user_account.id,
+        user_account.id
+    )
+    .execute(pool)
+    .await
+    .map_err(|e| {
+        tracing::error!("Failed to execute user update query: {:?}", e);
+        anyhow::anyhow!("Something went wrong while updating user details.")
+    })?;
+   Ok(()) 
+}

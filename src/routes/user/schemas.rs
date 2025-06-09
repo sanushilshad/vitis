@@ -39,6 +39,19 @@ impl RoleType {
     }
 }
 
+pub trait HasFullMobileNumber {
+    fn get_international_dialing_code(&self) -> &str;
+    fn get_mobile_no(&self) -> &str;
+
+    fn get_full_mobile_no(&self) -> String {
+        format!(
+            "{}{}",
+            self.get_international_dialing_code(),
+            self.get_mobile_no()
+        )
+    }
+}
+
 #[derive(Deserialize, Debug, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct CreateUserAccount {
@@ -54,6 +67,15 @@ pub struct CreateUserAccount {
     pub user_type: RoleType,
 }
 
+impl HasFullMobileNumber for CreateUserAccount {
+    fn get_international_dialing_code(&self) -> &str {
+        &self.international_dialing_code
+    }
+
+    fn get_mobile_no(&self) -> &str {
+        &self.mobile_no
+    }
+}
 impl CreateUserAccount {
     pub fn get_full_mobile_no(&self) -> String {
         format!("{}{}", self.international_dialing_code, self.mobile_no)
@@ -259,23 +281,8 @@ pub struct JWTClaims {
 #[sqlx(type_name = "vector_type", rename_all = "snake_case")]
 #[serde(rename_all = "snake_case")]
 pub enum VectorType {
-    PanCardNo,
-    Gstin,
-    AadhaarCardNo,
     MobileNo,
     Email,
-    InternationalDialingCode,
-    UpiId,
-    BankAccountNumber,
-    IfscCode,
-    LicenseNumber,
-    PassportNo,
-    VoterIdNo,
-    Ssn,
-    Tin,
-    ExportLicenseNo,
-    FssaiLicenseNumber,
-    ImportLicenseNo,
 }
 
 impl std::fmt::Display for VectorType {
@@ -346,5 +353,42 @@ impl FromRequest for ListUserAccountRequest {
                 Err(e) => Err(GenericError::ValidationError(e.to_string())),
             }
         })
+    }
+}
+
+#[derive(Deserialize, Debug, ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct EditUserAccount {
+    pub username: String,
+    pub mobile_no: String,
+    pub international_dialing_code: String,
+    #[serde(deserialize_with = "deserialize_subscriber_email")]
+    pub email: EmailObject,
+    pub display_name: String,
+}
+
+impl FromRequest for EditUserAccount {
+    type Error = GenericError;
+    type Future = LocalBoxFuture<'static, Result<Self, Self::Error>>;
+
+    fn from_request(req: &HttpRequest, payload: &mut Payload) -> Self::Future {
+        let fut = web::Json::<Self>::from_request(req, payload);
+
+        Box::pin(async move {
+            match fut.await {
+                Ok(json) => Ok(json.into_inner()),
+                Err(e) => Err(GenericError::ValidationError(e.to_string())),
+            }
+        })
+    }
+}
+
+impl HasFullMobileNumber for EditUserAccount {
+    fn get_international_dialing_code(&self) -> &str {
+        &self.international_dialing_code
+    }
+
+    fn get_mobile_no(&self) -> &str {
+        &self.mobile_no
     }
 }

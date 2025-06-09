@@ -81,7 +81,8 @@ where
             let db_pool = &req.app_data::<web::Data<PgPool>>().unwrap();
             let user = get_user(vec![&decoded_user_id.to_string()], db_pool)
                 .await
-                .map_err(GenericError::UnexpectedError)?;
+                .map_err(GenericError::UnexpectedError)?
+                .ok_or(GenericError::DataNotFound("User not found".to_string()))?;
             if user.is_active == Status::Inactive {
                 return Err(GenericError::ValidationError(
                     "User is Inactive. Please contact customer support".to_string(),

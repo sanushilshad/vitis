@@ -132,8 +132,9 @@ pub async fn create_leave_req(
     .unwrap();
     let message_id =
         personal_email_client.generate_message_id(&mail_config.personal.message_id_suffix);
-    let reciever_account =
-        reciever_account_res.map_err(|e| GenericError::DatabaseError(e.to_string(), e))?;
+    let reciever_account = reciever_account_res
+        .map_err(|e| GenericError::DatabaseError(e.to_string(), e))?
+        .ok_or(GenericError::DataNotFound("User not found.".to_string()))?;
     if save_leave_request(&pool, &body, user.id, reciever_account.id, &message_id)
         .await
         .map_err(|e| GenericError::DatabaseError(e.to_string(), e))?
@@ -244,8 +245,9 @@ pub async fn update_leave_status_req(
             get_user(vec![&reciever_id], &pool),
         );
         let configs = config_res.map_err(|e| GenericError::DatabaseError(e.to_string(), e))?;
-        let reciever_account =
-            reciever_account_res.map_err(|e| GenericError::DatabaseError(e.to_string(), e))?;
+        let reciever_account = reciever_account_res
+            .map_err(|e| GenericError::DatabaseError(e.to_string(), e))?
+            .ok_or(GenericError::DataNotFound("User not found.".to_string()))?;
         let html_template: String = configs
             .get_setting(&SettingKey::LeaveStatusUpdateTemplate.to_string())
             .ok_or_else(|| {
