@@ -157,11 +157,11 @@ pub enum SettingKey {
     TotalMedicalLeaveCount,
     TotalCasualLeaveCount,
     FinancialYearStart,
-
     LeaveRequestTemplate,
     LeaveStatusUpdateTemplate,
     TimeZone,
     UnpaidLeaveCount,
+    EmailOTPTemplate,
 }
 
 impl fmt::Display for SettingKey {
@@ -177,6 +177,7 @@ impl fmt::Display for SettingKey {
             SettingKey::LeaveStatusUpdateTemplate => "leave_status_update_template",
             SettingKey::TimeZone => "time_zone",
             SettingKey::UnpaidLeaveCount => "unpaid_leave_count",
+            SettingKey::EmailOTPTemplate => "email_otp_template",
         };
         write!(f, "{}", display_str)
     }

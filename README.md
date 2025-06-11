@@ -212,7 +212,7 @@ The API Docmentation can be found at `https://{{domain}}/docs/` after running th
 }
 ```
 
-## MILESTONE 1 (15/22) (USER ACCOUNT  + LEAVE MANAGEMENT + USER SETTING):
+## MILESTONE 1 (16/23) (USER ACCOUNT  + LEAVE MANAGEMENT + USER SETTING):
 * [x] Setup the application structure.
 * [x] Create user account creation API.
 * [x] Create user account Authentication API.
@@ -227,9 +227,10 @@ The API Docmentation can be found at `https://{{domain}}/docs/` after running th
 * [x] Add leave fetch API.
 * [x] Fetch All Minimal User Account API.
 * [x] Limit No of OTP Authentication.
-* [x] Create user account edit API. (Ongoing)
-* [ ] Email Verification API.
-* [ ] Password Reset API.
+* [x] Create user account edit API.
+* [x] Password Reset Request API.
+* [x] Email Verification API.
+* [ ] Add Rate Limiter. (Ongoing)
 * [ ] Fetch allowed Setting detail API for user. 
 * [ ] Create User Setting edit API.
 * [ ] Create Global Setting.

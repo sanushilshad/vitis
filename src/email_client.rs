@@ -6,11 +6,10 @@ use lettre::{
     transport::smtp::{PoolConfig, authentication::Credentials},
 };
 
+use crate::{configuration::EmailClientConfig, email::EmailObject};
 use secrecy::{ExposeSecret, SecretString};
 use std::time::Duration;
 use uuid::Uuid;
-
-use crate::{configuration::EmailClientConfig, email::EmailObject};
 // #[derive(Clone)]
 // pub struct EmailClient {
 //     sender: EmailObject,
@@ -245,7 +244,10 @@ impl GenericEmailService for SmtpEmailClient {
             .singlepart(SinglePart::html(body))?;
 
         tracing::info!("Sending HTML Email");
-        self.mailer.send(email).await?;
+        self.mailer.send(email).await.map_err(|e| {
+            tracing::error!("{}", e);
+            e
+        })?;
         tracing::info!("HTML Email Sent Successfully");
         Ok(())
     }

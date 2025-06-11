@@ -1,4 +1,5 @@
 
+use actix_web::web;
 use anyhow::Context;
 use argon2::password_hash::SaltString;
 use argon2::{Algorithm, Argon2, Params, PasswordHash, PasswordHasher, PasswordVerifier, Version};
@@ -9,18 +10,20 @@ use jsonwebtoken::{
 use secrecy::{ExposeSecret, SecretString};
 use sqlx::{PgPool, QueryBuilder};
 use uuid::Uuid;
-
+use tera::{Context as TeraContext, Tera};
 use crate::configuration::Jwt;
 use crate::email::EmailObject;
+use crate::email_client::{GenericEmailService, SmtpEmailClient};
+use crate::routes::setting::schemas::{SettingKey, Settings, SettingsExt};
 // use crate::routes::project::utils::get_basic_project_account_by_user_id;
 use crate::routes::user::errors::UserRegistrationError;
 use crate::routes::user::schemas::HasFullMobileNumber;
 use crate::schemas::{  MaskingType, Status};
-use crate::utils::spawn_blocking_with_tracing;
+use crate::utils::{spawn_blocking_with_tracing, to_title_case};
 use sqlx::{Transaction, Postgres, Executor};
 use super::errors::AuthError;
-use super::models::{AuthMechanismModel, MinimalUserAccountModel, UserAccountModel, UserRoleModel};
-use super::schemas::{AccountRole, AuthData, AuthMechanism, AuthenticateRequest, AuthenticationScope, BulkAuthMechanismInsert, CreateUserAccount, EditUserAccount, JWTClaims, MinimalUserAccount, RoleType, UserAccount, UserVector, VectorType};
+use super::models::{AuthMechanismModel, MinimalUserAccountModel, UserAccountModel, RoleModel};
+use super::schemas::{AccountRole, AuthData, AuthMechanism, AuthenticateRequest, AuthenticationScope, BulkAuthMechanismInsert, BulkAuthMechanismUpdate, CreateUserAccount, EditUserAccount, JWTClaims, MinimalUserAccount, EmailOTPContext, RoleType, UserAccount, UserVector, VectorType};
 use anyhow::anyhow;
 
 #[tracing::instrument(
@@ -312,9 +315,9 @@ pub async fn save_user(
 
 // test case not needed
 #[tracing::instrument(name = "get_role_model", skip(pool))]
-pub async fn get_role_model(pool: &PgPool, role_type: &RoleType) -> Result<Option<UserRoleModel>, anyhow::Error> {
-    let row: Option<UserRoleModel> = sqlx::query_as!(
-        UserRoleModel,
+pub async fn get_role_model(pool: &PgPool, role_type: &RoleType) -> Result<Option<RoleModel>, anyhow::Error> {
+    let row: Option<RoleModel> = sqlx::query_as!(
+        RoleModel,
         r#"SELECT id, role_name, role_status as "role_status!:Status", created_on, created_by, is_deleted from role where role_name  = $1"#,
         role_type.to_lowercase_string()    
     )
@@ -632,7 +635,7 @@ pub  fn get_auth_data(
 }
 
 
-
+#[tracing::instrument(name = "Update User Verification Status", skip(pool))]
 pub async fn update_user_verification_status(
     pool: &PgPool,
     vector_type: VectorType,
@@ -668,8 +671,8 @@ pub async fn update_user_verification_status(
 }
 
 
-
-pub async fn send_otp(pool: &PgPool, otp: &str, expiry_in_sec: i64, credential: AuthMechanism) -> Result<(), anyhow::Error> {
+#[tracing::instrument(name = "Send OTP", skip(pool))]
+pub async fn update_otp(pool: &PgPool, otp: &str, expiry_in_sec: i64, credential: AuthMechanism) -> Result<(), anyhow::Error> {
     let valid_upto = Utc::now() + Duration::seconds(expiry_in_sec);
 
     sqlx::query!(
@@ -720,7 +723,7 @@ pub async fn reactivate_user_account(
 
 
 
-#[tracing::instrument(name = "Get user Account", skip(pool))]
+#[tracing::instrument(name = "Fetch minimal user list", skip(pool))]
 pub async fn fetch_minimal_user_list(
     pool: &PgPool,
     query: Option<&str>,
@@ -765,6 +768,85 @@ pub async fn get_minimal_user_list(pool: &PgPool, query: Option<&str>, limit: i3
     let data = data_models.into_iter().map(|a|a.into_schema()).collect();
     Ok(data)
 }
+
+
+
+#[tracing::instrument(name = "prepare auth mechanism update data", skip(user_account))]
+pub fn prepare_auth_mechanism_update(
+    data: &EditUserAccount,
+    user_account: &UserAccount
+) -> BulkAuthMechanismUpdate {
+    let current_utc = Utc::now();
+    let id = vec![Uuid::new_v4(), Uuid::new_v4(), Uuid::new_v4()];
+    let user_id_list = vec![user_account.id, user_account.id, user_account.id];
+    let auth_scope = vec![
+        AuthenticationScope::Password,
+        AuthenticationScope::Otp,
+        AuthenticationScope::Email,
+    ];
+    let auth_identifier: Vec<String> = vec![
+        data.username.to_owned(),
+        data.get_full_mobile_no(),
+        data.email.get().to_owned(),
+    ];
+    let updated_on = vec![current_utc, current_utc, current_utc];
+    let updated_by = vec![user_account.id, user_account.id, user_account.id];
+    BulkAuthMechanismUpdate {
+        id,
+        user_id: user_id_list,
+        auth_scope,
+        auth_identifier,
+        updated_on,
+        updated_by,
+    }
+}
+
+#[tracing::instrument(name = "save auth mechanism", skip(transaction))]
+pub async fn update_auth_mechanism(
+    transaction: &mut Transaction<'_, Postgres>,
+    auth_data: &BulkAuthMechanismUpdate,
+    user_account: &UserAccount
+    // auth_data: BulkAuthMechanismUpdate,
+    
+) -> Result<(), anyhow::Error> {
+    let query =sqlx::query!(
+        r#"
+        UPDATE auth_mechanism
+        SET
+            updated_on = t.updated_on,
+            updated_by = t.updated_by,
+            auth_identifier = t.auth_identifier
+        FROM UNNEST(
+            $1::timestamptz[],
+            $2::uuid[],
+            $3::text[],
+            $4::uuid[],
+            $5::user_auth_identifier_scope[]
+        ) AS t(
+            updated_on,
+            updated_by,
+            auth_identifier,
+            user_id,
+            auth_scope
+        )
+        WHERE auth_mechanism.user_id = t.user_id
+        AND auth_mechanism.auth_scope = t.auth_scope;
+        "#,
+        &auth_data.updated_on,
+        &auth_data.updated_by,
+        &auth_data.auth_identifier,
+        &auth_data.user_id,
+        &auth_data.auth_scope as &[AuthenticationScope],
+    );
+    transaction.execute(query).await.map_err(|e| {
+        tracing::error!("Failed to execute query: {:?}", e);
+        anyhow::Error::new(e)
+            .context("A database failure occurred while updating auth_mechanism to database request")
+    })?;
+
+    Ok(())
+}
+
 
 fn generate_updated_user_vectors(
     existing_vectors: &[UserVector],
@@ -828,10 +910,10 @@ fn generate_updated_user_vectors(
     updated_vectors
 }
 
-
-pub async fn update_user_account(pool: &PgPool, data: &EditUserAccount, user_account: &UserAccount) -> Result<(), anyhow::Error>{
+#[tracing::instrument(name = "update user account", skip(tx))]
+pub async fn update_user_account(tx: &mut Transaction<'_, Postgres>, data: &EditUserAccount, user_account: &UserAccount) -> Result<(), anyhow::Error>{
     let vector_list: Vec<UserVector> = generate_updated_user_vectors(&user_account.vectors, &data.get_full_mobile_no(), &data.email);
-    let _ = sqlx::query!(
+    let query= sqlx::query!(
         r#"UPDATE user_account SET
             username = $1,
             international_dialing_code = $2,
@@ -851,12 +933,111 @@ pub async fn update_user_account(pool: &PgPool, data: &EditUserAccount, user_acc
         Utc::now(),
         user_account.id,
         user_account.id
+    );
+
+    tx.execute(query).await.map_err(|e| {
+        tracing::error!("Failed to execute user update query: {:?}", e);
+        anyhow::anyhow!("Something went wrong while updating user details.")
+    })?;
+
+    Ok(())
+}
+
+#[tracing::instrument(name = "update user account", skip(pool))]
+pub async fn update_user(pool: &PgPool, data: &EditUserAccount, user_account: &UserAccount) -> Result<(), anyhow::Error>{
+    let mut transaction = pool
+        .begin()
+        .await
+        .context("Failed to acquire a Postgres connection from the pool")?;
+    update_user_account(&mut transaction, data, user_account).await?;
+    let auth_data = prepare_auth_mechanism_update(data, user_account);
+    update_auth_mechanism(&mut transaction, &auth_data, user_account).await?;
+    transaction
+        .commit()
+        .await
+        .context("Failed to commit SQL transaction to store an order")?;
+   Ok(()) 
+}
+
+
+
+
+
+pub async fn reset_password(pool: &PgPool, password: SecretString, user_account: &UserAccount)  -> Result<(), anyhow::Error>{
+    let password = password.clone();
+    let password_hash = spawn_blocking_with_tracing(move || {
+        compute_password_hash(password)
+    })
+    .await?
+    .context("Failed to hash password")?;
+    let _ = sqlx::query!(
+        r#"UPDATE auth_mechanism SET
+        updated_on = $1, updated_by = $2, secret=$3
+        WHERE user_id = $2 AND auth_scope='password'"#,
+        &Utc::now(),
+        user_account.id,
+        password_hash.expose_secret()
     )
     .execute(pool)
     .await
     .map_err(|e| {
-        tracing::error!("Failed to execute user update query: {:?}", e);
-        anyhow::anyhow!("Something went wrong while updating user details.")
+        tracing::error!("Failed to execute update password query: {:?}", e);
+        anyhow::anyhow!("Database error")
     })?;
-   Ok(()) 
+    Ok(())
+}
+
+pub async fn verify_vector_if_needed(
+    pool: &PgPool,
+    user_account: &UserAccount,
+    scope: &AuthenticationScope,
+) -> Result<(), anyhow::Error> {
+    if let Some(vector_type)= scope.get_vector(){
+        if !user_account.is_vector_verified(&vector_type) {
+            update_user_verification_status(pool, vector_type, user_account.id, true).await?;
+        }
+    }
+    Ok(())
+}
+
+pub async fn send_email_otp(email_client:  web::Data<SmtpEmailClient>, user: &UserAccount, otp: &str, configs: &Vec<Settings>) -> Result<(), anyhow::Error>{
+
+    let html_template: String = configs
+        .get_setting(&SettingKey::EmailOTPTemplate.to_string())
+        .ok_or_else(|| {
+            anyhow!(format!(
+                "Please set the {}",
+                SettingKey::EmailOTPTemplate
+            ))
+        })?;
+    let receiver = to_title_case(&user.display_name);
+    let sender = to_title_case("Vitis");
+    let context_data = EmailOTPContext {
+        name: &sender,
+        otp,
+        receiver: &receiver,
+    };
+    let context = TeraContext::from_serialize(&context_data).map_err(|e: tera::Error| {
+        tracing::error!("{}", e);
+        anyhow!(
+            "Something went wrong while rendering the email html data".to_string(),
+        )
+    })?;
+    let rendered_string = Tera::one_off(&html_template, &context, true).map_err(|e| {
+        tracing::error!("Error while rendering html {} error: {}", html_template, e);
+        anyhow!(
+            "Something went wrong while rendering the email html data".to_string(),
+        )
+    })?;
+    let _ = email_client
+        .send_html_email(
+            &user.email,            
+            &None,                   
+            "Email OTP",
+            rendered_string,       
+            None,                     
+            None,
+        )
+        .await;
+    Ok(())
 }

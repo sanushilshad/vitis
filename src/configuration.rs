@@ -129,6 +129,7 @@ impl EmailClientConfig {
 }
 
 #[derive(Debug, Deserialize, Clone)]
+#[allow(dead_code)]
 pub struct SlackChannel {
     leave: SecretString,
 }

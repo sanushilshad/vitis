@@ -72,7 +72,7 @@ impl UserAccountModel {
 
 #[allow(dead_code)]
 #[derive(Debug, FromRow)]
-pub struct UserRoleModel {
+pub struct RoleModel {
     pub id: Uuid,
     pub role_name: String,
     pub role_status: Status,
@@ -81,7 +81,7 @@ pub struct UserRoleModel {
     pub is_deleted: bool,
 }
 
-impl UserRoleModel {
+impl RoleModel {
     pub fn int_schema(self) -> AccountRole {
         AccountRole {
             id: self.id,

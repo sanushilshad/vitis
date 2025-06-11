@@ -81,7 +81,7 @@ pub async fn prepare_bulk_leave_request_data<'a>(
 }
 
 // test case not needed
-#[tracing::instrument(name = "save leave request", skip(pool, data))]
+#[tracing::instrument(name = "save leave request to database", skip(pool, data))]
 pub async fn save_leave_to_database<'a>(
     pool: &PgPool,
     data: BulkLeaveRequestInsert<'a>,
@@ -115,6 +115,7 @@ pub async fn save_leave_to_database<'a>(
     Ok(result.rows_affected() > 0)
 }
 
+#[tracing::instrument(name = "save leave request", skip(pool))]
 pub async fn save_leave_request(
     pool: &PgPool,
     leave_request_data: &CreateLeaveRequest,
@@ -134,7 +135,7 @@ pub async fn save_leave_request(
     }
     Ok(false)
 }
-
+#[tracing::instrument(name = "Fetch leave models", skip(pool))]
 pub async fn fetch_leave_models<'a>(
     pool: &PgPool,
     query: &'a FetchLeaveQuery<'a>,

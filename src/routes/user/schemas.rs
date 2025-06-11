@@ -148,14 +148,24 @@ impl FromRequest for AuthenticateRequest {
 pub enum AuthenticationScope {
     Otp,
     Password,
-    Google,
-    Facebook,
-    Microsoft,
-    Apple,
-    Token,
-    AuthApp,
-    Qr,
+    // Google,
+    // Facebook,
+    // Microsoft,
+    // Apple,
+    // Token,
+    // AuthApp,
+    // Qr,
     Email,
+}
+
+impl AuthenticationScope {
+    pub fn get_vector(&self) -> Option<VectorType> {
+        match self {
+            AuthenticationScope::Email => Some(VectorType::Email),
+            AuthenticationScope::Otp => Some(VectorType::MobileNo),
+            _ => None,
+        }
+    }
 }
 
 #[derive(Debug, Serialize, ToSchema)]
@@ -242,11 +252,11 @@ impl UserAccount {
     //     }
     // }
 
-    fn get_vector(&self, vector_type: VectorType) -> Option<&UserVector> {
-        self.vectors.iter().find(|a| a.key == vector_type)
+    fn get_vector(&self, vector_type: &VectorType) -> Option<&UserVector> {
+        self.vectors.iter().find(|a| a.key == *vector_type)
     }
 
-    pub fn is_vector_verified(&self, vector_type: VectorType) -> bool {
+    pub fn is_vector_verified(&self, vector_type: &VectorType) -> bool {
         self.get_vector(vector_type).is_some_and(|f| f.verified)
     }
 }
@@ -304,7 +314,8 @@ pub struct UserVector {
 #[serde(rename_all = "camelCase")]
 #[allow(dead_code)]
 pub struct SendOTPRequest {
-    pub mobile_no: String,
+    pub identifier: String,
+    pub scope: AuthenticationScope,
 }
 
 impl FromRequest for SendOTPRequest {
@@ -390,5 +401,46 @@ impl HasFullMobileNumber for EditUserAccount {
 
     fn get_mobile_no(&self) -> &str {
         &self.mobile_no
+    }
+}
+
+#[derive(Serialize)]
+pub struct EmailOTPContext<'a> {
+    pub name: &'a str,
+    pub otp: &'a str,
+    pub receiver: &'a str,
+}
+
+#[derive(Debug, Serialize)]
+pub struct BulkAuthMechanismUpdate {
+    pub id: Vec<Uuid>,
+    pub user_id: Vec<Uuid>,
+    pub auth_scope: Vec<AuthenticationScope>,
+    pub auth_identifier: Vec<String>,
+    pub updated_on: Vec<DateTime<Utc>>,
+    pub updated_by: Vec<Uuid>,
+    // pub auth_context: Vec<AuthContextType>,
+}
+
+#[derive(Deserialize, Debug, ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct PasswordResetReq {
+    #[schema(value_type = String)]
+    pub password: SecretString,
+}
+
+impl FromRequest for PasswordResetReq {
+    type Error = GenericError;
+    type Future = LocalBoxFuture<'static, Result<Self, Self::Error>>;
+
+    fn from_request(req: &HttpRequest, payload: &mut Payload) -> Self::Future {
+        let fut = web::Json::<Self>::from_request(req, payload);
+
+        Box::pin(async move {
+            match fut.await {
+                Ok(json) => Ok(json.into_inner()),
+                Err(e) => Err(GenericError::ValidationError(e.to_string())),
+            }
+        })
     }
 }

@@ -1,11 +1,14 @@
 use actix_web::web;
 use rand::Rng;
 use sqlx::PgPool;
+use tokio::join;
 use utoipa::TupleUnit;
 
 use crate::{
     configuration::{SecretConfig, UserConfig},
+    email_client::SmtpEmailClient,
     errors::GenericError,
+    routes::setting::{schemas::SettingKey, utils::get_setting_value},
     schemas::{DeleteType, GenericResponse, RequestMetaData, Status},
 };
 
@@ -13,14 +16,14 @@ use super::{
     errors::UserRegistrationError,
     schemas::{
         AuthData, AuthenticateRequest, AuthenticationScope, CreateUserAccount, EditUserAccount,
-        ListUserAccountRequest, MinimalUserAccount, RoleType, SendOTPRequest, UserAccount,
-        VectorType,
+        ListUserAccountRequest, MinimalUserAccount, PasswordResetReq, RoleType, SendOTPRequest,
+        UserAccount,
     },
     utils::{
-        fetch_user, get_auth_data, get_minimal_user_list, get_stored_credentials,
-        hard_delete_user_account, reactivate_user_account, register_user, send_otp,
-        soft_delete_user_account, update_user_account, update_user_verification_status,
-        validate_user_credentials,
+        fetch_user, get_auth_data, get_minimal_user_list, get_stored_credentials, get_user,
+        hard_delete_user_account, reactivate_user_account, register_user, reset_password,
+        send_email_otp, soft_delete_user_account, update_otp, update_user,
+        validate_user_credentials, verify_vector_if_needed,
     },
 };
 
@@ -115,24 +118,22 @@ pub async fn authenticate_req(
     tracing::Span::current().record("user_id", tracing::field::display(&user_id));
 
     let user_model = fetch_user(vec![&user_id.to_string()], &pool)
-        .await?
-        .ok_or_else(|| {
-            GenericError::UnexpectedCustomError(
-                "Something went wrong while fetching user data".to_string(),
-            )
-        })?;
+        .await
+        .map_err(|e| {
+            GenericError::DatabaseError("Something went wrong while fetching user".to_string(), e)
+        })?
+        .ok_or_else(|| GenericError::DataNotFound("User not found".to_string()))?;
 
     let user_account = user_model.into_schema();
 
-    if !user_account.is_vector_verified(VectorType::MobileNo) {
-        if body.scope != AuthenticationScope::Otp {
-            return Err(GenericError::UnAuthorized(
-                "Please Verify your mobile no".to_string(),
-            ));
-        } else {
-            update_user_verification_status(&pool, VectorType::MobileNo, user_id, true).await?;
-        }
-    }
+    verify_vector_if_needed(&pool, &user_account, &body.scope)
+        .await
+        .map_err(|e| {
+            GenericError::DatabaseError(
+                "Something went wrong while status of vector".to_string(),
+                e,
+            )
+        })?;
 
     let auth_obj = get_auth_data(user_account, &secret_obj.jwt)?;
     Ok(web::Json(GenericResponse::success(
@@ -179,7 +180,7 @@ pub async fn fetch_user_req(
     summary = "Send OTP API",
     request_body(content = SendOTPRequest, description = "Request Body"),
     responses(
-        (status=200, description= "Sucessfully fetched user data.", body= GenericResponse<TupleUnit>),
+        (status=200, description= "Sucessfully send data.", body= GenericResponse<TupleUnit>),
         (status=400, description= "Invalid Request body", body= GenericResponse<TupleUnit>),
         (status=401, description= "Invalid Token", body= GenericResponse<TupleUnit>),
 	    (status=403, description= "Insufficient Previlege", body= GenericResponse<TupleUnit>),
@@ -191,14 +192,17 @@ pub async fn fetch_user_req(
         ("x-device-id" = String, Header, description = "Device id"),
     )
 )]
-#[tracing::instrument(err, name = "send OTP", skip(pool), fields())]
+#[tracing::instrument(err, name = "send OTP", skip(pool, email_client), fields())]
 pub async fn send_otp_req(
     req: SendOTPRequest,
     pool: web::Data<PgPool>,
     secret_obj: web::Data<SecretConfig>,
+    email_client: web::Data<SmtpEmailClient>,
 ) -> Result<web::Json<GenericResponse<()>>, GenericError> {
-    let credential = get_stored_credentials(&req.mobile_no, &AuthenticationScope::Otp, &pool)
-        .await
+    let user_task_1 = get_user(vec![&req.identifier], &pool);
+    let credential_task_2 = get_stored_credentials(&req.identifier, &req.scope, &pool);
+    let (user_res, config_res) = join!(user_task_1, credential_task_2);
+    let credential = config_res
         .map_err(|e| {
             GenericError::DatabaseError(
                 "Something went wrong while fetching auth details".to_string(),
@@ -211,16 +215,28 @@ pub async fn send_otp_req(
             "Auth Mechanism is disabled".to_string(),
         ));
     }
-    send_otp(
-        &pool,
-        &rand::thread_rng().gen_range(1000..=9999).to_string(),
-        secret_obj.otp.expiry,
-        credential,
-    )
-    .await
-    .map_err(|_| {
-        GenericError::UnexpectedCustomError("Something went wrong while sending OTP".to_string())
-    })?;
+    let user = user_res
+        .map_err(GenericError::UnexpectedError)?
+        .ok_or(GenericError::DataNotFound("User not found".to_string()))?;
+    let otp = rand::thread_rng().gen_range(1000..=9999).to_string();
+    if req.scope == AuthenticationScope::Email {
+        let otp_clone = otp.clone();
+        let setting_keys = vec![SettingKey::EmailOTPTemplate.to_string()];
+        let configs = get_setting_value(&pool, &setting_keys, None, None)
+            .await
+            .map_err(|e| GenericError::DatabaseError(e.to_string(), e))?;
+        tokio::spawn(
+            async move { send_email_otp(email_client, &user, &otp_clone, &configs).await },
+        );
+    }
+
+    update_otp(&pool, &otp, secret_obj.otp.expiry, credential)
+        .await
+        .map_err(|_| {
+            GenericError::UnexpectedCustomError(
+                "Something went wrong while saving OTP data".to_string(),
+            )
+        })?;
 
     Ok(web::Json(GenericResponse::success(
         "Sucessfully send data.",
@@ -236,7 +252,7 @@ pub async fn send_otp_req(
     summary = "Delete User Account API",
     request_body(content = SendOTPRequest, description = "Request Body"),
     responses(
-        (status=200, description= "Sucessfully fetched user data.", body= GenericResponse<TupleUnit>),
+        (status=200, description= "Successfully deleted user.", body= GenericResponse<TupleUnit>),
         (status=400, description= "Invalid Request body", body= GenericResponse<TupleUnit>),
         (status=401, description= "Invalid Token", body= GenericResponse<TupleUnit>),
 	    (status=403, description= "Insufficient Previlege", body= GenericResponse<TupleUnit>),
@@ -247,6 +263,7 @@ pub async fn send_otp_req(
         ("delete_type" = DeleteType, Path, description = "Delete type (soft or hard)"),
         ("x-request-id" = String, Header, description = "Request id"),
         ("x-device-id" = String, Header, description = "Device id"),
+        ("Authorization" = String, Header, description = "JWT token"),
     )
 )]
 #[tracing::instrument(err, name = "Delete User Account", skip(pool), fields())]
@@ -295,7 +312,7 @@ pub async fn delete_user(
     summary = "User Account Reactivating API",
     request_body(content = SendOTPRequest, description = "Request Body"),
     responses(
-        (status=200, description= "Sucessfully fetched user data.", body= GenericResponse<TupleUnit>),
+        (status=200, description= "Successfully reactivated user.", body= GenericResponse<TupleUnit>),
         (status=400, description= "Invalid Request body", body= GenericResponse<TupleUnit>),
         (status=401, description= "Invalid Token", body= GenericResponse<TupleUnit>),
 	    (status=403, description= "Insufficient Previlege", body= GenericResponse<TupleUnit>),
@@ -305,6 +322,7 @@ pub async fn delete_user(
     params(
         ("x-request-id" = String, Header, description = "Request id"),
         ("x-device-id" = String, Header, description = "Device id"),
+        ("Authorization" = String, Header, description = "JWT token"),
     )
 )]
 #[tracing::instrument(err, name = "Delete User Account", skip(pool), fields())]
@@ -337,7 +355,7 @@ pub async fn reactivate_user_req(
     summary = "List User Accounts API",
     request_body(content = ListUserAccountRequest, description = "Request Body"),
     responses(
-        (status=200, description= "Sucessfully fetched user data.", body= GenericResponse<Vec<MinimalUserAccount>>),
+        (status=200, description= "Successfully updated user.", body= GenericResponse<Vec<MinimalUserAccount>>),
         (status=400, description= "Invalid Request body", body= GenericResponse<TupleUnit>),
         (status=401, description= "Invalid Token", body= GenericResponse<TupleUnit>),
 	    (status=403, description= "Insufficient Previlege", body= GenericResponse<TupleUnit>),
@@ -347,6 +365,7 @@ pub async fn reactivate_user_req(
     params(
         ("x-request-id" = String, Header, description = "Request id"),
         ("x-device-id" = String, Header, description = "Device id"),
+        ("Authorization" = String, Header, description = "JWT token"),
     )
 )]
 #[tracing::instrument(err, name = "List User Accounts", skip(pool), fields())]
@@ -386,6 +405,7 @@ pub async fn user_list_req(
     params(
         ("x-request-id" = String, Header, description = "Request id"),
         ("x-device-id" = String, Header, description = "Device id"),
+        ("Authorization" = String, Header, description = "JWT token"),
     )
 )]
 #[tracing::instrument(err, name = "User Account Edit", skip(pool), fields())]
@@ -394,11 +414,45 @@ pub async fn user_edit_req(
     pool: web::Data<PgPool>,
     user_account: UserAccount,
 ) -> Result<web::Json<GenericResponse<()>>, GenericError> {
-    update_user_account(&pool, &data, &user_account)
+    update_user(&pool, &data, &user_account)
         .await
         .map_err(|e| GenericError::UnexpectedCustomError(e.to_string()))?;
     Ok(web::Json(GenericResponse::success(
         "Successfully updated user.",
+        (),
+    )))
+}
+
+#[utoipa::path(
+    post,
+    path = "/password/reset/passord",
+    tag = "User Account",
+    description = "API for resetting password",
+    summary = "Password Reset API",
+    request_body(content = PasswordResetReq, description = "Request Body"),
+    responses(
+        (status=200, description= "Sucessfully fetched user data.", body= GenericResponse<TupleUnit>),
+        (status=400, description= "Invalid Request body", body= GenericResponse<TupleUnit>),
+	    (status=403, description= "Insufficient Previlege", body= GenericResponse<TupleUnit>),
+	    (status=410, description= "Data not found", body= GenericResponse<TupleUnit>),
+        (status=500, description= "Internal Server Error", body= GenericResponse<TupleUnit>)
+    ),
+    params(
+        ("x-request-id" = String, Header, description = "Request id"),
+        ("x-device-id" = String, Header, description = "Device id"),
+    )
+)]
+#[tracing::instrument(err, name = "User Password Reset", skip(pool), fields())]
+pub async fn reset_password_req(
+    data: PasswordResetReq,
+    pool: web::Data<PgPool>,
+    user_account: UserAccount,
+) -> Result<web::Json<GenericResponse<()>>, GenericError> {
+    reset_password(&pool, data.password, &user_account)
+        .await
+        .map_err(GenericError::UnexpectedError)?;
+    Ok(web::Json(GenericResponse::success(
+        "Successfully verified OTP.",
         (),
     )))
 }

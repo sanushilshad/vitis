@@ -73,7 +73,7 @@ pub mod tests {
             &pool,
             &vec![setting_key.to_string()],
             Some(project_id),
-            user_id,
+            Some(user_id),
         )
         .await;
         assert!(data_res.is_ok());
@@ -121,7 +121,7 @@ pub mod tests {
             create_user_setting(&pool, &setting, user_id, user_id, &setting_map).await;
         assert!(create_setting_res.is_ok());
         let data_res =
-            get_setting_value(&pool, &vec![setting_key.to_string()], None, user_id).await;
+            get_setting_value(&pool, &vec![setting_key.to_string()], None, Some(user_id)).await;
         assert!(data_res.is_ok());
         let data = data_res.unwrap();
         assert!(data[0].user_level.len() == 1);

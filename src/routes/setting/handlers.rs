@@ -201,7 +201,7 @@ pub async fn fetch_project_config_req(
     user: UserAccount,
     project_account: ProjectAccount,
 ) -> Result<web::Json<GenericResponse<SettingData>>, GenericError> {
-    let settings = get_setting_value(&pool, &body.keys, Some(project_account.id), user.id)
+    let settings = get_setting_value(&pool, &body.keys, Some(project_account.id), Some(user.id))
         .await
         .map_err(|e| GenericError::DatabaseError(e.to_string(), e))?;
     let data = SettingData { settings };
@@ -239,7 +239,7 @@ pub async fn fetch_user_config_req(
     pool: web::Data<PgPool>,
     user: UserAccount,
 ) -> Result<web::Json<GenericResponse<SettingData>>, GenericError> {
-    let settings = get_setting_value(&pool, &body.keys, None, user.id)
+    let settings = get_setting_value(&pool, &body.keys, None, Some(user.id))
         .await
         .map_err(|e| GenericError::DatabaseError(e.to_string(), e))?;
     let data = SettingData { settings };
@@ -277,7 +277,7 @@ pub async fn get_allowed_setting(
     pool: web::Data<PgPool>,
     user: UserAccount,
 ) -> Result<web::Json<GenericResponse<SettingData>>, GenericError> {
-    let settings = get_setting_value(&pool, &body.keys, None, user.id)
+    let settings = get_setting_value(&pool, &body.keys, None, Some(user.id))
         .await
         .map_err(|e| GenericError::DatabaseError(e.to_string(), e))?;
     let data = SettingData { settings };

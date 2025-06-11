@@ -144,7 +144,7 @@ async fn fetch_setting_value_model(
     pool: &PgPool,
     key_list: &Vec<String>,
     project_id: Option<Uuid>,
-    user_id: Uuid,
+    user_id: Option<Uuid>,
 ) -> Result<Vec<SettingValueModel>, anyhow::Error> {
     let mut query = QueryBuilder::new(
         r#"
@@ -166,23 +166,39 @@ async fn fetch_setting_value_model(
         WHERE 
             sv.is_deleted = false
             AND s.is_deleted = false
-            AND ((sv.user_id =
+            AND (
         "#,
     );
-    query.push_bind(user_id);
-    if let Some(project_id) = project_id {
-        query.push(" AND sv.project_id = ");
-        query.push_bind(project_id);
-        query.push(") OR (sv.user_id IS NULL AND sv.project_id = ");
-        query.push_bind(project_id);
-        query.push(") OR (sv.user_id IS NULL AND sv.project_id IS NULL");
-        query.push("))");
-    } else {
-        query.push(
-            " AND sv.project_id IS NULL) OR ( sv.project_id is NULL AND sv.user_id IS NULL ))",
-        );
+    match (user_id, project_id) {
+        (Some(user_id), Some(project_id)) => {
+            query.push("(sv.user_id = ");
+            query.push_bind(user_id);
+            query.push(" AND sv.project_id = ");
+            query.push_bind(project_id);
+            query.push(") OR (sv.user_id IS NULL AND sv.project_id = ");
+            query.push_bind(project_id);
+            query.push(") OR (sv.user_id IS NULL AND sv.project_id IS NULL)");
+        }
+        (Some(user_id), None) => {
+            query.push("(sv.user_id = ");
+            query.push_bind(user_id);
+            query.push(
+                " AND sv.project_id IS NULL) OR (sv.user_id IS NULL AND sv.project_id IS NULL)",
+            );
+        }
+        (None, Some(project_id)) => {
+            query.push("(sv.user_id IS NULL AND sv.project_id = ");
+            query.push_bind(project_id);
+            query.push(") OR (sv.user_id IS NULL AND sv.project_id IS NULL)");
+        }
+        (None, None) => {
+            query.push("sv.user_id IS NULL AND sv.project_id IS NULL");
+        }
     }
 
+    query.push(")");
+
+    // Append key filter if provided
     if !key_list.is_empty() {
         query.push(" AND s.key = ANY(");
         query.push_bind(key_list);
@@ -235,7 +251,7 @@ pub async fn get_setting_value(
     pool: &PgPool,
     key_list: &Vec<String>,
     project_id: Option<Uuid>,
-    user_id: Uuid,
+    user_id: Option<Uuid>,
 ) -> Result<Vec<Settings>, anyhow::Error> {
     let data_models = fetch_setting_value_model(pool, key_list, project_id, user_id).await?;
     let data = get_setting_value_from_model(data_models);

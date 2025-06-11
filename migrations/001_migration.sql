@@ -37,7 +37,7 @@ CREATE TABLE IF NOT EXISTS user_account(
     is_deleted BOOLEAN NOT NULL DEFAULT false
 );
 
-ALTER TABLE user_account ADD CONSTRAINT user_mobile_uq UNIQUE (international_dialing_code, mobile_no);
+ALTER TABLE user_account ADD CONSTRAINT user_mobile_uq UNIQUE (mobile_no);
 ALTER TABLE user_account ADD CONSTRAINT user_username_uq UNIQUE (username);
 ALTER TABLE user_account ADD CONSTRAINT user_email_uq UNIQUE (email);
 

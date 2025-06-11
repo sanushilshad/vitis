@@ -36,11 +36,12 @@ struct SlackNotificationPayload {
     text: String,
     blocks: Vec<SlackBlock>,
 }
-
+#[allow(dead_code)]
 pub struct SlackNotification {
     payload: SlackNotificationPayload,
 }
 
+#[allow(dead_code)]
 #[derive(Debug)]
 pub struct SlackClient {
     http_client: Client,
