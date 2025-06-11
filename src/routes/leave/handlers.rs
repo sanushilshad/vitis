@@ -18,7 +18,10 @@ use crate::{
             schemas::{SettingKey, SettingsExt},
             utils::get_setting_value,
         },
-        user::{schemas::UserAccount, utils::get_user},
+        user::{
+            schemas::{UserAccount, VectorType},
+            utils::get_user,
+        },
     },
     schemas::GenericResponse,
     utils::to_title_case,
@@ -72,6 +75,11 @@ pub async fn create_leave_req(
         return Err(GenericError::InsufficientPrevilegeError(
             "You don't have sufficient previlege to create leave request for other users"
                 .to_string(),
+        ));
+    }
+    if !user.is_vector_verified(&VectorType::Email) {
+        return Err(GenericError::InsufficientPrevilegeError(
+            "Please Verify your email, before creating a leave request".to_string(),
         ));
     }
     let setting_keys = vec![
@@ -214,6 +222,11 @@ pub async fn update_leave_status_req(
     mail_config: web::Data<EmailClientConfig>,
     permissions: AllowedPermission,
 ) -> Result<web::Json<GenericResponse<()>>, GenericError> {
+    if !user.is_vector_verified(&VectorType::Email) {
+        return Err(GenericError::InsufficientPrevilegeError(
+            "Please Verify your email, before updating leave requst status".to_string(),
+        ));
+    }
     let filter_query = FetchLeaveQuery::builder().with_leave_id(Some(body.id));
     let leave = get_leaves(&pool, &filter_query)
         .await

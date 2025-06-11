@@ -44,7 +44,7 @@ utoipa-swagger-ui = { version = "9.0.2", features = ["actix-web"] }
 utoipauto = "0.2.0"
 uuid = { version = "1.16.0", default-features = false, features = ["v4", "serde"] }
 validator = {version="0.20.0", features = ["derive"]}
-
+actix-governor ="0.8.0"
 
 
 [dev-dependencies]

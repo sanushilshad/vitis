@@ -9,16 +9,20 @@ use crate::routes::user::schemas::{RoleType, UserAccount};
 use crate::routes::user::utils::get_user;
 use crate::schemas::{RequestMetaData, Status};
 use crate::utils::{decode_token, get_header_value};
-
 use actix_http::header::UPGRADE;
 use actix_http::{Payload, h1};
-use actix_web::body::{self, BoxBody};
+use actix_web::body::{self, BoxBody, EitherBody, MessageBody};
 use actix_web::dev::{Service, ServiceRequest, ServiceResponse, Transform, forward_ready};
-use actix_web::{Error, HttpMessage, http, web};
-use futures::future::LocalBoxFuture;
+use actix_web::error::PayloadError;
+use actix_web::web::{Bytes, BytesMut};
+use actix_web::{Error, HttpMessage, HttpResponseBuilder, ResponseError, http, web};
+use core::str;
+use futures::future::{self, LocalBoxFuture};
+use futures::{Stream, StreamExt, stream};
 use sqlx::PgPool;
 use std::cell::RefCell;
 use std::future::{Ready, ready};
+use std::pin::Pin;
 use std::rc::Rc;
 use tracing::instrument;
 use uuid::Uuid;
@@ -540,6 +544,134 @@ where
         ready(Ok(UserPermissionMiddleware {
             service: Rc::new(service),
             permission_list: self.permission_list.clone(),
+        }))
+    }
+}
+
+pub struct ReadReqResMiddleware2<S> {
+    service: Rc<RefCell<S>>,
+}
+
+impl<S, B> Service<ServiceRequest> for ReadReqResMiddleware2<S>
+where
+    S: Service<ServiceRequest, Response = ServiceResponse<B>, Error = Error> + 'static,
+    S::Future: 'static,
+    B: MessageBody + 'static,
+    <B as MessageBody>::Error: ResponseError + 'static,
+{
+    type Response = ServiceResponse<EitherBody<B>>;
+    type Error = Error;
+    type Future = LocalBoxFuture<'static, Result<Self::Response, Self::Error>>;
+
+    forward_ready!(service);
+
+    #[instrument(skip(self), name = "Request Response Payload", fields(path = %req.path()))]
+    fn call(&self, mut req: ServiceRequest) -> Self::Future {
+        let svc = self.service.clone();
+        //
+        let is_websocket = req.headers().contains_key(UPGRADE)
+            && req.headers().get(UPGRADE).unwrap() == "websocket";
+        let is_on_search = req.path().ends_with("on_search");
+        if is_websocket || is_on_search {
+            Box::pin(async move {
+                let fut: ServiceResponse<B> = svc.call(req).await?;
+                Ok(fut.map_into_left_body())
+            })
+        } else {
+            Box::pin(async move {
+                // let route = req.path().to_owned();
+
+                let mut request_body = BytesMut::new();
+
+                while let Some(chunk) = req.take_payload().next().await {
+                    request_body.extend_from_slice(&chunk?);
+                }
+                let body = request_body.freeze();
+                match str::from_utf8(&body) {
+                    Ok(request_str) => {
+                        if let Ok(request_json) =
+                            // tracing::Span::current().record("Request body", &tracing::field::display("Apple"));
+                            serde_json::from_str::<serde_json::Value>(request_str)
+                        {
+                            tracing::info!({%request_json}, "HTTP Response");
+                        } else {
+                            tracing::info!("Non-JSON request: {}", request_str);
+                            request_str.to_string();
+                        }
+                    }
+
+                    Err(_) => {
+                        tracing::error!("Something went wrong in request body parsing middleware");
+                    }
+                }
+                let single_part: Result<Bytes, PayloadError> = Ok(body);
+                let in_memory_stream = stream::once(future::ready(single_part));
+                let pinned_stream: Pin<Box<dyn Stream<Item = Result<Bytes, PayloadError>>>> =
+                    Box::pin(in_memory_stream);
+                let in_memory_payload: Payload = pinned_stream.into();
+                req.set_payload(in_memory_payload);
+                let fut = svc.call(req).await?;
+
+                let res_status = fut.status();
+                let res_headers = fut.headers().clone();
+                let new_request = fut.request().clone();
+                let mut new_response = HttpResponseBuilder::new(res_status);
+                let body_bytes = body::to_bytes(fut.into_body()).await?;
+                match str::from_utf8(&body_bytes) {
+                    Ok(response_str) => {
+                        if let Ok(response_json) =
+                            serde_json::from_str::<serde_json::Value>(response_str)
+                        {
+                            tracing::info!({%response_json}, "HTTP Response");
+                            tracing::Span::current()
+                                .record("Response body", tracing::field::display(&response_str));
+
+                            response_str.to_string()
+                        } else {
+                            // Not JSON, log as a string
+                            tracing::info!("Non-JSON response: {}", response_str);
+                            response_str.to_string()
+                        }
+                    }
+                    Err(_) => {
+                        tracing::error!("Something went wrong in response body parsing middleware");
+                        "Something went wrong in response response body parsing middleware".into()
+                    }
+                };
+                for (header_name, header_value) in res_headers {
+                    new_response.insert_header((header_name.as_str(), header_value));
+                }
+                let new_response = new_response.body(body_bytes.to_vec());
+                // Create the new ServiceResponse
+                Ok(ServiceResponse::new(
+                    new_request,
+                    new_response.map_into_right_body(),
+                ))
+
+                // }
+            })
+        }
+    }
+}
+
+pub struct SaveRequestResponse2;
+
+impl<S, B> Transform<S, ServiceRequest> for SaveRequestResponse2
+where
+    S: Service<ServiceRequest, Response = ServiceResponse<B>, Error = Error> + 'static,
+    S::Future: 'static,
+    B: MessageBody + 'static,
+    <B as MessageBody>::Error: ResponseError + 'static,
+{
+    type Response = ServiceResponse<EitherBody<B>>;
+    type Error = Error;
+    type InitError = ();
+    type Transform = ReadReqResMiddleware2<S>;
+    type Future = Ready<Result<Self::Transform, Self::InitError>>;
+
+    fn new_transform(&self, service: S) -> Self::Future {
+        ready(Ok(ReadReqResMiddleware2 {
+            service: Rc::new(RefCell::new(service)),
         }))
     }
 }

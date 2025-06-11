@@ -1,4 +1,5 @@
 use crate::configuration::{Config, DatabaseConfig};
+
 use crate::middlewares::SaveRequestResponse;
 use crate::pulsar_client::AppState;
 use crate::route::routes;
@@ -6,10 +7,12 @@ use crate::websocket;
 use actix::Actor;
 use actix_cors::Cors;
 use actix_files::Files;
+use actix_governor::{Governor, GovernorConfigBuilder};
 use actix_web::dev::Server;
 use actix_web::{App, HttpServer, web};
 use sqlx::postgres::{PgPool, PgPoolOptions};
 use std::net::TcpListener;
+use std::time::Duration;
 use tokio::sync::Mutex;
 use tracing_actix_web::TracingLogger;
 pub struct Application {
@@ -38,9 +41,7 @@ impl Application {
 
 pub fn get_connection_pool(configuration: &DatabaseConfig) -> PgPool {
     PgPoolOptions::new()
-        .acquire_timeout(std::time::Duration::from_secs(
-            configuration.acquire_timeout,
-        ))
+        .acquire_timeout(Duration::from_secs(configuration.acquire_timeout))
         .max_connections(configuration.max_connections)
         .min_connections(configuration.min_connections)
         .connect_lazy_with(configuration.with_db())
@@ -71,6 +72,13 @@ async fn run(
     let pulsar_producer = web::Data::new(AppState {
         producer: Mutex::new(producer),
     });
+    let governor_config = GovernorConfigBuilder::default()
+        .seconds_per_request(10)
+        // .period(Duration::from_secs(60))
+        .burst_size(12)
+        .finish()
+        .unwrap();
+
     let server = HttpServer::new(move || {
         App::new()
             //.app_data(web::JsonConfig::default().limit(1024 * 1024 * 50))
@@ -78,6 +86,7 @@ async fn run(
             .wrap(SaveRequestResponse)
             .wrap(Cors::permissive())
             .wrap(TracingLogger::default())
+            .wrap(Governor::new(&governor_config))
             .app_data(db_pool.clone())
             .app_data(secret_obj.clone())
             .app_data(application_obj.clone())
