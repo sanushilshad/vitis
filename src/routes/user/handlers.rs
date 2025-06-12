@@ -222,7 +222,7 @@ pub async fn send_otp_req(
     if req.scope == AuthenticationScope::Email {
         let otp_clone = otp.clone();
         let setting_keys = vec![SettingKey::EmailOTPTemplate.to_string()];
-        let configs = get_setting_value(&pool, &setting_keys, None, None)
+        let configs = get_setting_value(&pool, &setting_keys, None, None, false)
             .await
             .map_err(|e| GenericError::DatabaseError(e.to_string(), e))?;
         tokio::spawn(

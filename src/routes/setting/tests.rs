@@ -74,6 +74,7 @@ pub mod tests {
             &vec![setting_key.to_string()],
             Some(project_id),
             Some(user_id),
+            true,
         )
         .await;
         assert!(data_res.is_ok());
@@ -120,8 +121,14 @@ pub mod tests {
         let create_setting_res =
             create_user_setting(&pool, &setting, user_id, user_id, &setting_map).await;
         assert!(create_setting_res.is_ok());
-        let data_res =
-            get_setting_value(&pool, &vec![setting_key.to_string()], None, Some(user_id)).await;
+        let data_res = get_setting_value(
+            &pool,
+            &vec![setting_key.to_string()],
+            None,
+            Some(user_id),
+            true,
+        )
+        .await;
         assert!(data_res.is_ok());
         let data = data_res.unwrap();
         assert!(data[0].user_level.len() == 1);

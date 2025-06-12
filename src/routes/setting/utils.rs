@@ -85,11 +85,17 @@ async fn create_setting(
     pool: &PgPool,
     bulk_data: BulkSettingCreateModel,
 ) -> Result<(), anyhow::Error> {
+    // (setting_id, user_id, project_id) DO UPDATE
+    // SET value = EXCLUDED.value;
     let query = sqlx::query!(
         r#"
         INSERT INTO setting_value(id, user_id, project_id, setting_id, value, created_by, created_on)
             SELECT * FROM UNNEST($1::uuid[], $2::uuid[], $3::uuid[], $4::uuid[], $5::text[], $6::uuid[], $7::timestamp[])
-            ON CONFLICT DO NOTHING
+            ON CONFLICT (setting_id, user_id, project_id) DO UPDATE
+            SET value = EXCLUDED.value,
+            updated_by = $8,
+            updated_on = $9;
+
         "#,
         &bulk_data.id_list[..] as &[Uuid],
         &bulk_data.user_id_list as &[Option<Uuid>],
@@ -97,7 +103,9 @@ async fn create_setting(
         &bulk_data.setting_id_list as &[Uuid],
         &bulk_data.value_list as &[String],
         &bulk_data.created_by_list as &[Uuid],
-        &bulk_data.created_on_list as &[DateTime<Utc>]
+        &bulk_data.created_on_list as &[DateTime<Utc>],
+        &bulk_data.created_by_list.first() as &Option<&Uuid>,
+        &bulk_data.created_on_list.first() as &Option<&DateTime<Utc>>
     );
     pool.execute(query).await.map_err(|e| {
         tracing::error!("Failed to execute query: {:?}", e);
@@ -145,6 +153,7 @@ async fn fetch_setting_value_model(
     key_list: &Vec<String>,
     project_id: Option<Uuid>,
     user_id: Option<Uuid>,
+    fetch_multi_level: bool,
 ) -> Result<Vec<SettingValueModel>, anyhow::Error> {
     let mut query = QueryBuilder::new(
         r#"
@@ -182,9 +191,10 @@ async fn fetch_setting_value_model(
         (Some(user_id), None) => {
             query.push("(sv.user_id = ");
             query.push_bind(user_id);
-            query.push(
-                " AND sv.project_id IS NULL) OR (sv.user_id IS NULL AND sv.project_id IS NULL)",
-            );
+            query.push(" AND sv.project_id IS NULL)");
+            if fetch_multi_level {
+                query.push("OR (sv.user_id IS NULL AND sv.project_id IS NULL)");
+            }
         }
         (None, Some(project_id)) => {
             query.push("(sv.user_id IS NULL AND sv.project_id = ");
@@ -252,8 +262,10 @@ pub async fn get_setting_value(
     key_list: &Vec<String>,
     project_id: Option<Uuid>,
     user_id: Option<Uuid>,
+    fetch_multi_level: bool,
 ) -> Result<Vec<Settings>, anyhow::Error> {
-    let data_models = fetch_setting_value_model(pool, key_list, project_id, user_id).await?;
+    let data_models =
+        fetch_setting_value_model(pool, key_list, project_id, user_id, fetch_multi_level).await?;
     let data = get_setting_value_from_model(data_models);
     Ok(data)
 }

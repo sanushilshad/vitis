@@ -14,7 +14,7 @@ use super::handlers::{
 
 pub fn setting_routes(cfg: &mut web::ServiceConfig) {
     cfg.route(
-        "/project/create",
+        "/project/save",
         web::post()
             .to(create_project_config_req)
             .wrap(ProjectPermissionValidation {
@@ -23,7 +23,7 @@ pub fn setting_routes(cfg: &mut web::ServiceConfig) {
             .wrap(ProjectAccountValidation),
     );
     cfg.route(
-        "/user/create",
+        "/user/save",
         web::post()
             .to(create_user_config_req)
             .wrap(UserPermissionValidation {

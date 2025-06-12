@@ -212,7 +212,7 @@ The API Docmentation can be found at `https://{{domain}}/docs/` after running th
 }
 ```
 
-## MILESTONE 1 (18/24) (USER ACCOUNT  + LEAVE MANAGEMENT + USER SETTING):
+## MILESTONE 1 (19/25) (USER ACCOUNT  + LEAVE MANAGEMENT + USER SETTING):
 * [x] Setup the application structure.
 * [x] Create user account creation API.
 * [x] Create user account Authentication API.
@@ -231,9 +231,10 @@ The API Docmentation can be found at `https://{{domain}}/docs/` after running th
 * [x] Password Reset Request API.
 * [x] Email Verification API.
 * [x] Add Rate Limiter.
+* [x] Create User Setting edit API (Change create API to allow update).
 * [ ] Add empty setting to setting fetch for user and project. 
-* [ ] Create User Setting edit API (Change create API to allow update).
-* [ ] Create Global Setting API.
+* [ ] Create Global Setting Creation API.
+* [ ] Create Global Setting Fetch API.
 * [ ] Fetch Setting Enum API.
 * [ ] Add auto-slack alert notification. 
 * [ ] Add websocket notification to all APIs.

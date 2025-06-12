@@ -201,9 +201,15 @@ pub async fn fetch_project_config_req(
     user: UserAccount,
     project_account: ProjectAccount,
 ) -> Result<web::Json<GenericResponse<SettingData>>, GenericError> {
-    let settings = get_setting_value(&pool, &body.keys, Some(project_account.id), Some(user.id))
-        .await
-        .map_err(|e| GenericError::DatabaseError(e.to_string(), e))?;
+    let settings = get_setting_value(
+        &pool,
+        &body.keys,
+        Some(project_account.id),
+        Some(user.id),
+        true,
+    )
+    .await
+    .map_err(|e| GenericError::DatabaseError(e.to_string(), e))?;
     let data = SettingData { settings };
     Ok(web::Json(GenericResponse::success(
         "Sucessfully fetched project config/s",
@@ -239,7 +245,7 @@ pub async fn fetch_user_config_req(
     pool: web::Data<PgPool>,
     user: UserAccount,
 ) -> Result<web::Json<GenericResponse<SettingData>>, GenericError> {
-    let settings = get_setting_value(&pool, &body.keys, None, Some(user.id))
+    let settings = get_setting_value(&pool, &body.keys, None, Some(user.id), false)
         .await
         .map_err(|e| GenericError::DatabaseError(e.to_string(), e))?;
     let data = SettingData { settings };
@@ -249,40 +255,40 @@ pub async fn fetch_user_config_req(
     )))
 }
 
-#[utoipa::path(
-    post,
-    description = "API for fetching configs specific to user.",
-    summary = "User Setting Fetch API",
-    path = "/setting/user/fetch",
-    tag = "Setting",
-    request_body(content = FetchSettingRequest, description = "Request Body"),
-    responses(
-        (status=200, description= "project Account created successfully", body= GenericResponse<SettingData>),
-        (status=400, description= "Invalid Request body", body= GenericResponse<TupleUnit>),
-        (status=401, description= "Invalid Token", body= GenericResponse<TupleUnit>),
-	    (status=403, description= "Insufficient Previlege", body= GenericResponse<TupleUnit>),
-	    (status=410, description= "Data not found", body= GenericResponse<TupleUnit>),
-        (status=500, description= "Internal Server Error", body= GenericResponse<TupleUnit>)
-    ),
-    params(
-        ("Authorization" = String, Header, description = "JWT token"),
-        ("x-project-id" = String, Header, description = "id of project_account"),
-        ("x-request-id" = String, Header, description = "Request id"),
-        ("x-device-id" = String, Header, description = "Device id"),
-      )
-)]
-#[tracing::instrument(err, name = "User Config Fetch API", skip(pool, body), fields())]
-pub async fn get_allowed_setting(
-    body: FetchSettingRequest,
-    pool: web::Data<PgPool>,
-    user: UserAccount,
-) -> Result<web::Json<GenericResponse<SettingData>>, GenericError> {
-    let settings = get_setting_value(&pool, &body.keys, None, Some(user.id))
-        .await
-        .map_err(|e| GenericError::DatabaseError(e.to_string(), e))?;
-    let data = SettingData { settings };
-    Ok(web::Json(GenericResponse::success(
-        "Sucessfully fetched allowed config/s",
-        data,
-    )))
-}
+// #[utoipa::path(
+//     post,
+//     description = "API for fetching configs specific to user.",
+//     summary = "User Setting Fetch API",
+//     path = "/setting/user/fetch",
+//     tag = "Setting",
+//     request_body(content = FetchSettingRequest, description = "Request Body"),
+//     responses(
+//         (status=200, description= "project Account created successfully", body= GenericResponse<SettingData>),
+//         (status=400, description= "Invalid Request body", body= GenericResponse<TupleUnit>),
+//         (status=401, description= "Invalid Token", body= GenericResponse<TupleUnit>),
+// 	    (status=403, description= "Insufficient Previlege", body= GenericResponse<TupleUnit>),
+// 	    (status=410, description= "Data not found", body= GenericResponse<TupleUnit>),
+//         (status=500, description= "Internal Server Error", body= GenericResponse<TupleUnit>)
+//     ),
+//     params(
+//         ("Authorization" = String, Header, description = "JWT token"),
+//         ("x-project-id" = String, Header, description = "id of project_account"),
+//         ("x-request-id" = String, Header, description = "Request id"),
+//         ("x-device-id" = String, Header, description = "Device id"),
+//       )
+// )]
+// #[tracing::instrument(err, name = "User Config Fetch API", skip(pool, body), fields())]
+// pub async fn get_allowed_setting(
+//     body: FetchSettingRequest,
+//     pool: web::Data<PgPool>,
+//     user: UserAccount,
+// ) -> Result<web::Json<GenericResponse<SettingData>>, GenericError> {
+//     let settings = get_setting_value(&pool, &body.keys, None, Some(user.id))
+//         .await
+//         .map_err(|e| GenericError::DatabaseError(e.to_string(), e))?;
+//     let data = SettingData { settings };
+//     Ok(web::Json(GenericResponse::success(
+//         "Sucessfully fetched allowed config/s",
+//         data,
+//     )))
+// }

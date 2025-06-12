@@ -89,7 +89,7 @@ pub async fn create_leave_req(
         SettingKey::LeaveRequestTemplate.to_string(),
     ];
     let (config_res, reciever_account_res) = join!(
-        get_setting_value(&pool, &setting_keys, None, Some(user.id)),
+        get_setting_value(&pool, &setting_keys, None, Some(user.id), false),
         get_user(vec![body.to.get()], &pool),
     );
     // .map_err(|e| GenericError::DatabaseError(e.to_string(), e))?;
@@ -254,7 +254,7 @@ pub async fn update_leave_status_req(
         ];
         let reciever_id = leave.sender_id.to_string();
         let (config_res, reciever_account_res) = join!(
-            get_setting_value(&pool, &setting_value_list, None, Some(user.id)),
+            get_setting_value(&pool, &setting_value_list, None, Some(user.id), false),
             get_user(vec![&reciever_id], &pool),
         );
         let configs = config_res.map_err(|e| GenericError::DatabaseError(e.to_string(), e))?;
@@ -408,7 +408,7 @@ pub async fn leave_request_fetch_req(
     mail_config: web::Data<EmailClientConfig>,
 ) -> Result<web::Json<GenericResponse<Vec<LeaveData>>>, GenericError> {
     let setting_key_list = vec![SettingKey::TimeZone.to_string()];
-    let setting_list = get_setting_value(&pool, &setting_key_list, None, Some(user.id))
+    let setting_list = get_setting_value(&pool, &setting_key_list, None, Some(user.id), false)
         .await
         .map_err(|e| GenericError::DatabaseError(e.to_string(), e))?;
     let timezone = setting_list
