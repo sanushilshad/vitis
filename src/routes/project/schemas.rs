@@ -92,10 +92,10 @@ impl FromRequest for ProjectPermissionRequest {
 
 #[derive(Debug, Serialize, Clone, Deserialize, PartialEq)]
 pub enum PermissionType {
-    #[serde(rename = "create:setting")]
-    CreateSetting,
-    #[serde(rename = "create:setting:self")]
-    CreateSettingSelf,
+    #[serde(rename = "create:user-setting")]
+    CreateUserSetting,
+    #[serde(rename = "create:user-setting:self")]
+    CreateUserSettingSelf,
     #[serde(rename = "associate:user-project")]
     AssociateUserProject,
     #[serde(rename = "create:leave-request:self")]
@@ -108,19 +108,30 @@ pub enum PermissionType {
     UpdateLeaveRequestStatus,
     #[serde(rename = "list:users")]
     ListUsers,
+    #[serde(rename = "create:global-setting")]
+    CreateGlobalSetting,
+
+    #[serde(rename = "create:project-setting")]
+    CreateProjectSetting,
+    #[serde(rename = "create:project-setting:self")]
+    CreateProjectSettingSelf,
 }
 
 impl fmt::Display for PermissionType {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let display_str = match self {
-            PermissionType::CreateSetting => "create:setting",
+            PermissionType::CreateUserSetting => "create:user-setting",
             PermissionType::AssociateUserProject => "associate:user-project",
             PermissionType::CreateLeaveRequestSelf => "create:leave-request:self",
             PermissionType::CreateLeaveRequest => "create:leave-request",
             PermissionType::ApproveLeaveRequest => "approve:leave-request",
             PermissionType::UpdateLeaveRequestStatus => "update:leave-request-status",
-            PermissionType::CreateSettingSelf => "create_setting_self",
+            PermissionType::CreateUserSettingSelf => "create:user-setting:self",
             PermissionType::ListUsers => "list:users",
+            PermissionType::CreateGlobalSetting => "create:global-setting",
+
+            PermissionType::CreateProjectSetting => "create:project-setting",
+            PermissionType::CreateProjectSettingSelf => "create:project-setting:self",
         };
         write!(f, "{}", display_str)
     }

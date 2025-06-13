@@ -62,8 +62,8 @@ impl FromRequest for FetchSettingRequest {
 
 #[derive(Serialize, Debug, ToSchema)]
 pub struct Setting {
-    pub value: String,
-    pub id: Uuid,
+    pub value: Option<String>,
+    pub id: Option<Uuid>,
 }
 
 #[derive(Serialize, Debug, ToSchema)]
@@ -81,13 +81,13 @@ pub struct Settings {
 impl Settings {
     pub fn compute_setting(&self) -> Option<String> {
         if !self.user_level.is_empty() {
-            return self.user_level.first().map(|obj| obj.value.to_owned());
+            return self.user_level.first().and_then(|obj| obj.value.clone());
         }
         if !self.project_level.is_empty() {
-            return self.project_level.first().map(|obj| obj.value.to_owned());
+            return self.project_level.first().and_then(|obj| obj.value.clone());
         }
         if !self.global_level.is_empty() {
-            return self.global_level.first().map(|obj| obj.value.to_owned());
+            return self.global_level.first().and_then(|obj| obj.value.clone());
         }
         None
     }
@@ -134,7 +134,7 @@ impl FromRequest for CreateUserSettingRequest {
 
 #[derive(Deserialize, Debug, ToSchema, PartialEq)]
 pub enum SettingType {
-    // Global,
+    Global,
     User,
     Project,
 }

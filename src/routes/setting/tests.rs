@@ -2,6 +2,8 @@
 pub mod tests {
     use std::collections::HashMap;
 
+    use tokio::join;
+
     use crate::{
         constants::DUMMY_INTERNATIONAL_DIALING_CODE,
         routes::{
@@ -10,7 +12,8 @@ pub mod tests {
                 models::SettingModel,
                 schemas::{CreateProjectSettingRequest, CreateSettingData, SettingType},
                 utils::{
-                    create_project_setting, create_user_setting, fetch_setting, get_setting_value,
+                    create_global_setting, create_project_setting, create_user_setting,
+                    delete_global_setting, fetch_setting, get_setting_value,
                 },
             },
             user::{
@@ -138,5 +141,52 @@ pub mod tests {
             &format!("{}{}", DUMMY_INTERNATIONAL_DIALING_CODE, mobile_no),
         )
         .await;
+    }
+
+    #[tokio::test]
+    async fn test_global_setting_creation_and_fetch() {
+        let pool = get_test_pool().await;
+        let setting_key = "time_zone";
+        let mobile_no = "12345671937";
+        let user_res = setup_user(
+            &pool,
+            "testuser28",
+            "testuser28@example.com",
+            mobile_no,
+            "testuser@123",
+        )
+        .await;
+
+        let user_id = user_res.unwrap();
+
+        let valid_settings =
+            fetch_setting(&pool, &vec![setting_key.to_string()], SettingType::Global)
+                .await
+                .unwrap();
+        let setting_map: HashMap<String, &SettingModel> = valid_settings
+            .iter()
+            .map(|setting| (setting.key.to_owned(), setting))
+            .collect();
+        let setting = vec![CreateSettingData {
+            key: setting_key.to_owned(),
+            value: "Asia/Kolkata".to_string(),
+        }];
+
+        let create_setting_res =
+            create_global_setting(&pool, &setting, user_id, &setting_map).await;
+        assert!(create_setting_res.is_ok());
+        let data_res =
+            get_setting_value(&pool, &vec![setting_key.to_string()], None, None, true).await;
+        assert!(data_res.is_ok());
+        let data = data_res.unwrap();
+        assert!(data[0].global_level.len() == 1);
+        let full_mobile_no = &format!("{}{}", DUMMY_INTERNATIONAL_DIALING_CODE, mobile_no);
+        let (delete_setting_res, delete_user_res) = join!(
+            delete_global_setting(&pool),
+            hard_delete_user_account(&pool, full_mobile_no)
+        );
+
+        assert!(delete_setting_res.is_ok());
+        assert!(delete_user_res.is_ok());
     }
 }

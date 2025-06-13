@@ -3,22 +3,28 @@ INSERT INTO  role(id, role_name, role_status, created_on, created_by) VALUES(uui
 INSERT INTO  role(id, role_name, role_status, created_on, created_by) VALUES(uuid_generate_v4(), 'superadmin', 'active'::status, CURRENT_TIMESTAMP, '00000000-0000-0000-0000-000000000000'::uuid);
 INSERT INTO  role(id, role_name, role_status, created_on, created_by) VALUES(uuid_generate_v4(), 'admin', 'active'::status, CURRENT_TIMESTAMP, '00000000-0000-0000-0000-000000000000'::uuid);
 
-INSERT INTO permission(id, permission_name, permission_description, created_on, created_by)VALUES(uuid_generate_v4(), 'create:setting', 'create setting', CURRENT_TIMESTAMP, '00000000-0000-0000-0000-000000000000'::uuid);
-INSERT INTO permission(id, permission_name, permission_description, created_on, created_by)VALUES(uuid_generate_v4(), 'create:setting:self', 'create setting self', CURRENT_TIMESTAMP, '00000000-0000-0000-0000-000000000000'::uuid);
+
 
 INSERT INTO permission(id, permission_name, permission_description, created_on, created_by)VALUES(uuid_generate_v4(), 'associate:user-project', 'User Project Association', CURRENT_TIMESTAMP, '00000000-0000-0000-0000-000000000000'::uuid);
-INSERT INTO permission(id, permission_name, permission_description, created_on, created_by)VALUES(uuid_generate_v4(), 'create:leave-request:self', 'create:leave-request:self', CURRENT_TIMESTAMP, '00000000-0000-0000-0000-000000000000'::uuid);
-INSERT INTO permission(id, permission_name, permission_description, created_on, created_by)VALUES(uuid_generate_v4(), 'create:leave-request', 'create:leave-request', CURRENT_TIMESTAMP, '00000000-0000-0000-0000-000000000000'::uuid);
+INSERT INTO permission(id, permission_name, permission_description, created_on, created_by)VALUES(uuid_generate_v4(), 'list:users', 'list users', CURRENT_TIMESTAMP, '00000000-0000-0000-0000-000000000000'::uuid);
 
-INSERT INTO permission(id, permission_name, permission_description, created_on, created_by)VALUES(uuid_generate_v4(), 'update:leave-request-status', 'update:leave-request-status', CURRENT_TIMESTAMP, '00000000-0000-0000-0000-000000000000'::uuid);
 
-INSERT INTO permission(id, permission_name, permission_description, created_on, created_by)VALUES(uuid_generate_v4(), 'approve:leave-request', 'approve:leave-request', CURRENT_TIMESTAMP, '00000000-0000-0000-0000-000000000000'::uuid);
-INSERT INTO permission(id, permission_name, permission_description, created_on, created_by)VALUES(uuid_generate_v4(), 'list:users', 'list:users', CURRENT_TIMESTAMP, '00000000-0000-0000-0000-000000000000'::uuid);
+INSERT INTO permission(id, permission_name, permission_description, created_on, created_by)VALUES(uuid_generate_v4(), 'create:leave-request:self', 'create leave request self', CURRENT_TIMESTAMP, '00000000-0000-0000-0000-000000000000'::uuid);
+INSERT INTO permission(id, permission_name, permission_description, created_on, created_by)VALUES(uuid_generate_v4(), 'create:leave-request', 'create leave request', CURRENT_TIMESTAMP, '00000000-0000-0000-0000-000000000000'::uuid);
+INSERT INTO permission(id, permission_name, permission_description, created_on, created_by)VALUES(uuid_generate_v4(), 'update:leave-request-status', 'update leave request status', CURRENT_TIMESTAMP, '00000000-0000-0000-0000-000000000000'::uuid);
+INSERT INTO permission(id, permission_name, permission_description, created_on, created_by)VALUES(uuid_generate_v4(), 'approve:leave-request', 'approve leave request', CURRENT_TIMESTAMP, '00000000-0000-0000-0000-000000000000'::uuid);
 
+
+
+INSERT INTO permission(id, permission_name, permission_description, created_on, created_by)VALUES(uuid_generate_v4(), 'create:user-setting', 'create user setting', CURRENT_TIMESTAMP, '00000000-0000-0000-0000-000000000000'::uuid);
+INSERT INTO permission(id, permission_name, permission_description, created_on, created_by)VALUES(uuid_generate_v4(), 'create:user-setting:self', 'create user setting self', CURRENT_TIMESTAMP, '00000000-0000-0000-0000-000000000000'::uuid);
+INSERT INTO permission(id, permission_name, permission_description, created_on, created_by)VALUES(uuid_generate_v4(), 'create:project-setting:self', 'create project setting self', CURRENT_TIMESTAMP, '00000000-0000-0000-0000-000000000000'::uuid);
+INSERT INTO permission(id, permission_name, permission_description, created_on, created_by)VALUES(uuid_generate_v4(), 'create:project-setting', 'create project setting', CURRENT_TIMESTAMP, '00000000-0000-0000-0000-000000000000'::uuid);
+INSERT INTO permission(id, permission_name, permission_description, created_on, created_by)VALUES(uuid_generate_v4(), 'create:global-setting', 'create global setting', CURRENT_TIMESTAMP, '00000000-0000-0000-0000-000000000000'::uuid);
 
 WITH superadmin_role AS (SELECT "id" FROM "role" WHERE "role_name" = 'superadmin' LIMIT 1) INSERT INTO "role_permission" ("id", "role_id", "permission_id", "created_on", "created_by") SELECT uuid_generate_v4(), superadmin_role."id" AS "role_id", "permission"."id" AS "permission_id", NOW(), '00000000-0000-0000-0000-000000000000'::uuid  FROM superadmin_role, "permission" WHERE "permission"."permission_name" NOT LIKE '%:self';
-WITH admin_role AS (SELECT "id" FROM "role" WHERE "role_name" = 'admin' LIMIT 1) INSERT INTO "role_permission" ("id", "role_id", "permission_id", "created_on", "created_by")SELECT uuid_generate_v4(), admin_role."id" AS "role_id", "permission"."id" AS "permission_id", NOW(),'00000000-0000-0000-0000-000000000000'::uuid FROM admin_role, "permission" WHERE  "permission"."permission_name" NOT LIKE '%:self';
-WITH maintainer_role AS (SELECT "id" FROM "role" WHERE "role_name" = 'maintainer' LIMIT 1) INSERT INTO "role_permission" ("id", "role_id", "permission_id", "created_on", "created_by")SELECT uuid_generate_v4(), maintainer_role."id" AS "role_id", "permission"."id" AS "permission_id", NOW(),'00000000-0000-0000-0000-000000000000'::uuid FROM maintainer_role, "permission" WHERE "permission"."permission_name" NOT LIKE '%:self';
+WITH admin_role AS (SELECT "id" FROM "role" WHERE "role_name" = 'admin' LIMIT 1) INSERT INTO "role_permission" ("id", "role_id", "permission_id", "created_on", "created_by")SELECT uuid_generate_v4(), admin_role."id" AS "role_id", "permission"."id" AS "permission_id", NOW(),'00000000-0000-0000-0000-000000000000'::uuid FROM admin_role, "permission" WHERE  "permission"."permission_name" NOT LIKE '%:self'  AND "permission"."permission_name"  NOT IN ('create:global-setting');
+WITH maintainer_role AS (SELECT "id" FROM "role" WHERE "role_name" = 'maintainer' LIMIT 1) INSERT INTO "role_permission" ("id", "role_id", "permission_id", "created_on", "created_by")SELECT uuid_generate_v4(), maintainer_role."id" AS "role_id", "permission"."id" AS "permission_id", NOW(),'00000000-0000-0000-0000-000000000000'::uuid FROM maintainer_role, "permission" WHERE "permission"."permission_name" NOT LIKE '%:self' AND "permission"."permission_name"  NOT IN ('create:global-setting', 'create:project-setting');
 WITH developer_role AS (SELECT "id" FROM "role" WHERE "role_name" = 'developer' LIMIT 1) INSERT INTO "role_permission" ("id", "role_id", "permission_id", "created_on", "created_by") SELECT uuid_generate_v4(), developer_role."id" AS "role_id", "permission"."id" AS "permission_id", NOW(), '00000000-0000-0000-0000-000000000000'::uuid FROM developer_role, "permission" WHERE "permission"."permission_name" IN ('create:setting:self', 'create:leave-request:self', 'update:leave-request-status');
 
 

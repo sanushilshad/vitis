@@ -8,8 +8,8 @@ use crate::{
 };
 
 use super::handlers::{
-    create_project_config_req, create_user_config_req, fetch_project_config_req,
-    fetch_user_config_req,
+    create_project_config_req, create_user_config_req, fetch_global_setting,
+    fetch_project_config_req, fetch_user_config_req, save_global_setting,
 };
 
 pub fn setting_routes(cfg: &mut web::ServiceConfig) {
@@ -18,7 +18,10 @@ pub fn setting_routes(cfg: &mut web::ServiceConfig) {
         web::post()
             .to(create_project_config_req)
             .wrap(ProjectPermissionValidation {
-                permission_list: vec![PermissionType::CreateSetting.to_string()],
+                permission_list: vec![
+                    PermissionType::CreateProjectSetting.to_string(),
+                    PermissionType::CreateProjectSettingSelf.to_string(),
+                ],
             })
             .wrap(ProjectAccountValidation),
     );
@@ -28,8 +31,8 @@ pub fn setting_routes(cfg: &mut web::ServiceConfig) {
             .to(create_user_config_req)
             .wrap(UserPermissionValidation {
                 permission_list: vec![
-                    PermissionType::CreateSetting.to_string(),
-                    PermissionType::CreateSettingSelf.to_string(),
+                    PermissionType::CreateUserSetting.to_string(),
+                    PermissionType::CreateUserSettingSelf.to_string(),
                 ],
             }),
     );
@@ -40,4 +43,20 @@ pub fn setting_routes(cfg: &mut web::ServiceConfig) {
             .wrap(ProjectAccountValidation),
     );
     cfg.route("/user/fetch", web::post().to(fetch_user_config_req));
+    cfg.route(
+        "/global/fetch",
+        web::post()
+            .to(fetch_global_setting)
+            .wrap(UserPermissionValidation {
+                permission_list: vec![PermissionType::CreateGlobalSetting.to_string()],
+            }),
+    );
+    cfg.route(
+        "/global/save",
+        web::post()
+            .to(save_global_setting)
+            .wrap(UserPermissionValidation {
+                permission_list: vec![PermissionType::CreateGlobalSetting.to_string()],
+            }),
+    );
 }

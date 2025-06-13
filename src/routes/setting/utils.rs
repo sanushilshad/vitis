@@ -6,7 +6,7 @@ use super::{
 };
 use chrono::DateTime;
 use chrono::Utc;
-use sqlx::{Executor, PgPool, QueryBuilder};
+use sqlx::{Execute, Executor, PgPool, QueryBuilder};
 use uuid::Uuid;
 
 pub async fn fetch_setting(
@@ -32,6 +32,9 @@ pub async fn fetch_setting(
         }
         SettingType::User => {
             query_builder.push(" AND is_user = true");
+        }
+        SettingType::Global => {
+            query_builder.push(" AND is_global = true");
         }
     }
 
@@ -148,6 +151,18 @@ pub async fn create_user_setting(
     Ok(())
 }
 
+pub async fn create_global_setting(
+    pool: &PgPool,
+    settings: &[CreateSettingData],
+    created_by: Uuid,
+    setting_map: &HashMap<String, &SettingModel>,
+) -> Result<(), anyhow::Error> {
+    let bulk_data = get_setting_bulk_insert_data(settings, None, created_by, None, setting_map);
+    create_setting(pool, bulk_data).await?;
+
+    Ok(())
+}
+
 async fn fetch_setting_value_model(
     pool: &PgPool,
     key_list: &Vec<String>,
@@ -158,68 +173,88 @@ async fn fetch_setting_value_model(
     let mut query = QueryBuilder::new(
         r#"
         SELECT 
-            sv.id, 
-            sv.value AS value, 
-            s.key AS key, 
-            sv.user_id as user_id,
-            sv.project_id as project_id,
+            sv.id AS id,
+            s.key AS key,
+            sv.value AS value,
             s.label AS label,
-            s.is_editable AS is_editable,
-            s.enum_id
+            s.enum_id AS enum_id,
+            sv.user_id AS user_id,
+            sv.project_id AS project_id,
+            s.is_editable AS is_editable
         FROM 
-            setting_value AS sv
-        LEFT JOIN 
-            setting AS s 
-        ON 
-            sv.setting_id = s.id
-        WHERE 
-            sv.is_deleted = false
-            AND s.is_deleted = false
-            AND (
+            setting AS s
+            LEFT JOIN setting_value AS sv ON sv.setting_id = s.id AND sv.is_deleted = false
         "#,
     );
+
+    // JOIN on setting_value
+    // query.push("LEFT JOIN setting_value AS sv ON sv.setting_id = s.id AND sv.is_deleted = false");
+
+    // Scope filters
     match (user_id, project_id) {
         (Some(user_id), Some(project_id)) => {
+            query.push(" AND (");
             query.push("(sv.user_id = ");
             query.push_bind(user_id);
             query.push(" AND sv.project_id = ");
             query.push_bind(project_id);
             query.push(") OR (sv.user_id IS NULL AND sv.project_id = ");
             query.push_bind(project_id);
-            query.push(") OR (sv.user_id IS NULL AND sv.project_id IS NULL)");
+            query.push(") OR (sv.user_id IS NULL AND sv.project_id IS NULL))");
         }
         (Some(user_id), None) => {
+            query.push(" AND (");
             query.push("(sv.user_id = ");
             query.push_bind(user_id);
             query.push(" AND sv.project_id IS NULL)");
             if fetch_multi_level {
-                query.push("OR (sv.user_id IS NULL AND sv.project_id IS NULL)");
+                query.push(" OR (sv.user_id IS NULL AND sv.project_id IS NULL)");
             }
+            query.push(")");
         }
         (None, Some(project_id)) => {
-            query.push("(sv.user_id IS NULL AND sv.project_id = ");
+            query.push(" AND ((sv.user_id IS NULL AND sv.project_id = ");
             query.push_bind(project_id);
-            query.push(") OR (sv.user_id IS NULL AND sv.project_id IS NULL)");
+            query.push(") OR (sv.user_id IS NULL AND sv.project_id IS NULL))");
         }
         (None, None) => {
-            query.push("sv.user_id IS NULL AND sv.project_id IS NULL");
+            query.push(" AND sv.user_id IS NULL AND sv.project_id IS NULL");
         }
     }
 
-    query.push(")");
+    // WHERE clause
+    query.push(" WHERE s.is_deleted = false");
 
-    // Append key filter if provided
+    match (user_id.is_some(), project_id.is_some(), fetch_multi_level) {
+        (true, false, true) => {
+            query.push(" AND (s.is_user = true OR s.is_global = true)");
+        }
+        (true, false, false) => {
+            query.push(" AND s.is_user = true");
+        }
+
+        (false, false, _) => {
+            query.push(" AND s.is_global = true");
+        }
+        _ => {
+            // no additional filter for settings if no user_id
+        }
+    }
+
+    // Filter by keys if present
     if !key_list.is_empty() {
         query.push(" AND s.key = ANY(");
         query.push_bind(key_list);
         query.push(")");
     }
 
-    let rows: Vec<SettingValueModel> =
-        query.build_query_as().fetch_all(pool).await.map_err(|e| {
-            tracing::error!("Failed to execute query: {:?}", e);
-            anyhow::Error::new(e).context("Failed to fetch setting from the database")
-        })?;
+    let final_query = query.build_query_as::<SettingValueModel>();
+    println!("Generated SQL query for: {}", final_query.sql());
+
+    let rows = final_query.fetch_all(pool).await.map_err(|e| {
+        tracing::error!("Failed to execute query: {:?}", e);
+        anyhow::Error::new(e).context("Failed to fetch settings from database")
+    })?;
 
     Ok(rows)
 }
@@ -268,4 +303,16 @@ pub async fn get_setting_value(
         fetch_setting_value_model(pool, key_list, project_id, user_id, fetch_multi_level).await?;
     let data = get_setting_value_from_model(data_models);
     Ok(data)
+}
+#[allow(dead_code)]
+pub async fn delete_global_setting(pool: &PgPool) -> Result<(), anyhow::Error> {
+    let _ = sqlx::query("DELETE FROM setting_value WHERE user_id IS NULL AND project_id IS NULL")
+        .execute(pool)
+        .await
+        .map_err(|e| {
+            tracing::error!("Failed to execute query: {:?}", e);
+            anyhow::Error::new(e)
+                .context("A database failure occurred while deleting global setting from database")
+        })?;
+    Ok(())
 }

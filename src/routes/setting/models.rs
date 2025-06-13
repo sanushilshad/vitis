@@ -23,9 +23,9 @@ pub struct SettingModel {
 
 #[derive(Deserialize, Debug, FromRow)]
 pub struct SettingValueModel {
-    pub id: Uuid,
+    pub id: Option<Uuid>,
     pub key: String,
-    pub value: String,
+    pub value: Option<String>,
     pub label: String,
     pub enum_id: Option<Uuid>,
     pub user_id: Option<Uuid>,
