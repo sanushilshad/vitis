@@ -1,0 +1,43 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        UPDATE auth_mechanism\n        SET\n            updated_on = t.updated_on,\n            updated_by = t.updated_by,\n            auth_identifier = t.auth_identifier\n        FROM UNNEST(\n            $1::timestamptz[],\n            $2::uuid[],\n            $3::text[],\n            $4::uuid[],\n            $5::user_auth_identifier_scope[]\n        ) AS t(\n            updated_on,\n            updated_by,\n            auth_identifier,\n            user_id,\n            auth_scope\n        )\n        WHERE auth_mechanism.user_id = t.user_id\n        AND auth_mechanism.auth_scope = t.auth_scope;\n        ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "TimestamptzArray",
+        "UuidArray",
+        "TextArray",
+        "UuidArray",
+        {
+          "Custom": {
+            "name": "user_auth_identifier_scope[]",
+            "kind": {
+              "Array": {
+                "Custom": {
+                  "name": "user_auth_identifier_scope",
+                  "kind": {
+                    "Enum": [
+                      "otp",
+                      "password",
+                      "google",
+                      "facebook",
+                      "microsoft",
+                      "apple",
+                      "token",
+                      "auth_app",
+                      "qr",
+                      "email"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "1c0fff3e21bcc9e4d84e0bf959e29f0a609fd72d9419356307265a77d6e87725"
+}

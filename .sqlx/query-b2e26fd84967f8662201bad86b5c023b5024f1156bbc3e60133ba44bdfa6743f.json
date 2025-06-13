@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE auth_mechanism SET\n        retry_count = $1\n        WHERE id = $2",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int4",
+        "Uuid"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "b2e26fd84967f8662201bad86b5c023b5024f1156bbc3e60133ba44bdfa6743f"
+}

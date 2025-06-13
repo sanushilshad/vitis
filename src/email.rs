@@ -27,7 +27,6 @@ impl EmailObject {
             Err(format!("{} does not contain a valid domain.", self.0))
         }
     }
-    #[allow(dead_code)]
     pub fn new(email: String) -> Self {
         EmailObject(email)
     }

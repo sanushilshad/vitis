@@ -1,8 +1,11 @@
 use std::collections::HashMap;
 
 use super::{
-    models::{BulkSettingCreateModel, SettingModel, SettingValueModel},
-    schemas::{CreateProjectSettingRequest, CreateSettingData, Setting, SettingType, Settings},
+    models::{BulkSettingCreateModel, SettingEnumModel, SettingModel, SettingValueModel},
+    schemas::{
+        CreateProjectSettingRequest, CreateSettingData, Setting, SettingEnumData, SettingType,
+        Settings,
+    },
 };
 use chrono::DateTime;
 use chrono::Utc;
@@ -16,7 +19,7 @@ pub async fn fetch_setting(
 ) -> Result<Vec<SettingModel>, anyhow::Error> {
     let mut query_builder = QueryBuilder::new(
         r#"
-        SELECT id, key, is_editable
+        SELECT id, key, is_editable, enum_id
         FROM setting
         WHERE is_deleted = false
         "#,
@@ -315,4 +318,32 @@ pub async fn delete_global_setting(pool: &PgPool) -> Result<(), anyhow::Error> {
                 .context("A database failure occurred while deleting global setting from database")
         })?;
     Ok(())
+}
+
+#[tracing::instrument(name = "Get setting enum", skip(pool))]
+pub async fn fetch_setting_enum_models(
+    pool: &PgPool,
+    value_list: &Vec<Uuid>,
+) -> Result<Vec<SettingEnumModel>, anyhow::Error> {
+    let row: Vec<SettingEnumModel> = sqlx::query_as!(
+        SettingEnumModel,
+        r#"SELECT id, values  as "values:sqlx::types::Json<Vec<String>>" FROM setting_enum
+        WHERE id = ANY($1)
+        "#,
+        &value_list
+    )
+    .fetch_all(pool)
+    .await?;
+
+    Ok(row)
+}
+
+#[tracing::instrument(name = "Get setting enum", skip(pool))]
+pub async fn fetch_setting_enums(
+    pool: &PgPool,
+    ids: &Vec<Uuid>,
+) -> Result<Vec<SettingEnumData>, anyhow::Error> {
+    let models = fetch_setting_enum_models(pool, ids).await?;
+    let rows = models.into_iter().map(|e| e.into_schema()).collect();
+    Ok(rows)
 }

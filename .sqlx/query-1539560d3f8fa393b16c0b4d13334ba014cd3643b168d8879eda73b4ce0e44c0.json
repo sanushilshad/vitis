@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        DELETE FROM pending_notification\n        WHERE connection_id = $1\n        ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "1539560d3f8fa393b16c0b4d13334ba014cd3643b168d8879eda73b4ce0e44c0"
+}

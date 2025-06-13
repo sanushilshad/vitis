@@ -212,7 +212,7 @@ The API Docmentation can be found at `https://{{domain}}/docs/` after running th
 }
 ```
 
-## MILESTONE 1 (20/25) (USER ACCOUNT  + LEAVE MANAGEMENT + USER SETTING):
+## MILESTONE 1 (23/25) (USER ACCOUNT  + LEAVE MANAGEMENT + USER SETTING):
 * [x] Setup the application structure.
 * [x] Create user account creation API.
 * [x] Create user account Authentication API.
@@ -235,9 +235,9 @@ The API Docmentation can be found at `https://{{domain}}/docs/` after running th
 * [x] Add empty setting to setting fetch for user and project. 
 * [x] Create Global Setting Creation API.
 * [x] Create Global Setting Fetch API.
-* [ ] Fetch Setting Enum API.
+* [x] Fetch Setting Enum API.
 * [ ] Add auto-slack alert notification. 
-* [ ] Add websocket notification to all APIs.
+* [ ] Add websocket notification to all APIs. (With Pulsar)
 
 
 ## MILESTONE 2 (4/5):

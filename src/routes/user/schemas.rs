@@ -312,7 +312,6 @@ pub struct UserVector {
 
 #[derive(Deserialize, Debug, ToSchema)]
 #[serde(rename_all = "camelCase")]
-#[allow(dead_code)]
 pub struct SendOTPRequest {
     pub identifier: String,
     pub scope: AuthenticationScope,
@@ -344,7 +343,6 @@ pub struct MinimalUserAccount {
 
 #[derive(Deserialize, Debug, ToSchema)]
 #[serde(rename_all = "camelCase")]
-#[allow(dead_code)]
 pub struct ListUserAccountRequest {
     pub query: Option<String>,
     pub offset: i32,

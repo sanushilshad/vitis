@@ -5,7 +5,6 @@ use crate::{routes::user::schemas::UserVector, schemas::Status};
 
 use super::schemas::{BasicprojectAccount, ProjectAccount};
 
-#[allow(dead_code)]
 #[derive(Debug, FromRow)]
 pub struct ProjectAccountModel {
     pub id: Uuid,
@@ -35,7 +34,6 @@ impl ProjectAccountModel {
     }
 }
 
-#[allow(dead_code)]
 #[derive(Debug, FromRow)]
 pub struct UserprojectRelationAccountModel {
     pub id: Uuid,

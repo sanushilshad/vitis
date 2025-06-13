@@ -8,7 +8,7 @@ use crate::{
 };
 
 use super::handlers::{
-    create_project_config_req, create_user_config_req, fetch_global_setting,
+    create_project_config_req, create_user_config_req, fetch_config_enums, fetch_global_setting,
     fetch_project_config_req, fetch_user_config_req, save_global_setting,
 };
 
@@ -59,4 +59,5 @@ pub fn setting_routes(cfg: &mut web::ServiceConfig) {
                 permission_list: vec![PermissionType::CreateGlobalSetting.to_string()],
             }),
     );
+    cfg.route("/enum/fetch", web::post().to(fetch_config_enums));
 }

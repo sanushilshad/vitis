@@ -1,0 +1,29 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        UPDATE leave \n        SET\n        status = $1,\n        updated_on = $2,\n        updated_by = $3\n        WHERE id = $4\n        ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        {
+          "Custom": {
+            "name": "leave_status",
+            "kind": {
+              "Enum": [
+                "approved",
+                "rejected",
+                "cancelled",
+                "requested"
+              ]
+            }
+          }
+        },
+        "Timestamptz",
+        "Uuid",
+        "Uuid"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "8124d7f996bf3100b8037e52bba1649d9857cb4c397bbf9c6938317d347ba53e"
+}

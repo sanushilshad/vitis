@@ -3,13 +3,11 @@ use crate::email::EmailObject;
 use super::schemas::{LeaveData, LeavePeriod, LeaveStatus, LeaveType};
 use chrono::{DateTime, TimeZone, Utc};
 use chrono_tz::Tz;
-use serde::Deserialize;
+
 use sqlx::{FromRow, types::Json};
 use uuid::Uuid;
 
-#[derive(Deserialize, Debug, FromRow)]
-#[serde(rename_all = "camelCase")]
-#[allow(dead_code)]
+#[derive(Debug, FromRow)]
 pub struct LeaveDataModel {
     pub r#type: LeaveType,
     pub period: LeavePeriod,

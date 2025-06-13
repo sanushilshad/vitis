@@ -1,0 +1,28 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        SELECT data as \"data: Json<MessageToClient>\", connection_id\n        FROM pending_notification\n        WHERE connection_id = $1 ORDER BY created_on\n        FOR UPDATE\n        ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "data: Json<MessageToClient>",
+        "type_info": "Jsonb"
+      },
+      {
+        "ordinal": 1,
+        "name": "connection_id",
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": [
+      false,
+      false
+    ]
+  },
+  "hash": "3336ef21b2e63f0edd226d0afb87674bfae31ebca082d4fbe1542ebf48bc2883"
+}

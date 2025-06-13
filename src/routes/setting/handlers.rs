@@ -16,12 +16,12 @@ use crate::{
 use super::{
     models::SettingModel,
     schemas::{
-        CreateProjectSettingRequest, CreateUserSettingRequest, FetchSettingRequest, SettingData,
-        SettingType,
+        CreateProjectSettingRequest, CreateUserSettingRequest, FetchSettingEnumRequest,
+        FetchSettingRequest, SettingData, SettingEnumData, SettingType,
     },
     utils::{
         create_global_setting, create_project_setting, create_user_setting, fetch_setting,
-        get_setting_value,
+        fetch_setting_enums, get_setting_value,
     },
 };
 
@@ -359,5 +359,42 @@ pub async fn save_global_setting(
     Ok(web::Json(GenericResponse::success(
         "Sucessfully created Global config/s",
         (),
+    )))
+}
+
+#[utoipa::path(
+    post,
+    description = "API for fetching setting enums",
+    summary = "Setting Enum Fetch API",
+    path = "/setting/enum/fetch",
+    tag = "Setting",
+    request_body(content = FetchSettingEnumRequest, description = "Request Body"),
+    responses(
+        (status=200, description= "project Account created successfully", body= GenericResponse<Vec<SettingEnumData>>),
+        (status=400, description= "Invalid Request body", body= GenericResponse<TupleUnit>),
+        (status=401, description= "Invalid Token", body= GenericResponse<TupleUnit>),
+	    (status=403, description= "Insufficient Previlege", body= GenericResponse<TupleUnit>),
+	    (status=410, description= "Data not found", body= GenericResponse<TupleUnit>),
+        (status=500, description= "Internal Server Error", body= GenericResponse<TupleUnit>)
+    ),
+    params(
+        ("Authorization" = String, Header, description = "JWT token"),
+        ("x-project-id" = String, Header, description = "id of project_account"),
+        ("x-request-id" = String, Header, description = "Request id"),
+        ("x-device-id" = String, Header, description = "Device id"),
+      )
+)]
+#[tracing::instrument(err, name = "Global Config Fetch API", skip(pool, body), fields())]
+pub async fn fetch_config_enums(
+    body: FetchSettingEnumRequest,
+    pool: web::Data<PgPool>,
+    user: UserAccount,
+) -> Result<web::Json<GenericResponse<Vec<SettingEnumData>>>, GenericError> {
+    let data = fetch_setting_enums(&pool, &body.id_list)
+        .await
+        .map_err(|e| GenericError::DatabaseError("Something went fetching enums".to_string(), e))?;
+    Ok(web::Json(GenericResponse::success(
+        "Sucessfully fetched allowed config enums",
+        data,
     )))
 }

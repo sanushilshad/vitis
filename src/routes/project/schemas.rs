@@ -138,7 +138,6 @@ impl fmt::Display for PermissionType {
 }
 
 #[derive(Debug, Clone, Deserialize)]
-#[allow(dead_code)]
 pub struct AllowedPermission {
     pub permission_list: Vec<String>,
 }
@@ -176,7 +175,6 @@ pub struct BasicprojectAccount {
     pub id: Uuid,
 }
 
-#[allow(dead_code)]
 #[derive(Debug, Deserialize, Clone, Serialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct ProjectAccount {
@@ -220,7 +218,6 @@ impl FromRequest for ProjectAccount {
 //     }
 // }
 
-// #[allow(dead_code)]
 // #[derive(Debug, Deserialize, ToSchema)]
 // pub struct ProjectAccountListReq {}
 
@@ -240,7 +237,6 @@ impl FromRequest for ProjectAccount {
 //     }
 // }
 
-#[allow(dead_code)]
 #[derive(Debug, Deserialize, Serialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct ProjectUserAssociationRequest {

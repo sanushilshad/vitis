@@ -1,0 +1,1 @@
+INSERT INTO setting_enum(id, label, values, created_by, created_on) VALUES ('bf5195d6-a5d0-4899-b7d5-faa16b09a209', 'Timezone', '["Asia/Kolkata"]',  '00000000-0000-0000-0000-000000000000', CURRENT_TIMESTAMP)

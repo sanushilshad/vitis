@@ -185,10 +185,12 @@ ALTER TABLE project_user_relationship ADD CONSTRAINT user_project_role UNIQUE (u
 
 CREATE TABLE IF NOT EXISTS setting_enum(
   id uuid PRIMARY KEY,
-  enums JSONB NOT NULL,
-  created_by TEXT,
-  created_on TIMESTAMPTZ
+  label TEXT NOT NULL,
+  values JSONB NOT NULL,
+  created_by TEXT NOT NULL,
+  created_on TIMESTAMPTZ NOT NULL
 );
+ALTER TABLE setting_enum ADD CONSTRAINT enum_label_uq UNIQUE (label);
 
 CREATE TABLE IF NOT EXISTS setting (
   id uuid PRIMARY KEY,

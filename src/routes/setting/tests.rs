@@ -10,10 +10,12 @@ pub mod tests {
             project::tests::tests::setup_project,
             setting::{
                 models::SettingModel,
-                schemas::{CreateProjectSettingRequest, CreateSettingData, SettingType},
+                schemas::{
+                    CreateProjectSettingRequest, CreateSettingData, SettingKey, SettingType,
+                },
                 utils::{
                     create_global_setting, create_project_setting, create_user_setting,
-                    delete_global_setting, fetch_setting, get_setting_value,
+                    delete_global_setting, fetch_setting, fetch_setting_enums, get_setting_value,
                 },
             },
             user::{
@@ -188,5 +190,23 @@ pub mod tests {
 
         assert!(delete_setting_res.is_ok());
         assert!(delete_user_res.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_enum_fetch() {
+        let pool = get_test_pool().await;
+        let setting_key = vec![SettingKey::TimeZone.to_string()];
+        let setting_res = fetch_setting(&pool, &setting_key, SettingType::Global).await;
+        assert!(setting_res.is_ok());
+        let setting_list = setting_res.unwrap();
+        let setting_opt = setting_list.first();
+        assert!(setting_opt.is_some());
+        let setting = setting_opt.unwrap();
+        assert!(setting.enum_id.is_some());
+        let enum_id = setting.enum_id.unwrap();
+        eprint!("{}", enum_id);
+        let enums = fetch_setting_enums(&pool, &vec![enum_id]).await;
+        assert!(enums.is_ok());
+        assert!(enums.unwrap().first().is_some());
     }
 }

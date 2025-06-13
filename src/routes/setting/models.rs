@@ -1,9 +1,10 @@
 use chrono::{DateTime, Utc};
-use serde::Deserialize;
-use sqlx::FromRow;
+use sqlx::{FromRow, types::Json};
 use uuid::Uuid;
 
-#[derive(Deserialize, Debug)]
+use super::schemas::SettingEnumData;
+
+#[derive(Debug)]
 pub struct BulkSettingCreateModel {
     pub id_list: Vec<Uuid>,
     pub user_id_list: Vec<Option<Uuid>>,
@@ -14,14 +15,16 @@ pub struct BulkSettingCreateModel {
     pub created_by_list: Vec<Uuid>,
 }
 
-#[derive(Deserialize, Debug, FromRow)]
+#[derive(Debug, FromRow)]
+#[allow(dead_code)]
 pub struct SettingModel {
     pub id: Uuid,
     pub key: String,
     pub is_editable: bool,
+    pub enum_id: Option<Uuid>,
 }
 
-#[derive(Deserialize, Debug, FromRow)]
+#[derive(Debug, FromRow)]
 pub struct SettingValueModel {
     pub id: Option<Uuid>,
     pub key: String,
@@ -31,4 +34,19 @@ pub struct SettingValueModel {
     pub user_id: Option<Uuid>,
     pub project_id: Option<Uuid>,
     pub is_editable: bool,
+}
+
+#[derive(FromRow, Debug)]
+pub struct SettingEnumModel {
+    pub id: Uuid,
+    pub values: Json<Vec<String>>,
+}
+
+impl SettingEnumModel {
+    pub fn into_schema(self) -> SettingEnumData {
+        SettingEnumData {
+            id: self.id,
+            value_list: self.values.to_vec(),
+        }
+    }
 }
