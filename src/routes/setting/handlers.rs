@@ -6,11 +6,8 @@ use utoipa::TupleUnit;
 
 use crate::{
     errors::GenericError,
-    routes::{
-        project::schemas::{AllowedPermission, PermissionType, ProjectAccount},
-        user::schemas::UserAccount,
-    },
-    schemas::GenericResponse,
+    routes::{project::schemas::ProjectAccount, user::schemas::UserAccount},
+    schemas::{AllowedPermission, GenericResponse, PermissionType},
 };
 
 use super::{

@@ -18,9 +18,9 @@ pub mod tests {
                     validate_leave_request, validate_leave_status_update,
                 },
             },
-            project::schemas::{AllowedPermission, PermissionType},
             user::{tests::tests::setup_user, utils::hard_delete_user_account},
         },
+        schemas::{AllowedPermission, PermissionType},
         tests::tests::get_test_pool,
     };
 

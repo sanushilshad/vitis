@@ -212,7 +212,7 @@ The API Docmentation can be found at `https://{{domain}}/docs/` after running th
 }
 ```
 
-## MILESTONE 1 (23/25) (USER ACCOUNT  + LEAVE MANAGEMENT + USER SETTING):
+## MILESTONE 1 (19/19) (USER ACCOUNT + USER SETTING):
 * [x] Setup the application structure.
 * [x] Create user account creation API.
 * [x] Create user account Authentication API.
@@ -221,10 +221,6 @@ The API Docmentation can be found at `https://{{domain}}/docs/` after running th
 * [x] Create user account reactivation API.
 * [x] Create User Setting creation API.
 * [x] Create User Setting fetch API.
-* [x] Add leave request management API.  
-* [x] Add causual leave approval API. 
-* [x] Add leave deletion API.
-* [x] Add leave fetch API.
 * [x] Fetch All Minimal User Account API.
 * [x] Limit No of OTP Authentication.
 * [x] Create user account edit API.
@@ -236,18 +232,29 @@ The API Docmentation can be found at `https://{{domain}}/docs/` after running th
 * [x] Create Global Setting Creation API.
 * [x] Create Global Setting Fetch API.
 * [x] Fetch Setting Enum API.
-* [ ] Add auto-slack alert notification. 
+
+
+## MILESTONE 2 DEPARTMENT AND LEAVE MANAGEMENT:
+* [ ] Department Creation.
+* [ ] Department-User Association.
+* [ ] Department Edit.
+* [ ] Department Deletion.
+* [x] Add leave request management API.  
+* [x] Add causual leave approval API. 
+* [x] Add leave deletion API.
+* [x] Add leave fetch API.
+* [ ] Add auto-slack alert notification. (On-going)
 * [ ] Add websocket notification to all APIs. (With Pulsar)
 
 
-## MILESTONE 2 (4/5):
+## MILESTONE 3 (4/5):
 * [x] Integrate Websocket.
 * [x] Integrate Email.
 * [x] Integrate Pulsar.
 * [x] Integrate Slack.
 * [ ] Integrate Whatsapp.
 
-## MILESTONE 3 (7/12) (PROJECT MANAGEMENT):
+## MILESTONE 4 (7/12) (PROJECT MANAGEMENT):
 * [x] Create project creation API.
 * [x] List all project of a user data API.
 * [x] Fetch project data API.
@@ -262,20 +269,20 @@ The API Docmentation can be found at `https://{{domain}}/docs/` after running th
 * [ ] Create Project Setting edit API.
 
 
-## MILESTONE 4 (0/4) (ROLE AND PERMISSION MANAGEMENT):
+## MILESTONE 5 (0/4) (ROLE AND PERMISSION MANAGEMENT):
 * [ ] Create Role fetch API.
 * [ ] Create role permissions assigment API.
 * [ ] Create Permission fetch API.
 * [ ] Create role permissions assigment edit API.
 
 
-## MILESTONE 5  (0/3) (ON-CALL MANAGEMENT):
+## MILESTONE 6  (0/3) (ON-CALL MANAGEMENT):
 * [ ] Create On-call creation API.
 * [ ] Create On-call fetch API.
 * [ ] Create On-call history fetch API.
 
 
-## MILESTONE 6 (0/7) (TASK MANAGEMENT):
+## MILESTONE 7 (0/7) (TASK MANAGEMENT):
 * [ ] Create project task assignment API.
 * [ ] Create project task unassignment API.
 * [ ] Create project task status update API.
@@ -285,11 +292,11 @@ The API Docmentation can be found at `https://{{domain}}/docs/` after running th
 * [ ] Create project task edit API.
 
 
-## MILESTONE 7 (QA LIVE BUILD MILESTONE):
+## MILESTONE 8 (QA LIVE BUILD MILESTONE):
 * [ ] In-progress
 
 
-## MILESTONE 8 (Expense Management):
+## MILESTONE 9 (Expense Management):
 * [ ] In-progress
 
 

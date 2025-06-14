@@ -16,7 +16,7 @@ use anyhow::anyhow;
 #[allow(dead_code)]
 #[derive(Deserialize, Debug, ToSchema)]
 #[serde(rename_all = "camelCase")]
-pub struct CreateprojectAccount {
+pub struct CreateDepartmentAccount {
     pub name: String,
     pub is_test_account: bool,
     pub mobile_no: String,
@@ -24,12 +24,12 @@ pub struct CreateprojectAccount {
     pub international_dialing_code: String,
 }
 
-impl CreateprojectAccount {
+impl CreateDepartmentAccount {
     pub fn get_full_mobile_no(&self) -> String {
         format!("{}{}", self.international_dialing_code, self.mobile_no)
     }
 }
-impl FromRequest for CreateprojectAccount {
+impl FromRequest for CreateDepartmentAccount {
     type Error = GenericError;
     type Future = LocalBoxFuture<'static, Result<Self, Self::Error>>;
 
@@ -47,11 +47,11 @@ impl FromRequest for CreateprojectAccount {
 
 #[derive(Deserialize, Debug, ToSchema)]
 #[serde(rename_all = "camelCase")]
-pub struct ProjectFetchRequest {
+pub struct DepartmentFetchRequest {
     pub id: Uuid,
 }
 
-impl FromRequest for ProjectFetchRequest {
+impl FromRequest for DepartmentFetchRequest {
     type Error = GenericError;
     type Future = LocalBoxFuture<'static, Result<Self, Self::Error>>;
 
@@ -69,12 +69,12 @@ impl FromRequest for ProjectFetchRequest {
 
 #[derive(Deserialize, Debug, ToSchema)]
 #[serde(rename_all = "camelCase")]
-pub struct ProjectPermissionRequest {
+pub struct departmentPermissionRequest {
     pub action_list: Vec<String>,
-    pub project_id: Uuid,
+    pub department_id: Uuid,
 }
 
-impl FromRequest for ProjectPermissionRequest {
+impl FromRequest for departmentPermissionRequest {
     type Error = GenericError;
     type Future = LocalBoxFuture<'static, Result<Self, Self::Error>>;
 
@@ -91,23 +91,22 @@ impl FromRequest for ProjectPermissionRequest {
 }
 
 #[derive(Debug, Serialize, ToSchema)]
-pub struct BasicprojectAccount {
+pub struct BasicDepartmentAccount {
     pub name: String,
     pub id: Uuid,
 }
 
 #[derive(Debug, Deserialize, Clone, Serialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
-pub struct ProjectAccount {
+pub struct DepartmentAccount {
     pub id: Uuid,
     pub name: String,
-    pub vectors: Vec<UserVector>,
     pub is_active: Status,
     pub is_deleted: bool,
     pub verified: bool,
 }
 
-impl FromRequest for ProjectAccount {
+impl FromRequest for DepartmentAccount {
     type Error = GenericError;
     type Future = Ready<Result<Self, Self::Error>>;
 
@@ -115,12 +114,12 @@ impl FromRequest for ProjectAccount {
         req: &actix_web::HttpRequest,
         _payload: &mut actix_web::dev::Payload,
     ) -> Self::Future {
-        let value = req.extensions().get::<ProjectAccount>().cloned();
+        let value = req.extensions().get::<DepartmentAccount>().cloned();
 
         let result = match value {
             Some(user) => Ok(user),
             None => Err(GenericError::UnexpectedError(anyhow!(
-                "Something went wrong while parsing project Account data".to_string()
+                "Something went wrong while parsing department Account data".to_string()
             ))),
         };
 
@@ -129,20 +128,20 @@ impl FromRequest for ProjectAccount {
 }
 
 // #[derive(Debug, Serialize, ToSchema)]
-// pub struct WSprojectAccountCreate {
+// pub struct WSdepartmentAccountCreate {
 //     pub message: String,
 // }
 
-// impl WSprojectAccountCreate {
+// impl WSdepartmentAccountCreate {
 //     pub fn get_message(message: String) -> Self {
 //         Self { message }
 //     }
 // }
 
 // #[derive(Debug, Deserialize, ToSchema)]
-// pub struct ProjectAccountListReq {}
+// pub struct departmentAccountListReq {}
 
-// impl FromRequest for ProjectAccountListReq {
+// impl FromRequest for departmentAccountListReq {
 //     type Error = GenericError;
 //     type Future = LocalBoxFuture<'static, Result<Self, Self::Error>>;
 
@@ -160,12 +159,13 @@ impl FromRequest for ProjectAccount {
 
 #[derive(Debug, Deserialize, Serialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
-pub struct ProjectUserAssociationRequest {
+pub struct DepartmentUserAssociationRequest {
     pub user_id: Uuid,
+    pub department_id: Uuid,
     pub role: RoleType,
 }
 
-impl FromRequest for ProjectUserAssociationRequest {
+impl FromRequest for DepartmentUserAssociationRequest {
     type Error = GenericError;
     type Future = LocalBoxFuture<'static, Result<Self, Self::Error>>;
 

@@ -4,7 +4,7 @@ use crate::{
     middlewares::{
         ProjectAccountValidation, ProjectPermissionValidation, UserPermissionValidation,
     },
-    routes::project::schemas::PermissionType,
+    schemas::PermissionType,
 };
 
 use super::handlers::{

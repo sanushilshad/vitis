@@ -4,7 +4,7 @@ use super::handlers::{
 };
 use crate::{
     middlewares::{RequireAuth, UserPermissionValidation},
-    routes::project::schemas::PermissionType,
+    schemas::PermissionType,
 };
 
 use actix_web::web;

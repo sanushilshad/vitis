@@ -1,13 +1,13 @@
 use actix_web::web;
 
-use crate::middlewares::{ProjectAccountValidation, ProjectPermissionValidation};
-
-use super::{
-    handlers::{
-        fetch_project_req, list_project_req, project_permission_validation,
-        register_project_account_req, user_project_association_req,
-    },
+use crate::{
+    middlewares::{ProjectAccountValidation, ProjectPermissionValidation},
     schemas::PermissionType,
+};
+
+use super::handlers::{
+    fetch_project_req, list_project_req, project_permission_validation,
+    register_project_account_req, user_project_association_req,
 };
 
 pub fn project_routes(cfg: &mut web::ServiceConfig) {

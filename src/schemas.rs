@@ -2,12 +2,12 @@ use crate::errors::GenericError;
 use actix_http::StatusCode;
 use actix_web::{FromRequest, HttpMessage};
 
+use anyhow::anyhow;
 use serde::{Deserialize, Serialize};
+use std::fmt::{self, Debug};
+use std::future::{Ready, ready};
 use utoipa::ToSchema;
 use uuid::Uuid;
-
-use std::fmt::Debug;
-use std::future::{Ready, ready};
 #[derive(Serialize, Debug, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct GenericResponse<D> {
@@ -115,5 +115,89 @@ impl WSKeyTrait for WebSocketParam {
                 .map_or("NA".to_string(), |id| id.to_string()),
             self.device_id.clone().unwrap_or("NA".to_string())
         )
+    }
+}
+
+#[derive(Debug, Serialize, Clone, Deserialize, PartialEq)]
+pub enum PermissionType {
+    #[serde(rename = "create:user-setting")]
+    CreateUserSetting,
+    #[serde(rename = "create:user-setting:self")]
+    CreateUserSettingSelf,
+    #[serde(rename = "associate:user-project")]
+    AssociateUserProject,
+    #[serde(rename = "create:leave-request:self")]
+    CreateLeaveRequestSelf,
+    #[serde(rename = "create:leave-request")]
+    CreateLeaveRequest,
+    #[serde(rename = "approve:leave-request")]
+    ApproveLeaveRequest,
+    #[serde(rename = "update:leave-request-status")]
+    UpdateLeaveRequestStatus,
+    #[serde(rename = "list:users")]
+    ListUsers,
+    #[serde(rename = "create:global-setting")]
+    CreateGlobalSetting,
+
+    #[serde(rename = "create:project-setting")]
+    CreateProjectSetting,
+    #[serde(rename = "create:project-setting:self")]
+    CreateProjectSettingSelf,
+    #[serde(rename = "associate:user-department")]
+    AssociateUserDepartment,
+    #[serde(rename = "create:department")]
+    CreateDepartment,
+}
+
+impl fmt::Display for PermissionType {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let display_str = match self {
+            PermissionType::CreateUserSetting => "create:user-setting",
+            PermissionType::AssociateUserProject => "associate:user-project",
+            PermissionType::CreateLeaveRequestSelf => "create:leave-request:self",
+            PermissionType::CreateLeaveRequest => "create:leave-request",
+            PermissionType::ApproveLeaveRequest => "approve:leave-request",
+            PermissionType::UpdateLeaveRequestStatus => "update:leave-request-status",
+            PermissionType::CreateUserSettingSelf => "create:user-setting:self",
+            PermissionType::ListUsers => "list:users",
+            PermissionType::CreateGlobalSetting => "create:global-setting",
+            PermissionType::AssociateUserDepartment => "associate:user-department",
+            PermissionType::CreateProjectSetting => "create:project-setting",
+            PermissionType::CreateProjectSettingSelf => "create:project-setting:self",
+            PermissionType::CreateDepartment => "create:department",
+        };
+        write!(f, "{}", display_str)
+    }
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct AllowedPermission {
+    pub permission_list: Vec<String>,
+}
+
+impl AllowedPermission {
+    pub fn _is_present(&self, permission: String) -> bool {
+        self.permission_list.contains(&permission)
+    }
+}
+
+impl FromRequest for AllowedPermission {
+    type Error = GenericError;
+    type Future = Ready<Result<Self, Self::Error>>;
+
+    fn from_request(
+        req: &actix_web::HttpRequest,
+        _payload: &mut actix_web::dev::Payload,
+    ) -> Self::Future {
+        let value = req.extensions().get::<AllowedPermission>().cloned();
+
+        let result = match value {
+            Some(user) => Ok(user),
+            None => Err(GenericError::UnexpectedError(anyhow!(
+                "Something went wrong while parsing allowed_permission data".to_string()
+            ))),
+        };
+
+        ready(result)
     }
 }

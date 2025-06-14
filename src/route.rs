@@ -1,6 +1,7 @@
 use crate::handlers::health_check;
 use crate::middlewares::{HeaderValidation, RequireAuth};
 use crate::openapi::ApiDoc;
+use crate::routes::department::routes::department_routes;
 use crate::routes::leave::routes::leave_routes;
 use crate::routes::project::routes::project_routes;
 use crate::routes::setting::routes::setting_routes;
@@ -16,6 +17,14 @@ pub fn routes(cfg: &mut web::ServiceConfig) {
             web::scope("/user")
                 .configure(user_routes)
                 .wrap(HeaderValidation),
+        )
+        .service(
+            web::scope("/department")
+                .configure(department_routes)
+                .wrap(HeaderValidation)
+                .wrap(RequireAuth {
+                    allow_deleted_user: false,
+                }),
         )
         .service(
             web::scope("/project")

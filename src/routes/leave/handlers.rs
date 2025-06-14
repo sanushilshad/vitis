@@ -13,7 +13,6 @@ use crate::{
     email_client::{GenericEmailService, SmtpEmailClient},
     errors::GenericError,
     routes::{
-        project::schemas::{AllowedPermission, PermissionType},
         setting::{
             schemas::{SettingKey, SettingsExt},
             utils::get_setting_value,
@@ -23,7 +22,7 @@ use crate::{
             utils::get_user,
         },
     },
-    schemas::GenericResponse,
+    schemas::{AllowedPermission, GenericResponse, PermissionType},
     utils::to_title_case,
 };
 

@@ -15,7 +15,7 @@ pub mod tests {
         get_role, get_user, hard_delete_project_account, hard_delete_user_account,
     };
 
-    use crate::schemas::Status;
+    use crate::schemas::{PermissionType, Status};
 
     use crate::tests::tests::get_test_pool;
     use sqlx::PgPool;
@@ -161,7 +161,7 @@ pub mod tests {
             &pool,
             user_id,
             project_id,
-            &vec!["create:setting".to_string()],
+            &vec![PermissionType::AssociateUserProject.to_string()],
         )
         .await;
         assert!(permission_res.unwrap().len() > 0);
@@ -184,7 +184,7 @@ pub mod tests {
             &pool,
             user_id,
             project_id,
-            &vec!["create:setting1".to_string()],
+            &vec![PermissionType::CreateProjectSetting.to_string()],
         )
         .await;
         assert!(permission_res.unwrap().len() == 0);

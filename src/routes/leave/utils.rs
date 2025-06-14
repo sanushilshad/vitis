@@ -8,10 +8,8 @@ use uuid::Uuid;
 
 use crate::{
     errors::GenericError,
-    routes::{
-        leave::schemas::{LeavePeriod, LeaveType},
-        project::schemas::{AllowedPermission, PermissionType},
-    },
+    routes::leave::schemas::{LeavePeriod, LeaveType},
+    schemas::{AllowedPermission, PermissionType},
 };
 
 use super::{

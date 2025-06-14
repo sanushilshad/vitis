@@ -1,13 +1,13 @@
 use crate::configuration::SecretConfig;
 use crate::errors::GenericError;
-use crate::routes::project::schemas::{AllowedPermission, ProjectAccount};
+use crate::routes::project::schemas::ProjectAccount;
 use crate::routes::project::utils::{
     fetch_project_account_model_by_id, get_project_account, validate_project_account_active,
     validate_user_permission, validate_user_project_permission,
 };
 use crate::routes::user::schemas::{RoleType, UserAccount};
 use crate::routes::user::utils::get_user;
-use crate::schemas::{RequestMetaData, Status};
+use crate::schemas::{AllowedPermission, RequestMetaData, Status};
 use crate::utils::{decode_token, get_header_value};
 use actix_http::header::UPGRADE;
 use actix_http::{Payload, h1};

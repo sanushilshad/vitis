@@ -1,6 +1,6 @@
 use actix_web::web;
 
-use crate::{middlewares::UserPermissionValidation, routes::project::schemas::PermissionType};
+use crate::{middlewares::UserPermissionValidation, schemas::PermissionType};
 
 use super::handlers::{
     create_leave_req, leave_request_deletion_req, leave_request_fetch_req, update_leave_status_req,
