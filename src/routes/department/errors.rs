@@ -6,8 +6,8 @@ use crate::{errors::GenericError, utils::error_chain_fmt};
 pub enum DepartmentAccountError {
     #[error("{0}, {1}")]
     DatabaseError(String, anyhow::Error),
-    #[error("Invalid Role")]
-    InvalidRoleError(String),
+    // #[error("Invalid Role")]
+    // InvalidRoleError(String),
     #[error(transparent)]
     UnexpectedError(#[from] anyhow::Error),
 }
@@ -24,10 +24,9 @@ impl From<DepartmentAccountError> for GenericError {
             DepartmentAccountError::UnexpectedError(error) => GenericError::UnexpectedError(error),
             DepartmentAccountError::DatabaseError(message, error) => {
                 GenericError::DatabaseError(message, error)
-            }
-            DepartmentAccountError::InvalidRoleError(message) => {
-                GenericError::ValidationError(message)
-            }
+            } // DepartmentAccountError::InvalidRoleError(message) => {
+              //     GenericError::ValidationError(message)
+              // }
         }
     }
 }

@@ -212,7 +212,7 @@ The API Docmentation can be found at `https://{{domain}}/docs/` after running th
 }
 ```
 
-## MILESTONE 1 (19/19) (USER ACCOUNT + USER SETTING):
+## MILESTONE 1 (19/19) (USER ACCOUNT + USER SETTING + LEAVE MANAGEMENT):
 * [x] Setup the application structure.
 * [x] Create user account creation API.
 * [x] Create user account Authentication API.
@@ -232,20 +232,19 @@ The API Docmentation can be found at `https://{{domain}}/docs/` after running th
 * [x] Create Global Setting Creation API.
 * [x] Create Global Setting Fetch API.
 * [x] Fetch Setting Enum API.
-
-
-## MILESTONE 2 DEPARTMENT AND LEAVE MANAGEMENT:
-* [ ] Department Creation.
-* [ ] Department-User Association.
-* [ ] Department Edit.
-* [ ] Department Deletion.
 * [x] Add leave request management API.  
 * [x] Add causual leave approval API. 
 * [x] Add leave deletion API.
 * [x] Add leave fetch API.
-* [ ] Add auto-slack alert notification. (On-going)
-* [ ] Add websocket notification to all APIs. (With Pulsar)
+* [x] Add websocket notification to all APIs. 
+* [ ] Add auto-slack alert notification With Pulsar.  (On-going)
+* [ ] Move Personal Email to pulsar
 
+## MILESTONE 2 DEPARTMENT AND L:
+* [x] Department Creation.
+* [x] Department-User Association.
+* [ ] Department Deletion.
+* [ ] Department Edit.
 
 ## MILESTONE 3 (4/5):
 * [x] Integrate Websocket.

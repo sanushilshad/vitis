@@ -1,10 +1,10 @@
-use sqlx::{FromRow, types::Json};
+use sqlx::FromRow;
 use uuid::Uuid;
 
-use crate::{routes::user::schemas::UserVector, schemas::Status};
+use crate::schemas::Status;
 
 use super::schemas::{BasicDepartmentAccount, DepartmentAccount};
-
+#[allow(dead_code)]
 #[derive(Debug, FromRow)]
 pub struct DepartmentAccountModel {
     pub id: Uuid,
@@ -21,6 +21,7 @@ impl DepartmentAccountModel {
             name: self.name,
         }
     }
+    #[allow(dead_code)]
     pub fn into_schema(self) -> DepartmentAccount {
         DepartmentAccount {
             id: self.id,

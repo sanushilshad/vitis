@@ -20,6 +20,8 @@ const CLIENT_TIMEOUT: Duration = Duration::from_secs(30);
 pub enum WebSocketActionType {
     UserProjectAssociation,
     UserDepartmentAssociation,
+    LeaveRequest,
+    LeaveRequestStatusUpdation,
 }
 
 #[derive(Debug, Serialize, ToSchema)]
@@ -42,7 +44,7 @@ pub struct MessageToClient {
 }
 
 impl MessageToClient {
-    fn get_ws_key(
+    pub fn get_ws_key(
         user_id: Option<Uuid>,
         business_id: Option<Uuid>,
         device_id: Option<String>,

@@ -6,6 +6,7 @@ use crate::routes::leave::routes::leave_routes;
 use crate::routes::project::routes::project_routes;
 use crate::routes::setting::routes::setting_routes;
 use crate::routes::user::routes::user_routes;
+use crate::routes::web_socket::routes::web_socket_routes;
 use actix_web::web;
 use utoipa::OpenApi;
 use utoipa_swagger_ui::SwaggerUi;
@@ -13,6 +14,7 @@ use utoipa_swagger_ui::SwaggerUi;
 pub fn routes(cfg: &mut web::ServiceConfig) {
     let openapi = ApiDoc::openapi();
     cfg.route("/", web::get().to(health_check))
+        .service(web::scope("/websocket").configure(web_socket_routes))
         .service(
             web::scope("/user")
                 .configure(user_routes)

@@ -2,14 +2,12 @@ use actix_http::Payload;
 use actix_web::{FromRequest, HttpMessage, HttpRequest, web};
 use futures::future::LocalBoxFuture;
 use serde::{Deserialize, Serialize};
-use std::fmt;
 use std::future::{Ready, ready};
 use utoipa::ToSchema;
 use uuid::Uuid;
 
-use crate::email::EmailObject;
 use crate::errors::GenericError;
-use crate::routes::user::schemas::{RoleType, UserVector};
+use crate::routes::user::schemas::RoleType;
 use crate::schemas::Status;
 use anyhow::anyhow;
 
@@ -19,16 +17,9 @@ use anyhow::anyhow;
 pub struct CreateDepartmentAccount {
     pub name: String,
     pub is_test_account: bool,
-    pub mobile_no: String,
-    pub email: EmailObject,
     pub international_dialing_code: String,
 }
 
-impl CreateDepartmentAccount {
-    pub fn get_full_mobile_no(&self) -> String {
-        format!("{}{}", self.international_dialing_code, self.mobile_no)
-    }
-}
 impl FromRequest for CreateDepartmentAccount {
     type Error = GenericError;
     type Future = LocalBoxFuture<'static, Result<Self, Self::Error>>;
@@ -69,12 +60,13 @@ impl FromRequest for DepartmentFetchRequest {
 
 #[derive(Deserialize, Debug, ToSchema)]
 #[serde(rename_all = "camelCase")]
-pub struct departmentPermissionRequest {
+#[allow(dead_code)]
+pub struct DepartmentPermissionRequest {
     pub action_list: Vec<String>,
     pub department_id: Uuid,
 }
 
-impl FromRequest for departmentPermissionRequest {
+impl FromRequest for DepartmentPermissionRequest {
     type Error = GenericError;
     type Future = LocalBoxFuture<'static, Result<Self, Self::Error>>;
 

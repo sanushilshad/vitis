@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use anyhow::anyhow;
 use bigdecimal::{BigDecimal, FromPrimitive};
 use chrono::{DateTime, Datelike, Duration, NaiveDate, TimeZone, Utc};
-use sqlx::{Execute, PgPool, QueryBuilder};
+use sqlx::{Execute, Executor, PgPool, Postgres, QueryBuilder, Transaction};
 use uuid::Uuid;
 
 use crate::{
@@ -79,9 +79,9 @@ pub async fn prepare_bulk_leave_request_data<'a>(
 }
 
 // test case not needed
-#[tracing::instrument(name = "save leave request to database", skip(pool, data))]
+#[tracing::instrument(name = "save leave request to database", skip(transaction, data))]
 pub async fn save_leave_to_database<'a>(
-    pool: &PgPool,
+    transaction: &mut Transaction<'_, Postgres>,
     data: BulkLeaveRequestInsert<'a>,
 ) -> Result<bool, anyhow::Error> {
     let query = sqlx::query!(
@@ -105,7 +105,7 @@ pub async fn save_leave_to_database<'a>(
     );
     let query_string = query.sql();
     println!("Generated SQL query for: {}", query_string);
-    let result = query.execute(pool).await.map_err(|e| {
+    let result = transaction.execute(query).await.map_err(|e| {
         tracing::error!("Failed to execute query: {:?}", e);
         anyhow!(e).context("A database failure occurred while saving leave request")
     })?;
@@ -113,9 +113,9 @@ pub async fn save_leave_to_database<'a>(
     Ok(result.rows_affected() > 0)
 }
 
-#[tracing::instrument(name = "save leave request", skip(pool))]
+#[tracing::instrument(name = "save leave request", skip(transaction))]
 pub async fn save_leave_request(
-    pool: &PgPool,
+    transaction: &mut Transaction<'_, Postgres>,
     leave_request_data: &CreateLeaveRequest,
     created_by: Uuid,
     received_by: Uuid,
@@ -129,7 +129,7 @@ pub async fn save_leave_request(
     )
     .await?;
     if let Some(data) = bulk_data {
-        return save_leave_to_database(pool, data).await;
+        return save_leave_to_database(transaction, data).await;
     }
     Ok(false)
 }
@@ -365,14 +365,14 @@ pub async fn validate_leave_request(
     Ok(())
 }
 
-#[tracing::instrument(name = "reactivate user account", skip(pool))]
+#[tracing::instrument(name = "reactivate user account", skip(transaction))]
 pub async fn update_leave_status(
-    pool: &PgPool,
+    transaction: &mut Transaction<'_, Postgres>,
     id: Uuid,
     status: &LeaveStatus,
     updated_by: Uuid,
 ) -> Result<(), anyhow::Error> {
-    let _ = sqlx::query!(
+    let query = sqlx::query!(
         r#"
         UPDATE leave 
         SET
@@ -385,10 +385,9 @@ pub async fn update_leave_status(
         Utc::now(),
         updated_by,
         id
-    )
-    .execute(pool)
-    .await
-    .map_err(|e| {
+    );
+
+    transaction.execute(query).await.map_err(|e| {
         tracing::error!("Failed to execute query: {:?}", e);
         anyhow::Error::new(e).context("A database failure occurred while updating leave status")
     })?;

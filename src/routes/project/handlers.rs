@@ -5,12 +5,15 @@ use utoipa::TupleUnit;
 
 use crate::{
     errors::GenericError,
-    routes::user::{
-        schemas::{RoleType, UserAccount},
-        utils::get_role,
+    routes::{
+        user::{
+            schemas::{RoleType, UserAccount},
+            utils::get_role,
+        },
+        web_socket::{schemas::ProcessType, utils::send_notification},
     },
     schemas::{GenericResponse, RequestMetaData},
-    websocket::{MessageToClient, Server, WebSocketActionType, WebSocketData},
+    websocket_client::{Server, WebSocketActionType},
 };
 
 use super::{
@@ -266,17 +269,31 @@ pub async fn user_project_association_req(
             "Something went wrong while associating user to project".to_owned(),
         )
     })?;
-    let msg: MessageToClient = MessageToClient::new(
+    // let msg: MessageToClient = MessageToClient::new(
+    //     WebSocketActionType::UserProjectAssociation,
+    //     serde_json::to_value(WebSocketData {
+    //         message: "Successfully associated user".to_string(),
+    //     })
+    //     .unwrap(),
+    //     Some(user_account.id),
+    //     None,
+    //     None,
+    // );
+    // websocket_srv.do_send(msg);
+
+    send_notification(
+        &db_pool,
+        &websocket_srv,
         WebSocketActionType::UserProjectAssociation,
-        serde_json::to_value(WebSocketData {
-            message: "Successfully associated user".to_string(),
-        })
-        .unwrap(),
-        Some(user_account.id),
-        None,
-        None,
-    );
-    websocket_srv.do_send(msg);
+        ProcessType::Deferred,
+        Some(req.user_id),
+        format!(
+            "{} Project is associated to you account by {}",
+            project_account.name, user_account.display_name
+        ),
+    )
+    .await
+    .map_err(|e| GenericError::UnexpectedCustomError(e.to_string()))?;
     Ok(web::Json(GenericResponse::success(
         "Sucessfully associated user with project account.",
         (),

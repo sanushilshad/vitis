@@ -10,13 +10,13 @@ use crate::{
         utils::get_role,
     },
     schemas::{GenericResponse, RequestMetaData},
-    websocket::{MessageToClient, Server, WebSocketActionType, WebSocketData},
+    websocket_client::{MessageToClient, Server, WebSocketActionType, WebSocketData},
 };
 
 use super::{
     schemas::{
         BasicDepartmentAccount, CreateDepartmentAccount, DepartmentAccount, DepartmentFetchRequest,
-        DepartmentUserAssociationRequest, departmentPermissionRequest,
+        DepartmentPermissionRequest, DepartmentUserAssociationRequest,
     },
     utils::{
         associate_user_to_department, create_department_account, get_basic_department_accounts,
@@ -115,7 +115,7 @@ pub async fn fetch_department_req(
     tag = "department Account",
     description = "API for checking the permission of a department.",
     summary = "department Account Permission API",
-    request_body(content = departmentPermissionRequest, description = "Request Body"),
+    request_body(content = DepartmentPermissionRequest, description = "Request Body"),
     responses(
         (status=200, description= "Sucessfully verified permission.", body= GenericResponse<TupleUnit>),
         (status=400, description= "Invalid Request body", body= GenericResponse<TupleUnit>),
@@ -134,7 +134,7 @@ pub async fn fetch_department_req(
 pub async fn department_permission_validation(
     db_pool: web::Data<PgPool>,
     user_account: UserAccount,
-    body: departmentPermissionRequest,
+    body: DepartmentPermissionRequest,
 ) -> Result<web::Json<GenericResponse<Vec<String>>>, GenericError> {
     let permission_list = validate_user_department_permission(
         &db_pool,

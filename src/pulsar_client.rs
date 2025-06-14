@@ -1,6 +1,6 @@
 use crate::{
     utils::{delete_notifications_by_connection_id, fetch_notifications_by_connection_id},
-    websocket::{Server, SessionExists},
+    websocket_client::{Server, SessionExists},
 };
 use actix::Addr;
 use actix_web::web;
@@ -73,7 +73,7 @@ impl PulsarClient {
             .expect("Failed to create producer")
     }
 
-    pub async fn get_consumer(
+    pub async fn create_ws_consumer(
         &self,
         consumer_name: String,
         subscription: String,
@@ -126,7 +126,7 @@ impl PulsarClient {
                                 for notification in notifications.iter() {
                                     websocket_client.do_send(notification.data.0.clone());
                                 }
-                                if let Ok(a) = delete_notifications_by_connection_id(
+                                if let Err(a) = delete_notifications_by_connection_id(
                                     &mut transaction,
                                     partition_key,
                                 )

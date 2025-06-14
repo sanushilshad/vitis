@@ -4,7 +4,7 @@ use crate::configuration::DatabaseConfig;
 use crate::errors::CustomJWTTokenError;
 use crate::models::NotficationDataModel;
 use crate::routes::user::schemas::JWTClaims;
-use crate::websocket::MessageToClient;
+use crate::websocket_client::MessageToClient;
 use actix_web::dev::ServiceRequest;
 use actix_web::rt::task::JoinHandle;
 use chrono::Utc;

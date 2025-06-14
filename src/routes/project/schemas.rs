@@ -2,7 +2,6 @@ use actix_http::Payload;
 use actix_web::{FromRequest, HttpMessage, HttpRequest, web};
 use futures::future::LocalBoxFuture;
 use serde::{Deserialize, Serialize};
-use std::fmt;
 use std::future::{Ready, ready};
 use utoipa::ToSchema;
 use uuid::Uuid;

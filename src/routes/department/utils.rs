@@ -4,13 +4,7 @@ use sqlx::{Execute, Executor, PgPool, Postgres, QueryBuilder, Transaction};
 use uuid::Uuid;
 
 use crate::{
-    routes::{
-        department::models::UserDepartmentRelationAccountModel,
-        user::{
-            schemas::{RoleType, UserAccount},
-            utils::get_role,
-        },
-    },
+    routes::{department::models::UserDepartmentRelationAccountModel, user::schemas::UserAccount},
     schemas::Status,
 };
 
@@ -242,7 +236,7 @@ pub async fn get_basic_department_accounts_by_user_id(
     Ok(department_account_list)
 }
 
-// test case added
+#[allow(dead_code)]
 pub fn validate_department_account_active(department_obj: &DepartmentAccount) -> Option<String> {
     match (
         &department_obj.is_active,
@@ -255,6 +249,8 @@ pub fn validate_department_account_active(department_obj: &DepartmentAccount) ->
         _ => None,
     }
 }
+
+#[allow(dead_code)]
 pub async fn validate_user_department_permission(
     pool: &PgPool,
     user_id: Uuid,

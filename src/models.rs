@@ -1,7 +1,7 @@
 use serde::Deserialize;
 use sqlx::FromRow;
 
-use crate::websocket::MessageToClient;
+use crate::websocket_client::MessageToClient;
 
 #[derive(Debug, Deserialize, FromRow)]
 pub struct NotficationDataModel {

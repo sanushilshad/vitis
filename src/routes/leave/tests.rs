@@ -1,5 +1,6 @@
 #[cfg(test)]
 pub mod tests {
+    use anyhow::Context;
     use chrono::{DateTime, Duration, NaiveDate, TimeZone, Utc};
     use chrono_tz::Tz;
     use uuid::Uuid;
@@ -136,15 +137,24 @@ pub mod tests {
                 },
             ],
         };
-
+        let mut transaction = pool
+            .begin()
+            .await
+            .context("Failed to acquire a Postgres connection from the pool")
+            .unwrap();
         let res = save_leave_request(
-            &pool,
+            &mut transaction,
             &leave_request,
             user_id,
             Uuid::new_v4(),
             "abc@gmail.com",
         )
         .await;
+        transaction
+            .commit()
+            .await
+            .context("Failed to commit SQL transaction to store a new user account.")
+            .unwrap();
         assert!(res.is_ok());
         let delete_res = hard_delete_user_account(
             &pool,
@@ -218,15 +228,24 @@ pub mod tests {
                 },
             ],
         };
-
+        let mut transaction = pool
+            .begin()
+            .await
+            .context("Failed to acquire a Postgres connection from the pool")
+            .unwrap();
         let res = save_leave_request(
-            &pool,
+            &mut transaction,
             &leave_request,
             user_id,
             Uuid::new_v4(),
             "abc@gmail.com",
         )
         .await;
+        transaction
+            .commit()
+            .await
+            .context("Failed to commit SQL transaction to store a new user account.")
+            .unwrap();
         assert!(res.is_ok());
         let query = FetchLeaveQuery::builder().with_sender_id(Some(user_id));
         let leaves = get_leaves(&pool, &query).await;
@@ -236,7 +255,19 @@ pub mod tests {
         let leave_opt = leave_vec.first();
         assert!(leave_opt.is_some());
         let leave = leave_opt.unwrap();
-        let res = update_leave_status(&pool, leave.id, &LeaveStatus::Approved, user_id).await;
+        let mut transaction = pool
+            .begin()
+            .await
+            .context("Failed to acquire a Postgres connection from the pool")
+            .unwrap();
+        let res =
+            update_leave_status(&mut transaction, leave.id, &LeaveStatus::Approved, user_id).await;
+        transaction
+            .commit()
+            .await
+            .context("Failed to commit SQL transaction to store a new user account.")
+            .unwrap();
+
         assert!(res.is_ok());
         let delete_res = hard_delete_user_account(
             &pool,
@@ -271,15 +302,24 @@ pub mod tests {
                 },
             ],
         };
-
+        let mut transaction = pool
+            .begin()
+            .await
+            .context("Failed to acquire a Postgres connection from the pool")
+            .unwrap();
         let res = save_leave_request(
-            &pool,
+            &mut transaction,
             &leave_request,
             user_id,
             Uuid::new_v4(),
             "abc@gmail.com",
         )
         .await;
+        transaction
+            .commit()
+            .await
+            .context("Failed to commit SQL transaction to store a new user account.")
+            .unwrap();
         assert!(res.is_ok());
         let query = FetchLeaveQuery::builder().with_sender_id(Some(user_id));
         let leaves = get_leaves(&pool, &query).await;
@@ -333,8 +373,24 @@ pub mod tests {
             ],
         };
         let receiver_id = Uuid::new_v4();
-        let res =
-            save_leave_request(&pool, &leave_request, user_id, receiver_id, "abc@gmail.com").await;
+        let mut transaction = pool
+            .begin()
+            .await
+            .context("Failed to acquire a Postgres connection from the pool")
+            .unwrap();
+        let res = save_leave_request(
+            &mut transaction,
+            &leave_request,
+            user_id,
+            receiver_id,
+            "abc@gmail.com",
+        )
+        .await;
+        transaction
+            .commit()
+            .await
+            .context("Failed to commit SQL transaction to store a new user account.")
+            .unwrap();
         assert!(res.is_ok());
         let query = FetchLeaveQuery::builder().with_sender_id(Some(user_id));
         let leave_with_sender = get_leaves(&pool, &query).await;

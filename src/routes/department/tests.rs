@@ -1,21 +1,13 @@
 #[cfg(test)]
 pub mod tests {
     use crate::constants::DUMMY_INTERNATIONAL_DIALING_CODE;
-    use crate::email::EmailObject;
+
     use crate::routes::department::schemas::{CreateDepartmentAccount, DepartmentAccount};
     use crate::routes::department::utils::{
-        associate_user_to_department,
-        create_department_account,
-        fetch_department_account_model_by_id,
-        get_basic_department_accounts,
-        get_basic_department_accounts_by_user_id,
-        get_department_account,
-        hard_delete_department_account,
-        validate_department_account_active,
-        validate_user_department_permission, // associate_user_to_department, create_department_account,
-                                             // fetch_department_account_model_by_id, get_basic_department_accounts,
-                                             // get_basic_department_accounts_by_user_id, get_department_account,
-                                             // validate_department_account_active, validate_user_department_permission,
+        associate_user_to_department, create_department_account,
+        fetch_department_account_model_by_id, get_basic_department_accounts,
+        get_basic_department_accounts_by_user_id, get_department_account,
+        hard_delete_department_account, validate_department_account_active,
     };
 
     use crate::routes::user::schemas::RoleType;
@@ -74,7 +66,6 @@ pub mod tests {
     pub async fn setup_department(
         pool: &PgPool,
         mobile_no: &str,
-        email: &str,
     ) -> Result<Uuid, Box<dyn std::error::Error>> {
         let user_res = get_user(
             vec![&format!(
@@ -88,9 +79,6 @@ pub mod tests {
         let create_department_obj = CreateDepartmentAccount {
             name: "Dev Account".to_string(),
             is_test_account: false,
-
-            mobile_no: mobile_no.to_string(),
-            email: EmailObject::new(email.to_string()),
 
             international_dialing_code: DUMMY_INTERNATIONAL_DIALING_CODE.to_string(),
         };
@@ -114,7 +102,7 @@ pub mod tests {
         .await;
         assert!(user_res.is_ok());
         let user_id = user_res.unwrap();
-        let department_res = setup_department(&pool, &mobile_no, "department@example.com").await;
+        let department_res = setup_department(&pool, &mobile_no).await;
         assert!(department_res.is_ok());
         let department_id = department_res.unwrap();
         let fetch_basic_department_obj_res =
@@ -227,7 +215,7 @@ pub mod tests {
 
         //department and role fetching can happen concurrently
         let (department_res, role_obj_opt) = join!(
-            setup_department(&pool, mobile_no_1, "department@example.com"),
+            setup_department(&pool, mobile_no_1),
             get_role(&pool, &RoleType::Developer),
         );
 
@@ -280,7 +268,7 @@ pub mod tests {
         assert!(role_obj_opt.is_some());
         let role_obj = role_obj_opt.unwrap();
         let user_id = user_res.unwrap();
-        let department_res = setup_department(&pool, mobile_no, "department@example.com").await;
+        let department_res = setup_department(&pool, mobile_no).await;
         let department_id = department_res.unwrap();
         let department_account_list_res =
             get_basic_department_accounts_by_user_id(user_id, &pool).await;

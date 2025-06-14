@@ -3,7 +3,7 @@ use crate::configuration::{Config, DatabaseConfig};
 use crate::middlewares::SaveRequestResponse;
 use crate::pulsar_client::AppState;
 use crate::route::routes;
-use crate::websocket;
+use crate::websocket_client;
 use actix::Actor;
 use actix_cors::Cors;
 use actix_files::Files;
@@ -57,13 +57,13 @@ async fn run(
     let workers = configuration.application.workers;
     let application_obj = web::Data::new(configuration.application);
     let user_obj = web::Data::new(configuration.user);
-    let ws_server = web::Data::new(websocket::Server::new().start());
+    let ws_server = web::Data::new(websocket_client::Server::new().start());
     let email_client = web::Data::new(configuration.email.client());
     let email_config = web::Data::new(configuration.email);
     let slack_client = web::Data::new(configuration.slack.client());
     let pulsar_client = configuration.pulsar.client().await?;
     let consumer = pulsar_client
-        .get_consumer("ws_consumer".to_owned(), "ws_subscription".to_owned())
+        .create_ws_consumer("ws_consumer".to_owned(), "ws_subscription".to_owned())
         .await;
     pulsar_client
         .start_consumer(db_pool.clone(), consumer, ws_server.clone())

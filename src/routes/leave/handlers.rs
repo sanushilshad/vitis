@@ -1,13 +1,6 @@
-use actix_web::web;
-use chrono::{DateTime, Utc};
-use chrono_tz::Tz;
-use secrecy::SecretString;
-use sqlx::PgPool;
-use tera::{Context, Tera};
-use tokio::join;
-use utoipa::TupleUnit;
-use uuid::Uuid;
-
+use crate::routes::web_socket::schemas::ProcessType;
+use crate::routes::web_socket::utils::send_notification;
+use crate::websocket_client::Server;
 use crate::{
     configuration::EmailClientConfig,
     email_client::{GenericEmailService, SmtpEmailClient},
@@ -24,7 +17,19 @@ use crate::{
     },
     schemas::{AllowedPermission, GenericResponse, PermissionType},
     utils::to_title_case,
+    websocket_client::WebSocketActionType,
 };
+use actix::Addr;
+use actix_web::web;
+use anyhow::Context;
+use chrono::{DateTime, Utc};
+use chrono_tz::Tz;
+use secrecy::SecretString;
+use sqlx::PgPool;
+use tera::{Context as TeraContext, Tera};
+use tokio::join;
+use utoipa::TupleUnit;
+use uuid::Uuid;
 
 use super::{
     schemas::{
@@ -65,6 +70,7 @@ pub async fn create_leave_req(
     user: UserAccount,
     mail_config: web::Data<EmailClientConfig>,
     permissions: AllowedPermission,
+    websocket_srv: web::Data<Addr<Server>>,
 ) -> Result<web::Json<GenericResponse<()>>, GenericError> {
     if body.user_id.is_some()
         && !permissions
@@ -88,7 +94,7 @@ pub async fn create_leave_req(
         SettingKey::LeaveRequestTemplate.to_string(),
     ];
     let (config_res, reciever_account_res) = join!(
-        get_setting_value(&pool, &setting_keys, None, Some(user.id), false),
+        get_setting_value(&pool, &setting_keys, None, Some(user.id), true),
         get_user(vec![body.to.get()], &pool),
     );
     // .map_err(|e| GenericError::DatabaseError(e.to_string(), e))?;
@@ -142,9 +148,20 @@ pub async fn create_leave_req(
     let reciever_account = reciever_account_res
         .map_err(|e| GenericError::DatabaseError(e.to_string(), e))?
         .ok_or(GenericError::DataNotFound("User not found.".to_string()))?;
-    if save_leave_request(&pool, &body, user.id, reciever_account.id, &message_id)
+
+    let mut transaction = pool
+        .begin()
         .await
-        .map_err(|e| GenericError::DatabaseError(e.to_string(), e))?
+        .context("Failed to acquire a Postgres connection from the pool")?;
+    if save_leave_request(
+        &mut transaction,
+        &body,
+        user.id,
+        reciever_account.id,
+        &message_id,
+    )
+    .await
+    .map_err(|e| GenericError::DatabaseError(e.to_string(), e))?
     {
         let name = to_title_case(&reciever_account.display_name);
         let sender = to_title_case(&user.display_name);
@@ -156,7 +173,7 @@ pub async fn create_leave_req(
             &sender,
             &body.r#type,
         );
-        let context = Context::from_serialize(&context_data).map_err(|e: tera::Error| {
+        let context = TeraContext::from_serialize(&context_data).map_err(|e: tera::Error| {
             tracing::error!("{}", e);
             GenericError::UnexpectedCustomError(
                 "Something went wrong while rendering the email html data".to_string(),
@@ -168,6 +185,18 @@ pub async fn create_leave_req(
                 "Something went wrong while rendering the email html data".to_string(),
             )
         })?;
+
+        send_notification(
+            &pool,
+            &websocket_srv,
+            WebSocketActionType::LeaveRequest,
+            ProcessType::Deferred,
+            Some(reciever_account.id),
+            format!("Leave Request send by {}", user.display_name),
+        )
+        .await
+        .map_err(|e| GenericError::UnexpectedCustomError(e.to_string()))?;
+
         personal_email_client
             .send_html_email(
                 &body.to,
@@ -180,6 +209,10 @@ pub async fn create_leave_req(
             .await
             .map_err(|e| GenericError::UnexpectedCustomError(e.to_string()))?;
     }
+    transaction
+        .commit()
+        .await
+        .context("Failed to commit SQL transaction to store a new user account.")?;
 
     Ok(web::Json(GenericResponse::success(
         "Sucessfully created leave request",
@@ -220,6 +253,7 @@ pub async fn update_leave_status_req(
     user: UserAccount,
     mail_config: web::Data<EmailClientConfig>,
     permissions: AllowedPermission,
+    websocket_srv: web::Data<Addr<Server>>,
 ) -> Result<web::Json<GenericResponse<()>>, GenericError> {
     if !user.is_vector_verified(&VectorType::Email) {
         return Err(GenericError::InsufficientPrevilegeError(
@@ -241,8 +275,12 @@ pub async fn update_leave_status_req(
             GenericError::DataNotFound("Provided Leave Request not found in database".to_string())
         })?;
     validate_leave_status_update(&body.status, &leave.status, &permissions)?;
+    let mut transaction = pool
+        .begin()
+        .await
+        .context("Failed to acquire a Postgres connection from the pool")?;
 
-    update_leave_status(&pool, body.id, &body.status, user.id)
+    update_leave_status(&mut transaction, body.id, &body.status, user.id)
         .await
         .map_err(|e| GenericError::DatabaseError("Leave Data not found".to_string(), e))?;
 
@@ -272,7 +310,7 @@ pub async fn update_leave_status_req(
         let sender = to_title_case(&user.display_name);
         let context_data =
             LeaveRequestStatusEmailContext::new(&name, &sender, &body.status, &leave.date);
-        let context = Context::from_serialize(&context_data).map_err(|e: tera::Error| {
+        let context = TeraContext::from_serialize(&context_data).map_err(|e: tera::Error| {
             tracing::error!("{}", e);
             GenericError::UnexpectedCustomError(
                 "Something went wrong while rendering the email html data".to_string(),
@@ -292,6 +330,17 @@ pub async fn update_leave_status_req(
                     SettingKey::EmailAppPassword
                 ))
             })?;
+
+        send_notification(
+            &pool,
+            &websocket_srv,
+            WebSocketActionType::LeaveRequestStatusUpdation,
+            ProcessType::Deferred,
+            Some(reciever_account.id),
+            format!("Leave Request send by {}", user.display_name),
+        )
+        .await
+        .map_err(|e| GenericError::UnexpectedCustomError(e.to_string()))?;
         let personal_email_client = SmtpEmailClient::new_personal(
             &user.email,
             SecretString::from(email_password.as_ref()),
@@ -310,6 +359,10 @@ pub async fn update_leave_status_req(
             .await
             .map_err(|e| GenericError::UnexpectedCustomError(e.to_string()))?;
     }
+    transaction
+        .commit()
+        .await
+        .context("Failed to commit SQL transaction to store a new user account.")?;
 
     Ok(web::Json(GenericResponse::success(
         "Sucessfully updated leave request status",
