@@ -265,6 +265,12 @@ CREATE TYPE leave_type AS ENUM (
 );
 
 
+CREATE TYPE alert_status AS ENUM (
+  'pending',
+  'success',
+  'failed'
+);
+
 CREATE TABLE IF NOT EXISTS leave (
   id uuid PRIMARY KEY,
   sender_id uuid NOT NULL,
@@ -281,6 +287,7 @@ CREATE TABLE IF NOT EXISTS leave (
   updated_by uuid,
   deleted_by uuid,
   email_message_id TEXT,
+  alert_status alert_status DEFAULT 'pending'::alert_status NOT NULL,
   cc JSONB,
   is_deleted BOOLEAN NOT NULL DEFAULT false
 );

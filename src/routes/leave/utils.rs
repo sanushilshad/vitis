@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use anyhow::anyhow;
+use anyhow::{Context, anyhow};
 use bigdecimal::{BigDecimal, FromPrimitive};
 use chrono::{DateTime, Datelike, Duration, NaiveDate, TimeZone, Utc};
 use sqlx::{Execute, Executor, PgPool, Postgres, QueryBuilder, Transaction};
@@ -8,12 +8,17 @@ use uuid::Uuid;
 
 use crate::{
     errors::GenericError,
-    routes::leave::schemas::{LeavePeriod, LeaveType},
-    schemas::{AllowedPermission, PermissionType},
+    routes::{
+        leave::schemas::{LeavePeriod, LeaveType},
+        user::{schemas::MinimalUserAccount, utils::get_minimal_user_list},
+    },
+    schemas::{AlertStatus, AllowedPermission, PermissionType},
+    slack_client::{SlackBlockType, SlackClient, SlackNotificationPayload, SlackTextType},
+    utils::snake_to_title_case,
 };
 
 use super::{
-    models::LeaveDataModel,
+    models::{LeaveDataModel, MinimalLeaveModel},
     schemas::{
         BulkLeaveRequestInsert, CreateLeaveRequest, FetchLeaveQuery, LeaveData, LeaveStatus,
     },
@@ -453,5 +458,142 @@ pub async fn delete_leave(
         tracing::error!("Failed to execute query: {:?}", e);
         anyhow::Error::new(e).context("A database failure occurred while deleting leave")
     })?;
+    Ok(())
+}
+
+async fn get_approved_leaves_by_lock(
+    transaction: &mut Transaction<'_, Postgres>,
+    leave_date: DateTime<Utc>,
+) -> Result<Vec<MinimalLeaveModel>, anyhow::Error> {
+    let rows = sqlx::query_as!(
+        MinimalLeaveModel,
+        r#"
+        SELECT 
+            id, 
+            sender_id, 
+            type as "type: LeaveType", 
+            period as "period: LeavePeriod" 
+        FROM leave 
+        WHERE date = $1 
+          AND (alert_status = 'pending' OR alert_status = 'failed') 
+          AND status = 'approved'
+        FOR UPDATE
+        "#,
+        leave_date,
+    )
+    .fetch_all(&mut **transaction)
+    .await
+    .map_err(|e| {
+        tracing::error!("Failed to execute query: {:?}", e);
+        anyhow::Error::new(e).context("A database failure occurred while fetching leave with lock")
+    })?;
+
+    Ok(rows)
+}
+
+#[tracing::instrument(name = "update leave alert status", skip(transaction))]
+pub async fn update_leave_alert_status(
+    id_list: &Vec<Uuid>,
+    transaction: &mut Transaction<'_, Postgres>,
+    alert_status: &AlertStatus,
+) -> Result<(), anyhow::Error> {
+    // let val_list: Vec<String> = id_list.iter().map(|&s| s.to_string()).collect();
+    let query = sqlx::query!(
+        r#"
+        UPDATE leave 
+        SET
+        alert_status = $1
+        Where id = ANY($2)
+        "#,
+        alert_status as &AlertStatus,
+        id_list
+    );
+
+    transaction.execute(query).await.map_err(|e| {
+        tracing::error!("Failed to execute query: {:?}", e);
+        anyhow::Error::new(e)
+            .context("A database failure occurred while updating leave alert status")
+    })?;
+    Ok(())
+}
+
+pub async fn send_slack_notification_for_approved_leave(
+    pool: &PgPool,
+    slack_client: &SlackClient,
+    leave_date: DateTime<Utc>,
+) -> Result<(), anyhow::Error> {
+    let mut transaction = pool
+        .begin()
+        .await
+        .context("Failed to acquire a Postgres connection from the pool")?;
+
+    let leave_data = get_approved_leaves_by_lock(&mut transaction, leave_date).await?;
+    if !leave_data.is_empty() {
+        let mut leave_id_list = Vec::new();
+        let mut sender_id_list = Vec::new();
+        let mut grouped: HashMap<(&LeaveType, &LeavePeriod), Vec<&MinimalLeaveModel>> =
+            HashMap::new();
+        for leave in &leave_data {
+            leave_id_list.push(leave.id);
+            sender_id_list.push(leave.sender_id);
+            grouped
+                .entry((&leave.r#type, &leave.period))
+                .or_default()
+                .push(leave);
+        }
+
+        let users = get_minimal_user_list(pool, None, 1000, 0, Some(&sender_id_list)).await?;
+        let user_map: HashMap<Uuid, MinimalUserAccount> =
+            users.into_iter().map(|x| (x.id, x)).collect();
+
+        let mut notification = SlackNotificationPayload::new("Leave Notification".to_string())
+            .add_section(
+                // format!("🗓️ *Leave* on {}", leave_date.format("%Y-%m-%d")),
+                format!("🗓️ Leave on {}", leave_date.format("%Y-%m-%d")),
+                SlackBlockType::Header,
+                SlackTextType::PlainText,
+            );
+        for ((leave_type, period), leaves) in grouped {
+            let mut user_string = String::new();
+
+            for leave in &leaves {
+                if let Some(user_obj) = user_map.get(&leave.sender_id) {
+                    user_string.push_str(&format!("{}, ", user_obj.display_name));
+                }
+            }
+            if !user_string.is_empty() {
+                user_string.truncate(user_string.len().saturating_sub(2));
+            }
+
+            let section_text = format!(
+                "*{}* — {}: {}",
+                snake_to_title_case(&leave_type.to_string()),
+                snake_to_title_case(&period.to_string()),
+                user_string
+            );
+
+            notification = notification.add_section(
+                section_text,
+                SlackBlockType::Section,
+                SlackTextType::Mrkdwn,
+            );
+        }
+        let result = slack_client
+            .send_notification(notification.build(), &slack_client.channel.leave)
+            .await;
+
+        let status = if result.is_ok() {
+            AlertStatus::Success
+        } else {
+            AlertStatus::Failed
+        };
+
+        update_leave_alert_status(&leave_id_list, &mut transaction, &status).await?;
+    }
+
+    transaction
+        .commit()
+        .await
+        .context("Failed to commit SQL transaction to store a new user account.")?;
     Ok(())
 }

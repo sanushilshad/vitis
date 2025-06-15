@@ -72,7 +72,7 @@ pub struct SecretConfig {
 
 #[derive(Debug, Deserialize, Clone)]
 pub struct PulsarConfig {
-    pub topic: String,
+    pub topic_prefix: String,
     pub consumer: String,
     pub subscription: String,
     pub url: String,
@@ -80,7 +80,7 @@ pub struct PulsarConfig {
 
 impl PulsarConfig {
     pub async fn client(self) -> Result<PulsarClient, pulsar::Error> {
-        PulsarClient::new(self.url, self.topic).await
+        PulsarClient::new(self.url, self.topic_prefix).await
     }
 }
 
@@ -131,7 +131,7 @@ impl EmailClientConfig {
 #[derive(Debug, Deserialize, Clone)]
 #[allow(dead_code)]
 pub struct SlackChannel {
-    leave: SecretString,
+    pub leave: SecretString,
 }
 
 #[derive(Debug, Deserialize, Clone)]

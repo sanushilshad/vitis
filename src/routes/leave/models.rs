@@ -42,3 +42,11 @@ impl LeaveDataModel {
         }
     }
 }
+
+#[derive(Debug, FromRow)]
+pub struct MinimalLeaveModel {
+    pub id: Uuid,
+    pub r#type: LeaveType,
+    pub period: LeavePeriod,
+    pub sender_id: Uuid,
+}

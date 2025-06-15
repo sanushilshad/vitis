@@ -374,7 +374,7 @@ pub async fn user_list_req(
     pool: web::Data<PgPool>,
     user_account: UserAccount,
 ) -> Result<web::Json<GenericResponse<Vec<MinimalUserAccount>>>, GenericError> {
-    let data = get_minimal_user_list(&pool, req.query.as_deref(), req.limit, req.offset)
+    let data = get_minimal_user_list(&pool, req.query.as_deref(), req.limit, req.offset, None)
         .await
         .map_err(|e| {
             tracing::error!("Soft delete failed: {:?}", e);

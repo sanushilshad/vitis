@@ -1,3 +1,4 @@
+use crate::pulsar_client::{PulsarClient, PulsarTopic, SchedulerMessageData};
 use crate::routes::web_socket::schemas::ProcessType;
 use crate::routes::web_socket::utils::send_notification;
 use crate::websocket_client::Server;
@@ -31,6 +32,7 @@ use tokio::join;
 use utoipa::TupleUnit;
 use uuid::Uuid;
 
+use super::schemas::LeaveStatus;
 use super::{
     schemas::{
         CreateLeaveRequest, FetchLeaveQuery, FetchLeaveRequest, FetchLeaveType, LeaveData,
@@ -244,7 +246,7 @@ pub async fn create_leave_req(
 #[tracing::instrument(
     err,
     name = "Leave Request Status Updation API",
-    skip(pool, body),
+    skip(pool, body, producer_client),
     fields()
 )]
 pub async fn update_leave_status_req(
@@ -254,6 +256,7 @@ pub async fn update_leave_status_req(
     mail_config: web::Data<EmailClientConfig>,
     permissions: AllowedPermission,
     websocket_srv: web::Data<Addr<Server>>,
+    producer_client: web::Data<PulsarClient>,
 ) -> Result<web::Json<GenericResponse<()>>, GenericError> {
     if !user.is_vector_verified(&VectorType::Email) {
         return Err(GenericError::InsufficientPrevilegeError(
@@ -308,6 +311,24 @@ pub async fn update_leave_status_req(
             })?;
         let name = to_title_case(&reciever_account.display_name);
         let sender = to_title_case(&user.display_name);
+        if body.status == LeaveStatus::Approved {
+            let msg = SchedulerMessageData {
+                partition_key: None,
+                date: leave.date,
+            };
+            let mut producer = producer_client
+                .get_producer(producer_client.get_product_topic(PulsarTopic::Scheduler))
+                .await;
+
+            let msg = producer
+                .create_message()
+                .with_content(msg)
+                .deliver_at(leave.date.into())
+                .map_err(|e| GenericError::UnexpectedError(e.into()))?;
+            msg.send_non_blocking()
+                .await
+                .map_err(|e| GenericError::UnexpectedError(e.into()))?;
+        }
         let context_data =
             LeaveRequestStatusEmailContext::new(&name, &sender, &body.status, &leave.date);
         let context = TeraContext::from_serialize(&context_data).map_err(|e: tera::Error| {

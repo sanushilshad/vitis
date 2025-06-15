@@ -1,44 +1,81 @@
+use crate::configuration::SlackChannel;
 use reqwest::Client;
 use secrecy::{ExposeSecret, SecretString};
 use serde::{Deserialize, Serialize};
-
-use crate::configuration::SlackChannel;
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
-enum SlackBlockType {
+pub enum SlackBlockType {
     Header,
     Section,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
-enum SlackTextType {
+pub enum SlackTextType {
     PlainText,
     Mrkdwn,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-struct SlackText {
+pub struct SlackText {
     #[serde(rename = "type")]
-    text_type: SlackTextType,
-    text: String,
+    pub r#type: SlackTextType,
+    pub text: String,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-struct SlackBlock {
+pub struct SlackBlock {
     #[serde(rename = "type")]
-    block_type: SlackBlockType,
-    text: SlackText,
+    pub r#type: SlackBlockType,
+    pub text: SlackText,
 }
 
+// impl SlackBlock {
+//     pub fn new(block_type: SlackBlockType, data: Vec<SlackText>) -> SlackBlock {
+//         SlackBlock {
+//             block_type,
+//             text: data,
+//         }
+//     }
+// }
+
 #[derive(Debug, Serialize, Deserialize)]
-struct SlackNotificationPayload {
+pub struct SlackNotificationPayload {
     text: String,
     blocks: Vec<SlackBlock>,
 }
-#[allow(dead_code)]
-pub struct SlackNotification {
-    payload: SlackNotificationPayload,
+
+impl SlackNotificationPayload {
+    pub fn new(text: String) -> Self {
+        Self {
+            text,
+            blocks: Vec::new(),
+        }
+    }
+
+    pub fn add_section(
+        mut self,
+        text: String,
+        block_type: SlackBlockType,
+        text_type: SlackTextType,
+    ) -> Self {
+        let block = SlackBlock {
+            r#type: block_type,
+            text: SlackText {
+                r#type: text_type,
+                text,
+            },
+        };
+        self.blocks.push(block);
+        self
+    }
+
+    pub fn build(self) -> SlackNotificationPayload {
+        SlackNotificationPayload {
+            text: self.text,
+            blocks: self.blocks,
+        }
+    }
 }
 
 #[allow(dead_code)]
@@ -46,7 +83,7 @@ pub struct SlackNotification {
 pub struct SlackClient {
     http_client: Client,
     base_url: String,
-    channel: SlackChannel,
+    pub channel: SlackChannel,
 }
 
 #[derive(Debug, Deserialize, Clone, PartialEq, Eq, Hash)]
@@ -67,25 +104,24 @@ impl SlackClient {
         }
     }
 
-    #[tracing::instrument(skip(self, blocks))]
+    #[tracing::instrument(skip(self, payload, channel))]
     pub async fn send_notification(
         &self,
-        title: &str,
-        blocks: Vec<SlackBlock>,
-        channel: SecretString,
+        payload: SlackNotificationPayload,
+        channel: &SecretString,
     ) -> Result<(), anyhow::Error> {
-        let payload = SlackNotificationPayload {
-            text: title.to_string(),
-            blocks,
-        };
         let final_url = format!("{}/{}", &self.base_url, channel.expose_secret());
-        let _response = self
+        let _ = self
             .http_client
             .post(final_url)
             .json(&payload)
             .send()
             .await?
-            .error_for_status()?;
+            .error_for_status()
+            .map_err(|e| {
+                tracing::error!("HTTP request failed: {}", e);
+                e
+            })?;
         Ok(())
     }
 }

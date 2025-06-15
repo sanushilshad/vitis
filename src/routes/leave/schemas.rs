@@ -10,7 +10,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use utoipa::ToSchema;
 use uuid::Uuid;
-#[derive(Serialize, Deserialize, Debug, ToSchema, sqlx::Type)]
+#[derive(Serialize, Deserialize, Debug, ToSchema, sqlx::Type, Eq, Hash, PartialEq)]
 #[sqlx(type_name = "leave_type", rename_all = "snake_case")]
 #[serde(rename_all = "snake_case")]
 pub enum LeaveType {
@@ -52,6 +52,16 @@ impl LeaveType {
 pub enum LeavePeriod {
     HalfDay,
     FullDay,
+}
+
+impl fmt::Display for LeavePeriod {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let display_str = match self {
+            LeavePeriod::FullDay => "full_day",
+            LeavePeriod::HalfDay => "half_day",
+        };
+        write!(f, "{}", display_str)
+    }
 }
 
 #[derive(Deserialize, Debug, ToSchema)]

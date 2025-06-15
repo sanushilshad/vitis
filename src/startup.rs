@@ -1,7 +1,7 @@
 use crate::configuration::{Config, DatabaseConfig};
 
 use crate::middlewares::SaveRequestResponse;
-use crate::pulsar_client::AppState;
+use crate::pulsar_client::PulsarTopic;
 use crate::route::routes;
 use crate::websocket_client;
 use actix::Actor;
@@ -13,7 +13,7 @@ use actix_web::{App, HttpServer, web};
 use sqlx::postgres::{PgPool, PgPoolOptions};
 use std::net::TcpListener;
 use std::time::Duration;
-use tokio::sync::Mutex;
+
 use tracing_actix_web::TracingLogger;
 pub struct Application {
     port: u16,
@@ -62,19 +62,29 @@ async fn run(
     let email_config = web::Data::new(configuration.email);
     let slack_client = web::Data::new(configuration.slack.client());
     let pulsar_client = configuration.pulsar.client().await?;
-    let consumer = pulsar_client
-        .create_ws_consumer("ws_consumer".to_owned(), "ws_subscription".to_owned())
-        .await;
     pulsar_client
-        .start_consumer(db_pool.clone(), consumer, ws_server.clone())
+        .start_ws_consumer(
+            "ws_consumer",
+            "ws_subscription",
+            db_pool.clone(),
+            &pulsar_client.get_topic_name(PulsarTopic::WebSocket),
+            ws_server.clone(),
+        )
         .await;
-    let producer = pulsar_client.get_producer().await;
-    let pulsar_producer = web::Data::new(AppState {
-        producer: Mutex::new(producer),
-    });
+
+    pulsar_client
+        .start_scheduler_consumer(
+            "scheduler_consumer",
+            "scheduler_subscription",
+            db_pool.clone(),
+            &pulsar_client.get_topic_name(PulsarTopic::Scheduler),
+            slack_client.clone(),
+        )
+        .await;
+
+    let pulsar_client_data = web::Data::new(pulsar_client);
     let governor_config = GovernorConfigBuilder::default()
         .seconds_per_request(10)
-        // .period(Duration::from_secs(60))
         .burst_size(12)
         .finish()
         .unwrap();
@@ -94,8 +104,9 @@ async fn run(
             .app_data(ws_server.clone())
             .app_data(email_client.clone())
             .app_data(email_config.clone())
-            .app_data(pulsar_producer.clone())
+            // .app_data(pulsar_producer.clone())
             .app_data(slack_client.clone())
+            .app_data(pulsar_client_data.clone())
             .configure(routes)
     })
     .workers(workers)

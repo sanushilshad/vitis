@@ -729,6 +729,7 @@ pub async fn fetch_minimal_user_list(
     query: Option<&str>,
     offset: i32,
     limit: i32,
+    id_list: Option<&Vec<Uuid>>
 ) -> Result<Vec<MinimalUserAccountModel>, anyhow::Error> {
     let mut query_builder = QueryBuilder::new(
         r#"
@@ -751,6 +752,16 @@ pub async fn fetch_minimal_user_list(
         query_builder.push_bind(pattern);
         query_builder.push(")");
     }
+    if let Some(ids) = id_list {
+        if !ids.is_empty() {
+            query_builder.push(" AND id IN (");
+            let mut separated = query_builder.separated(", ");
+            for id in ids {
+                separated.push_bind(id);
+            }
+            query_builder.push(")");
+        }
+    }
     let query = query_builder.build_query_as::<MinimalUserAccountModel>();
     let rows = query.fetch_all(pool).await.map_err(|e| { 
         tracing::error!("Failed to execute query: {:?}", e);
@@ -763,8 +774,8 @@ pub async fn fetch_minimal_user_list(
 
 
 
-pub async fn get_minimal_user_list(pool: &PgPool, query: Option<&str>, limit: i32, offset: i32) -> Result<Vec<MinimalUserAccount>, anyhow::Error>{
-    let data_models = fetch_minimal_user_list(pool, query, limit, offset).await?;
+pub async fn get_minimal_user_list(pool: &PgPool, query: Option<&str>, limit: i32, offset: i32, id_list: Option<&Vec<Uuid>>) -> Result<Vec<MinimalUserAccount>, anyhow::Error>{
+    let data_models = fetch_minimal_user_list(pool, query, limit, offset, id_list).await?;
     let data = data_models.into_iter().map(|a|a.into_schema()).collect();
     Ok(data)
 }

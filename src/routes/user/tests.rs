@@ -266,11 +266,15 @@ pub mod tests {
         );
         assert!(user_res_1.is_ok());
         assert!(user_res_2.is_ok());
-        let user_list = get_minimal_user_list(&pool, None, 1, 0).await;
+        let user_list = get_minimal_user_list(&pool, None, 1, 0, None).await;
         assert!(user_list.is_ok());
         assert!(user_list.unwrap().len() > 1);
 
-        let user_list = get_minimal_user_list(&pool, Some("testuser24"), 1, 0).await;
+        let user_list = get_minimal_user_list(&pool, Some("testuser24"), 1, 0, None).await;
+        assert!(user_list.is_ok());
+        assert!(user_list.unwrap().len() == 1);
+        let user_id = user_res_1.unwrap();
+        let user_list = get_minimal_user_list(&pool, None, 1, 0, Some(&vec![user_id])).await;
         assert!(user_list.is_ok());
         assert!(user_list.unwrap().len() == 1);
 

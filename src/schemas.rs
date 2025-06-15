@@ -201,3 +201,11 @@ impl FromRequest for AllowedPermission {
         ready(result)
     }
 }
+
+#[derive(Debug, Deserialize, sqlx::Type)]
+#[sqlx(type_name = "alert_status", rename_all = "lowercase")]
+pub enum AlertStatus {
+    Pending,
+    Success,
+    Failed,
+}

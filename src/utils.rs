@@ -186,6 +186,19 @@ pub fn to_title_case(s: &str) -> String {
         .join(" ")
 }
 
+pub fn snake_to_title_case(s: &str) -> String {
+    s.split('_')
+        .map(|word| {
+            let mut chars = word.chars();
+            match chars.next() {
+                Some(f) => f.to_uppercase().collect::<String>() + &chars.as_str().to_lowercase(),
+                None => String::new(),
+            }
+        })
+        .collect::<Vec<_>>()
+        .join(" ")
+}
+
 #[tracing::instrument(name = "save_notification_to_database", skip(pool))]
 pub async fn save_notification_to_database(
     pool: &PgPool,
