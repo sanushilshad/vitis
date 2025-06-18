@@ -39,6 +39,9 @@ pub async fn fetch_setting(
         SettingType::Global => {
             query_builder.push(" AND is_global = true");
         }
+        SettingType::UserBusiness => {
+            query_builder.push(" AND is_user_business = true");
+        }
     }
 
     let query = query_builder.build_query_as::<SettingModel>();
@@ -130,7 +133,7 @@ pub async fn create_business_setting(
 ) -> Result<(), anyhow::Error> {
     let bulk_data = get_setting_bulk_insert_data(
         &setting_req.settings,
-        setting_req.user_id,
+        None,
         created_by,
         Some(business_account_id),
         setting_map,
@@ -149,6 +152,26 @@ pub async fn create_user_setting(
 ) -> Result<(), anyhow::Error> {
     let bulk_data =
         get_setting_bulk_insert_data(settings, Some(user_id), created_by, None, setting_map);
+    create_setting(pool, bulk_data).await?;
+
+    Ok(())
+}
+
+pub async fn create_user_business_setting(
+    pool: &PgPool,
+    setting_req: &CreateBusinessSettingRequest,
+    user_id: Uuid,
+    created_by: Uuid,
+    business_account_id: Uuid,
+    setting_map: &HashMap<String, &SettingModel>,
+) -> Result<(), anyhow::Error> {
+    let bulk_data = get_setting_bulk_insert_data(
+        &setting_req.settings,
+        Some(user_id),
+        created_by,
+        Some(business_account_id),
+        setting_map,
+    );
     create_setting(pool, bulk_data).await?;
 
     Ok(())
@@ -255,7 +278,11 @@ async fn fetch_setting_value_model(
 
         (true, true, true) => {
             // query.push(" AND s.is_user=true or  s.is_business = true");
-            query.push(" AND (s.is_user = true OR s.is_global = true OR s.is_business = true)");
+            query.push(" AND (s.is_user = true OR s.is_global = true OR s.is_business = true OR s.is_user_business = true)");
+        }
+        (true, true, false) => {
+            // query.push(" AND s.is_user=true or  s.is_business = true");
+            query.push(" AND (s.is_user_business = true)");
         }
         (false, true, false) => {
             // query.push(" AND s.is_user=true or  s.is_business = true");
@@ -299,19 +326,18 @@ pub fn get_setting_value_from_model(data_models: Vec<SettingValueModel>) -> Vec<
                 global_level: vec![],
                 user_level: vec![],
                 business_level: vec![],
+                user_business_level: vec![],
             });
 
         let setting = Setting {
             id: model.id,
             value: model.value,
         };
-
-        if model.user_id.is_some() {
-            entry.user_level.push(setting);
-        } else if model.business_id.is_some() {
-            entry.business_level.push(setting);
-        } else if model.user_id.is_none() && model.business_id.is_none() {
-            entry.global_level.push(setting);
+        match (model.user_id.is_some(), model.business_id.is_some()) {
+            (true, true) => entry.user_business_level.push(setting),
+            (true, false) => entry.user_level.push(setting),
+            (false, true) => entry.business_level.push(setting),
+            (false, false) => entry.global_level.push(setting),
         }
     }
 

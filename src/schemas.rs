@@ -152,6 +152,9 @@ pub enum PermissionType {
     ListLeaveRequestSelf,
     #[serde(rename = "list:leave-request")]
     ListLeaveRequest,
+
+    #[serde(rename = "create:user-business-setting")]
+    CreateUserBusinessSetting,
 }
 
 impl fmt::Display for PermissionType {
@@ -172,6 +175,7 @@ impl fmt::Display for PermissionType {
             PermissionType::CreateDepartment => "create:department",
             PermissionType::ListLeaveRequestSelf => "list:leave-request:self",
             PermissionType::ListLeaveRequest => "list:leave-request",
+            PermissionType::CreateUserBusinessSetting => "list:leave-request",
         };
         write!(f, "{}", display_str)
     }

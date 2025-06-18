@@ -8,8 +8,9 @@ use crate::{
 };
 
 use super::handlers::{
-    create_business_config_req, create_user_config_req, fetch_business_config_req,
-    fetch_config_enums, fetch_global_setting, fetch_user_config_req, save_global_setting,
+    create_business_config_req, create_user_business_config_req, create_user_config_req,
+    fetch_business_config_req, fetch_config_enums, fetch_global_setting,
+    fetch_user_business_config_req, fetch_user_config_req, save_global_setting,
 };
 
 pub fn setting_routes(cfg: &mut web::ServiceConfig) {
@@ -40,6 +41,12 @@ pub fn setting_routes(cfg: &mut web::ServiceConfig) {
         "/business/fetch",
         web::post()
             .to(fetch_business_config_req)
+            .wrap(BusinessPermissionValidation {
+                permission_list: vec![
+                    PermissionType::CreateBusinessSetting.to_string(),
+                    PermissionType::CreateBusinessSettingSelf.to_string(),
+                ],
+            })
             .wrap(BusinessAccountValidation),
     );
     cfg.route(
@@ -68,6 +75,24 @@ pub fn setting_routes(cfg: &mut web::ServiceConfig) {
             .wrap(UserPermissionValidation {
                 permission_list: vec![PermissionType::CreateGlobalSetting.to_string()],
             }),
+    );
+    cfg.route(
+        "/user-business/fetch",
+        web::post()
+            .to(fetch_user_business_config_req)
+            .wrap(BusinessPermissionValidation {
+                permission_list: vec![PermissionType::CreateUserBusinessSetting.to_string()],
+            })
+            .wrap(BusinessAccountValidation),
+    );
+    cfg.route(
+        "/user-business/save",
+        web::post()
+            .to(create_user_business_config_req)
+            .wrap(BusinessPermissionValidation {
+                permission_list: vec![PermissionType::CreateUserBusinessSetting.to_string()],
+            })
+            .wrap(BusinessAccountValidation),
     );
     cfg.route("/enum/fetch", web::post().to(fetch_config_enums));
 }

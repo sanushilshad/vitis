@@ -198,6 +198,7 @@ CREATE TABLE IF NOT EXISTS setting (
   created_on TIMESTAMPTZ,
   deleted_on TIMESTAMPTZ,
   is_user BOOLEAN NOT NULL,
+  is_user_business BOOLEAN NOT NULL,
   is_business BOOLEAN NOT NULL,
   is_global BOOLEAN NOT NULL,
   created_by TEXT,

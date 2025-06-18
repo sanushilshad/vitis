@@ -14,8 +14,9 @@ pub mod tests {
                     CreateBusinessSettingRequest, CreateSettingData, SettingKey, SettingType,
                 },
                 utils::{
-                    create_business_setting, create_global_setting, create_user_setting,
-                    delete_global_setting, fetch_setting, fetch_setting_enums, get_setting_value,
+                    create_business_setting, create_global_setting, create_user_business_setting,
+                    create_user_setting, delete_global_setting, fetch_setting, fetch_setting_enums,
+                    get_setting_value,
                 },
             },
             user::{
@@ -51,13 +52,13 @@ pub mod tests {
             .iter()
             .map(|setting| (setting.key.to_owned(), setting))
             .collect();
-        let req_user_level = CreateBusinessSettingRequest {
-            user_id: Some(user_id),
-            settings: vec![CreateSettingData {
-                key: setting_key.to_owned(),
-                value: "Asia/Kolkata".to_string(),
-            }],
-        };
+        // let req_user_level = CreateBusinessSettingRequest {
+        //     user_id: Some(user_id),
+        //     settings: vec![CreateSettingData {
+        //         key: setting_key.to_owned(),
+        //         value: "Asia/Kolkata".to_string(),
+        //     }],
+        // };
 
         let req_business_level = CreateBusinessSettingRequest {
             user_id: None,
@@ -66,19 +67,15 @@ pub mod tests {
                 value: "Asia/Kolkata".to_string(),
             }],
         };
+        let create_setting_res_business = create_business_setting(
+            &pool,
+            &req_business_level,
+            user_id,
+            business_id,
+            &setting_map,
+        )
+        .await;
 
-        let (create_setting_res_user, create_setting_res_business) = tokio::join!(
-            create_business_setting(&pool, &req_user_level, user_id, business_id, &setting_map),
-            create_business_setting(
-                &pool,
-                &req_business_level,
-                user_id,
-                business_id,
-                &setting_map
-            ),
-        );
-
-        assert!(create_setting_res_user.is_ok());
         assert!(create_setting_res_business.is_ok());
         let data_res = get_setting_value(
             &pool,
@@ -91,7 +88,7 @@ pub mod tests {
         assert!(data_res.is_ok());
         let data = data_res.unwrap();
         assert!(data[0].business_level.len() == 1);
-        assert!(data[0].user_level.len() == 1);
+        // assert!(data[0].user_level.len() == 1);
         let _ = hard_delete_user_account(
             &pool,
             &format!("{}{}", DUMMY_INTERNATIONAL_DIALING_CODE, mobile_no),
@@ -214,5 +211,76 @@ pub mod tests {
         let enums = fetch_setting_enums(&pool, &vec![enum_id]).await;
         assert!(enums.is_ok());
         assert!(enums.unwrap().first().is_some());
+    }
+
+    #[tokio::test]
+    async fn test_user_business_setting_create_fetch() {
+        let pool = get_test_pool().await;
+        let setting_key = "time_zone";
+        let mobile_no = "12245668933";
+        let user_res = setup_user(
+            &pool,
+            "testuser33",
+            "testuser33@example.com",
+            mobile_no,
+            "testuser@123",
+        )
+        .await;
+
+        let user_id = user_res.unwrap();
+        let business_res = setup_business(&pool, mobile_no, "business@example.com").await;
+        let business_id = business_res.unwrap();
+        let valid_settings =
+            fetch_setting(&pool, &vec![setting_key.to_string()], SettingType::Business)
+                .await
+                .unwrap();
+        let setting_map: HashMap<String, &SettingModel> = valid_settings
+            .iter()
+            .map(|setting| (setting.key.to_owned(), setting))
+            .collect();
+        // let req_user_level = CreateBusinessSettingRequest {
+        //     user_id: Some(user_id),
+        //     settings: vec![CreateSettingData {
+        //         key: setting_key.to_owned(),
+        //         value: "Asia/Kolkata".to_string(),
+        //     }],
+        // };
+
+        let req_business_level = CreateBusinessSettingRequest {
+            user_id: None,
+            settings: vec![CreateSettingData {
+                key: setting_key.to_owned(),
+                value: "Asia/Kolkata".to_string(),
+            }],
+        };
+        let create_setting_res_business = create_user_business_setting(
+            &pool,
+            &req_business_level,
+            user_id,
+            user_id,
+            business_id,
+            &setting_map,
+        )
+        .await;
+        assert!(create_setting_res_business.is_ok());
+        let data_res = get_setting_value(
+            &pool,
+            &vec![setting_key.to_string()],
+            Some(business_id),
+            Some(user_id),
+            true,
+        )
+        .await;
+        assert!(data_res.is_ok());
+        let data = data_res.unwrap();
+        // assert!(data[0].business_level.len() == 1);
+        // assert!(data[0].user_level.len() == 1);
+        assert!(data[0].user_business_level.len() == 1);
+        let _ = hard_delete_user_account(
+            &pool,
+            &format!("{}{}", DUMMY_INTERNATIONAL_DIALING_CODE, mobile_no),
+        )
+        .await;
+        let _ = hard_delete_business_account(&pool, business_id).await;
     }
 }

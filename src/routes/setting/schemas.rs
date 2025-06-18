@@ -77,6 +77,7 @@ pub struct Settings {
     pub global_level: Vec<Setting>,
     pub user_level: Vec<Setting>,
     pub business_level: Vec<Setting>,
+    pub user_business_level: Vec<Setting>,
 }
 
 impl Settings {
@@ -141,6 +142,7 @@ pub enum SettingType {
     Global,
     User,
     Business,
+    UserBusiness,
 }
 
 impl SettingType {
