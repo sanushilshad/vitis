@@ -15,7 +15,7 @@ use crate::configuration::Jwt;
 use crate::email::EmailObject;
 use crate::email_client::{GenericEmailService, SmtpEmailClient};
 use crate::routes::setting::schemas::{SettingKey, Settings, SettingsExt};
-// use crate::routes::project::utils::get_basic_project_account_by_user_id;
+// use crate::routes::business::utils::get_basic_business_account_by_user_id;
 use crate::routes::user::errors::UserRegistrationError;
 // use crate::routes::user::schemas::HasFullMobileNumber;
 use crate::schemas::{  MaskingType, Status};
@@ -314,12 +314,12 @@ pub async fn save_user(
 
 
 // test case not needed
-#[tracing::instrument(name = "get_role_model", skip(pool))]
-pub async fn get_role_model(pool: &PgPool, role_type: &UserRoleType) -> Result<Option<RoleModel>, anyhow::Error> {
+#[tracing::instrument(name = "get_role_model_by_type", skip(pool))]
+pub async fn get_role_model(pool: &PgPool, query: &str) -> Result<Option<RoleModel>, anyhow::Error> {
     let row: Option<RoleModel> = sqlx::query_as!(
         RoleModel,
-        r#"SELECT id, role_name, role_status as "role_status!:Status", created_on, created_by, is_deleted from role where role_name  = $1"#,
-        role_type.to_lowercase_string()    
+        r#"SELECT id, role_name, role_status as "role_status!:Status", created_on, created_by, is_deleted from role where role_name = $1 OR id::TEXT=$1"#,
+        query
     )
     .fetch_optional(pool)
     .await?;
@@ -327,10 +327,11 @@ pub async fn get_role_model(pool: &PgPool, role_type: &UserRoleType) -> Result<O
     Ok(row)
 }
 
+
 // test case not needed
 #[tracing::instrument(name = "get_role", skip(pool))]
-pub async fn get_role(pool: &PgPool, role_type: &UserRoleType) -> Result<Option<AccountRole>, anyhow::Error> {
-    let role_model = get_role_model(pool, role_type).await?;
+pub async fn get_role(pool: &PgPool,  query: &str) -> Result<Option<AccountRole>, anyhow::Error> {
+    let role_model = get_role_model(pool, query).await?;
     match role_model {
         Some(role) => {
             Ok(Some(role.int_schema()))
@@ -409,13 +410,13 @@ pub async fn soft_delete_user_account(
     Ok(())
 }
 
-#[tracing::instrument(name = "delete project account", skip(pool))]
-pub async fn hard_delete_project_account(
+#[tracing::instrument(name = "delete business account", skip(pool))]
+pub async fn hard_delete_business_account(
     pool: &PgPool,
-    project_id: Uuid,
+    business_id: Uuid,
 ) -> Result<(), anyhow::Error> {
-    let _ = sqlx::query("DELETE FROM project_account WHERE id = $1")
-    .bind(project_id)
+    let _ = sqlx::query("DELETE FROM business_account WHERE id = $1")
+    .bind(business_id)
     .execute(pool)
     .await;
     Ok(())
@@ -566,7 +567,7 @@ pub async fn register_user(
     let uuid = save_user(&mut transaction, user_account).await.map_err(UserRegistrationError::UnexpectedError)?;
     let bulk_auth_data = prepare_auth_mechanism_data_for_user_account(uuid, user_account).await?;
     save_auth_mechanism(&mut transaction, bulk_auth_data).await?;
-    if  let Some(role_obj) = get_role(pool, &user_account.user_type).await?{
+    if  let Some(role_obj) = get_role(pool, &UserRoleType::User.to_lowercase_string()).await?{
         if role_obj.is_deleted || role_obj.role_status == Status::Inactive {
             return Err(UserRegistrationError::InvalidRoleError("Role is deleted / Inactive".to_string()))
         }

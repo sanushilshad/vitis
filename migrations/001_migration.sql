@@ -2,12 +2,8 @@
 
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
-CREATE TYPE user_type AS ENUM (
-  'guest',
-  'employee',
-  'superadmin',
-  'admin'
-);
+
+
 
 CREATE TYPE status AS ENUM (
   'active',
@@ -144,7 +140,7 @@ CREATE TYPE vector_type AS ENUM (
     'email'
 );
 
-CREATE TABLE IF NOT EXISTS project_account (
+CREATE TABLE IF NOT EXISTS business_account (
   id uuid PRIMARY KEY,
   name TEXT NOT NULL,
   vectors jsonb NOT NULL,
@@ -162,10 +158,10 @@ CREATE TABLE IF NOT EXISTS project_account (
 );
 
 
-CREATE TABLE IF NOT EXISTS project_user_relationship (
+CREATE TABLE IF NOT EXISTS business_user_relationship (
   id uuid PRIMARY KEY,
   user_id uuid NOT NULL,
-  project_id uuid NOT NULL,
+  business_id uuid NOT NULL,
   role_id uuid NOT NULL,
   verified BOOLEAN NOT NULL DEFAULT false,
   created_on TIMESTAMPTZ NOT NULL,
@@ -175,10 +171,10 @@ CREATE TABLE IF NOT EXISTS project_user_relationship (
 );
 
 
-ALTER TABLE project_user_relationship ADD CONSTRAINT "fk_user_id" FOREIGN KEY ("user_id") REFERENCES user_account ("id") ON DELETE CASCADE;
-ALTER TABLE project_user_relationship ADD CONSTRAINT "fk_project_id" FOREIGN KEY ("project_id") REFERENCES project_account ("id") ON DELETE CASCADE;
-ALTER TABLE project_user_relationship ADD CONSTRAINT "fk_role_id" FOREIGN KEY ("role_id") REFERENCES role ("id") ON DELETE CASCADE;
-ALTER TABLE project_user_relationship ADD CONSTRAINT user_project_role UNIQUE (user_id, project_id, role_id);
+ALTER TABLE business_user_relationship ADD CONSTRAINT "fk_user_id" FOREIGN KEY ("user_id") REFERENCES user_account ("id") ON DELETE CASCADE;
+ALTER TABLE business_user_relationship ADD CONSTRAINT "fk_business_id" FOREIGN KEY ("business_id") REFERENCES business_account ("id") ON DELETE CASCADE;
+ALTER TABLE business_user_relationship ADD CONSTRAINT "fk_role_id" FOREIGN KEY ("role_id") REFERENCES role ("id") ON DELETE CASCADE;
+ALTER TABLE business_user_relationship ADD CONSTRAINT user_business_role UNIQUE (user_id, business_id, role_id);
 
 
 CREATE TABLE IF NOT EXISTS setting_enum(
@@ -202,7 +198,7 @@ CREATE TABLE IF NOT EXISTS setting (
   created_on TIMESTAMPTZ,
   deleted_on TIMESTAMPTZ,
   is_user BOOLEAN NOT NULL,
-  is_project BOOLEAN NOT NULL,
+  is_business BOOLEAN NOT NULL,
   is_global BOOLEAN NOT NULL,
   created_by TEXT,
   deleted_by TEXT
@@ -216,7 +212,7 @@ ALTER TABLE setting ADD CONSTRAINT key_uq UNIQUE (key);
 CREATE TABLE IF NOT EXISTS setting_value (
   id uuid PRIMARY KEY,
   user_id uuid, 
-  project_id uuid,
+  business_id uuid,
   setting_id uuid,
   value TEXT NOT NULL,
   scope_ttl TIMESTAMPTZ,
@@ -233,10 +229,10 @@ CREATE TABLE IF NOT EXISTS setting_value (
 );
 
 ALTER TABLE setting_value ADD CONSTRAINT fk_user_id FOREIGN KEY (user_id)  REFERENCES user_account(id) ON DELETE CASCADE;
-ALTER TABLE setting_value ADD CONSTRAINT fk_project_id FOREIGN KEY (project_id) REFERENCES project_account(id) ON DELETE CASCADE;
+ALTER TABLE setting_value ADD CONSTRAINT fk_business_id FOREIGN KEY (business_id) REFERENCES business_account(id) ON DELETE CASCADE;
 ALTER TABLE setting_value ADD CONSTRAINT fk_setting FOREIGN KEY (setting_id) REFERENCES setting (id) ON DELETE CASCADE;
-ALTER TABLE setting_value ADD CONSTRAINT user_project_id_uq UNIQUE NULLS NOT DISTINCT(setting_id, user_id, project_id);
-CREATE UNIQUE INDEX IF NOT EXISTS uq_setting_project ON setting_value (setting_id, project_id) WHERE user_id IS NULL;
+ALTER TABLE setting_value ADD CONSTRAINT user_business_id_uq UNIQUE NULLS NOT DISTINCT(setting_id, user_id, business_id);
+CREATE UNIQUE INDEX IF NOT EXISTS uq_setting_business ON setting_value (setting_id, business_id) WHERE user_id IS NULL;
 
 
 CREATE TYPE leave_status AS ENUM (

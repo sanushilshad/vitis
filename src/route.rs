@@ -1,9 +1,9 @@
 use crate::handlers::health_check;
 use crate::middlewares::{HeaderValidation, RequireAuth};
 use crate::openapi::ApiDoc;
-use crate::routes::department::routes::department_routes;
+use crate::routes::business::routes::business_routes;
+// use crate::routes::department::routes::department_routes;
 use crate::routes::leave::routes::leave_routes;
-use crate::routes::project::routes::project_routes;
 use crate::routes::setting::routes::setting_routes;
 use crate::routes::user::routes::user_routes;
 use crate::routes::web_socket::routes::web_socket_routes;
@@ -20,17 +20,17 @@ pub fn routes(cfg: &mut web::ServiceConfig) {
                 .configure(user_routes)
                 .wrap(HeaderValidation),
         )
+        // .service(
+        //     web::scope("/department")
+        //         .configure(department_routes)
+        //         .wrap(HeaderValidation)
+        //         .wrap(RequireAuth {
+        //             allow_deleted_user: false,
+        //         }),
+        // )
         .service(
-            web::scope("/department")
-                .configure(department_routes)
-                .wrap(HeaderValidation)
-                .wrap(RequireAuth {
-                    allow_deleted_user: false,
-                }),
-        )
-        .service(
-            web::scope("/project")
-                .configure(project_routes)
+            web::scope("/business")
+                .configure(business_routes)
                 .wrap(HeaderValidation)
                 .wrap(RequireAuth {
                     allow_deleted_user: false,

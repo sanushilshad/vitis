@@ -69,7 +69,6 @@ pub mod tests {
             display_name: "Test User".to_string(),
             is_test_user: false,
             international_dialing_code: DUMMY_INTERNATIONAL_DIALING_CODE.to_string(),
-            user_type: UserRoleType::Employee,
             password: SecretString::from(password),
         };
         let user_result = register_user(pool, &user_account).await?;

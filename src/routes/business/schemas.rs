@@ -15,7 +15,7 @@ use anyhow::anyhow;
 #[allow(dead_code)]
 #[derive(Deserialize, Debug, ToSchema)]
 #[serde(rename_all = "camelCase")]
-pub struct CreateprojectAccount {
+pub struct CreateBusinessAccount {
     pub name: String,
     pub is_test_account: bool,
     pub mobile_no: String,
@@ -23,12 +23,12 @@ pub struct CreateprojectAccount {
     pub international_dialing_code: String,
 }
 
-impl CreateprojectAccount {
+impl CreateBusinessAccount {
     pub fn get_full_mobile_no(&self) -> String {
         format!("{}{}", self.international_dialing_code, self.mobile_no)
     }
 }
-impl FromRequest for CreateprojectAccount {
+impl FromRequest for CreateBusinessAccount {
     type Error = GenericError;
     type Future = LocalBoxFuture<'static, Result<Self, Self::Error>>;
 
@@ -46,11 +46,11 @@ impl FromRequest for CreateprojectAccount {
 
 #[derive(Deserialize, Debug, ToSchema)]
 #[serde(rename_all = "camelCase")]
-pub struct ProjectFetchRequest {
+pub struct BusinessFetchRequest {
     pub id: Uuid,
 }
 
-impl FromRequest for ProjectFetchRequest {
+impl FromRequest for BusinessFetchRequest {
     type Error = GenericError;
     type Future = LocalBoxFuture<'static, Result<Self, Self::Error>>;
 
@@ -68,12 +68,12 @@ impl FromRequest for ProjectFetchRequest {
 
 #[derive(Deserialize, Debug, ToSchema)]
 #[serde(rename_all = "camelCase")]
-pub struct ProjectPermissionRequest {
+pub struct BusinessPermissionRequest {
     pub action_list: Vec<String>,
-    pub project_id: Uuid,
+    pub business_id: Uuid,
 }
 
-impl FromRequest for ProjectPermissionRequest {
+impl FromRequest for BusinessPermissionRequest {
     type Error = GenericError;
     type Future = LocalBoxFuture<'static, Result<Self, Self::Error>>;
 
@@ -90,14 +90,14 @@ impl FromRequest for ProjectPermissionRequest {
 }
 
 #[derive(Debug, Serialize, ToSchema)]
-pub struct BasicprojectAccount {
+pub struct BasicBusinessAccount {
     pub name: String,
     pub id: Uuid,
 }
 
 #[derive(Debug, Deserialize, Clone, Serialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
-pub struct ProjectAccount {
+pub struct BusinessAccount {
     pub id: Uuid,
     pub name: String,
     pub vectors: Vec<UserVector>,
@@ -106,7 +106,7 @@ pub struct ProjectAccount {
     pub verified: bool,
 }
 
-impl FromRequest for ProjectAccount {
+impl FromRequest for BusinessAccount {
     type Error = GenericError;
     type Future = Ready<Result<Self, Self::Error>>;
 
@@ -114,12 +114,12 @@ impl FromRequest for ProjectAccount {
         req: &actix_web::HttpRequest,
         _payload: &mut actix_web::dev::Payload,
     ) -> Self::Future {
-        let value = req.extensions().get::<ProjectAccount>().cloned();
+        let value = req.extensions().get::<BusinessAccount>().cloned();
 
         let result = match value {
             Some(user) => Ok(user),
             None => Err(GenericError::UnexpectedError(anyhow!(
-                "Something went wrong while parsing project Account data".to_string()
+                "Something went wrong while parsing Business Account data".to_string()
             ))),
         };
 
@@ -128,20 +128,20 @@ impl FromRequest for ProjectAccount {
 }
 
 // #[derive(Debug, Serialize, ToSchema)]
-// pub struct WSprojectAccountCreate {
+// pub struct WSBusinessAccountCreate {
 //     pub message: String,
 // }
 
-// impl WSprojectAccountCreate {
+// impl WSBusinessAccountCreate {
 //     pub fn get_message(message: String) -> Self {
 //         Self { message }
 //     }
 // }
 
 // #[derive(Debug, Deserialize, ToSchema)]
-// pub struct ProjectAccountListReq {}
+// pub struct BusinessAccountListReq {}
 
-// impl FromRequest for ProjectAccountListReq {
+// impl FromRequest for BusinessAccountListReq {
 //     type Error = GenericError;
 //     type Future = LocalBoxFuture<'static, Result<Self, Self::Error>>;
 
@@ -159,12 +159,12 @@ impl FromRequest for ProjectAccount {
 
 #[derive(Debug, Deserialize, Serialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
-pub struct ProjectUserAssociationRequest {
+pub struct BusinessUserAssociationRequest {
     pub user_id: Uuid,
-    pub role: UserRoleType,
+    pub role_id: Uuid,
 }
 
-impl FromRequest for ProjectUserAssociationRequest {
+impl FromRequest for BusinessUserAssociationRequest {
     type Error = GenericError;
     type Future = LocalBoxFuture<'static, Result<Self, Self::Error>>;
 

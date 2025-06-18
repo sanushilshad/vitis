@@ -60,27 +60,11 @@ pub async fn register_user_account_req(
     meta_data: RequestMetaData,
     user_settings: web::Data<UserConfig>,
 ) -> Result<web::Json<GenericResponse<()>>, GenericError> {
-    let admin_role = [UserRoleType::Admin, UserRoleType::Superadmin];
-    if admin_role.contains(&body.user_type) && !user_settings.admin_list.contains(&body.mobile_no) {
-        return Err(UserRegistrationError::InsufficientPrevilegeError(
-            "Insufficient previlege to register Admin/Superadmin".to_string(),
-        )
-        .into());
-    } else {
-        match register_user(&pool, &body).await {
-            Ok(uuid) => {
-                tracing::Span::current().record("user_id", tracing::field::display(uuid));
-                Ok(web::Json(GenericResponse::success(
-                    "Sucessfully Registered User",
-                    (),
-                )))
-            }
-            Err(e) => {
-                tracing::error!("Failed to register user: {:?}", e);
-                return Err(e.into());
-            }
-        }
-    }
+    register_user(&pool, &body).await?;
+    Ok(web::Json(GenericResponse::success(
+        "Sucessfully Registered User",
+        (),
+    )))
 }
 
 #[utoipa::path(

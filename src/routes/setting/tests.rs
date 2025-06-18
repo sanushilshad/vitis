@@ -7,27 +7,27 @@ pub mod tests {
     use crate::{
         constants::DUMMY_INTERNATIONAL_DIALING_CODE,
         routes::{
-            project::tests::tests::setup_project,
+            business::tests::tests::setup_business,
             setting::{
                 models::SettingModel,
                 schemas::{
-                    CreateProjectSettingRequest, CreateSettingData, SettingKey, SettingType,
+                    CreateBusinessSettingRequest, CreateSettingData, SettingKey, SettingType,
                 },
                 utils::{
-                    create_global_setting, create_project_setting, create_user_setting,
+                    create_business_setting, create_global_setting, create_user_setting,
                     delete_global_setting, fetch_setting, fetch_setting_enums, get_setting_value,
                 },
             },
             user::{
                 tests::tests::setup_user,
-                utils::{hard_delete_project_account, hard_delete_user_account},
+                utils::{hard_delete_business_account, hard_delete_user_account},
             },
         },
         tests::tests::get_test_pool,
     };
 
     #[tokio::test]
-    async fn test_project_setting_create_fetch() {
+    async fn test_business_setting_create_fetch() {
         let pool = get_test_pool().await;
         let setting_key = "time_zone";
         let mobile_no = "12345678933";
@@ -41,17 +41,17 @@ pub mod tests {
         .await;
 
         let user_id = user_res.unwrap();
-        let project_res = setup_project(&pool, mobile_no, "project@example.com").await;
-        let project_id = project_res.unwrap();
+        let business_res = setup_business(&pool, mobile_no, "business@example.com").await;
+        let business_id = business_res.unwrap();
         let valid_settings =
-            fetch_setting(&pool, &vec![setting_key.to_string()], SettingType::Project)
+            fetch_setting(&pool, &vec![setting_key.to_string()], SettingType::Business)
                 .await
                 .unwrap();
         let setting_map: HashMap<String, &SettingModel> = valid_settings
             .iter()
             .map(|setting| (setting.key.to_owned(), setting))
             .collect();
-        let req_user_level = CreateProjectSettingRequest {
+        let req_user_level = CreateBusinessSettingRequest {
             user_id: Some(user_id),
             settings: vec![CreateSettingData {
                 key: setting_key.to_owned(),
@@ -59,7 +59,7 @@ pub mod tests {
             }],
         };
 
-        let req_project_level = CreateProjectSettingRequest {
+        let req_business_level = CreateBusinessSettingRequest {
             user_id: None,
             settings: vec![CreateSettingData {
                 key: setting_key.to_owned(),
@@ -67,31 +67,37 @@ pub mod tests {
             }],
         };
 
-        let (create_setting_res_user, create_setting_res_project) = tokio::join!(
-            create_project_setting(&pool, &req_user_level, user_id, project_id, &setting_map),
-            create_project_setting(&pool, &req_project_level, user_id, project_id, &setting_map),
+        let (create_setting_res_user, create_setting_res_business) = tokio::join!(
+            create_business_setting(&pool, &req_user_level, user_id, business_id, &setting_map),
+            create_business_setting(
+                &pool,
+                &req_business_level,
+                user_id,
+                business_id,
+                &setting_map
+            ),
         );
 
         assert!(create_setting_res_user.is_ok());
-        assert!(create_setting_res_project.is_ok());
+        assert!(create_setting_res_business.is_ok());
         let data_res = get_setting_value(
             &pool,
             &vec![setting_key.to_string()],
-            Some(project_id),
+            Some(business_id),
             Some(user_id),
             true,
         )
         .await;
         assert!(data_res.is_ok());
         let data = data_res.unwrap();
-        assert!(data[0].project_level.len() == 1);
+        assert!(data[0].business_level.len() == 1);
         assert!(data[0].user_level.len() == 1);
         let _ = hard_delete_user_account(
             &pool,
             &format!("{}{}", DUMMY_INTERNATIONAL_DIALING_CODE, mobile_no),
         )
         .await;
-        let _ = hard_delete_project_account(&pool, project_id).await;
+        let _ = hard_delete_business_account(&pool, business_id).await;
     }
 
     #[tokio::test]

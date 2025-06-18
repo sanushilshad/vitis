@@ -8,7 +8,7 @@ use super::schemas::SettingEnumData;
 pub struct BulkSettingCreateModel {
     pub id_list: Vec<Uuid>,
     pub user_id_list: Vec<Option<Uuid>>,
-    pub project_id_list: Vec<Option<Uuid>>,
+    pub business_id_list: Vec<Option<Uuid>>,
     pub setting_id_list: Vec<Uuid>,
     pub value_list: Vec<String>,
     pub created_on_list: Vec<DateTime<Utc>>,
@@ -32,7 +32,7 @@ pub struct SettingValueModel {
     pub label: String,
     pub enum_id: Option<Uuid>,
     pub user_id: Option<Uuid>,
-    pub project_id: Option<Uuid>,
+    pub business_id: Option<Uuid>,
     pub is_editable: bool,
 }
 

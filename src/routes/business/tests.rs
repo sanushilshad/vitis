@@ -2,17 +2,17 @@
 pub mod tests {
     use crate::constants::DUMMY_INTERNATIONAL_DIALING_CODE;
     use crate::email::EmailObject;
-    use crate::routes::project::schemas::{CreateprojectAccount, ProjectAccount};
-    use crate::routes::project::utils::{
-        associate_user_to_project, create_project_account, fetch_project_account_model_by_id,
-        get_basic_project_accounts, get_basic_project_accounts_by_user_id, get_project_account,
-        validate_project_account_active, validate_user_project_permission,
+    use crate::routes::business::schemas::{BusinessAccount, CreateBusinessAccount};
+    use crate::routes::business::utils::{
+        associate_user_to_business, create_business_account, fetch_business_account_model_by_id,
+        get_basic_business_accounts, get_basic_business_accounts_by_user_id, get_business_account,
+        validate_business_account_active, validate_user_business_permission,
     };
 
     use crate::routes::user::schemas::UserRoleType;
     use crate::routes::user::tests::tests::setup_user;
     use crate::routes::user::utils::{
-        get_role, get_user, hard_delete_project_account, hard_delete_user_account,
+        get_role, get_user, hard_delete_business_account, hard_delete_user_account,
     };
 
     use crate::schemas::{PermissionType, Status};
@@ -23,8 +23,8 @@ pub mod tests {
     use uuid::Uuid;
 
     #[tokio::test]
-    async fn test_validate_active_project_account() {
-        let mut project_account = ProjectAccount {
+    async fn test_validate_active_business_account() {
+        let mut business_account = BusinessAccount {
             id: Uuid::new_v4(),
             name: "SANU PRIVATE LIMITED".to_string(),
             vectors: vec![],
@@ -33,39 +33,39 @@ pub mod tests {
             verified: true,
         };
 
-        // Test case 5: project account is inactive
-        project_account.is_active = Status::Inactive;
-        let validate_response = validate_project_account_active(&project_account);
+        // Test case 5: business account is inactive
+        business_account.is_active = Status::Inactive;
+        let validate_response = validate_business_account_active(&business_account);
         assert_eq!(
             validate_response,
-            Some("project Account is inactive".to_string())
+            Some("business Account is inactive".to_string())
         );
 
-        // Test case 6: project account is deleted
-        project_account.is_active = Status::Active;
-        project_account.is_deleted = true;
-        let validate_response = validate_project_account_active(&project_account);
+        // Test case 6: business account is deleted
+        business_account.is_active = Status::Active;
+        business_account.is_deleted = true;
+        let validate_response = validate_business_account_active(&business_account);
         assert_eq!(
             validate_response,
-            Some("project Account is deleted".to_string())
+            Some("business Account is deleted".to_string())
         );
 
-        // Test case 7: project user relation is not verified
-        project_account.is_deleted = false;
-        project_account.verified = false;
-        let validate_response = validate_project_account_active(&project_account);
+        // Test case 7: business user relation is not verified
+        business_account.is_deleted = false;
+        business_account.verified = false;
+        let validate_response = validate_business_account_active(&business_account);
         assert_eq!(
             validate_response,
-            Some("project User relation is not verified".to_string())
+            Some("business User relation is not verified".to_string())
         );
 
         // Test case 8: All conditions are met
-        project_account.verified = true;
-        let validate_response = validate_project_account_active(&project_account);
+        business_account.verified = true;
+        let validate_response = validate_business_account_active(&business_account);
         assert_eq!(validate_response, None);
     }
 
-    pub async fn setup_project(
+    pub async fn setup_business(
         pool: &PgPool,
         mobile_no: &str,
         email: &str,
@@ -79,7 +79,7 @@ pub mod tests {
         )
         .await;
         let user_opt = user_res.unwrap();
-        let create_project_obj = CreateprojectAccount {
+        let create_business_obj = CreateBusinessAccount {
             name: "Test Company".to_string(),
             is_test_account: false,
 
@@ -88,13 +88,13 @@ pub mod tests {
 
             international_dialing_code: DUMMY_INTERNATIONAL_DIALING_CODE.to_string(),
         };
-        let project_res_obj =
-            create_project_account(pool, &user_opt.unwrap(), &create_project_obj).await?;
-        Ok(project_res_obj)
+        let business_res_obj =
+            create_business_account(pool, &user_opt.unwrap(), &create_business_obj).await?;
+        Ok(business_res_obj)
     }
 
     #[tokio::test]
-    async fn test_project_and_fetch() {
+    async fn test_business_and_fetch() {
         let pool = get_test_pool().await;
 
         let mobile_no = "1234567892";
@@ -108,29 +108,29 @@ pub mod tests {
         .await;
         assert!(user_res.is_ok());
         let user_id = user_res.unwrap();
-        let project_res = setup_project(&pool, &mobile_no, "project@example.com").await;
-        assert!(project_res.is_ok());
-        let project_id = project_res.unwrap();
-        let fetch_basic_project_obj_res =
-            get_basic_project_accounts_by_user_id(user_id, &pool).await;
-        assert!(fetch_basic_project_obj_res.is_ok());
+        let business_res = setup_business(&pool, &mobile_no, "business@example.com").await;
+        assert!(business_res.is_ok());
+        let business_id = business_res.unwrap();
+        let fetch_basic_business_obj_res =
+            get_basic_business_accounts_by_user_id(user_id, &pool).await;
+        assert!(fetch_basic_business_obj_res.is_ok());
 
-        let fetch_basic_project_obj_res =
-            get_basic_project_accounts_by_user_id(user_id, &pool).await;
-        assert!(fetch_basic_project_obj_res.is_ok());
+        let fetch_basic_business_obj_res =
+            get_basic_business_accounts_by_user_id(user_id, &pool).await;
+        assert!(fetch_basic_business_obj_res.is_ok());
 
-        let fetch_basic_business_objs = get_basic_project_accounts(&pool).await;
-        eprint!("Basic Project Accounts: {:?}", fetch_basic_business_objs);
+        let fetch_basic_business_objs = get_basic_business_accounts(&pool).await;
+        eprint!("Basic business Accounts: {:?}", fetch_basic_business_objs);
         assert!(fetch_basic_business_objs.is_ok());
 
-        let fetch_project_obj_res = get_project_account(&pool, user_id, project_id).await;
-        assert!(fetch_project_obj_res.is_ok());
+        let fetch_business_obj_res = get_business_account(&pool, user_id, business_id).await;
+        assert!(fetch_business_obj_res.is_ok());
 
         let fetch_business_obj_by_id =
-            fetch_project_account_model_by_id(&pool, Some(project_id)).await;
+            fetch_business_account_model_by_id(&pool, Some(business_id)).await;
         eprint!("Business Account List: {:?}", fetch_business_obj_by_id);
 
-        let delete_bus_res = hard_delete_project_account(&pool, project_id).await;
+        let delete_bus_res = hard_delete_business_account(&pool, business_id).await;
         assert!(delete_bus_res.is_ok());
         let delete_res = hard_delete_user_account(
             &pool,
@@ -141,7 +141,7 @@ pub mod tests {
     }
 
     #[tokio::test]
-    async fn test_project_permission_validation() {
+    async fn test_business_permission_validation() {
         let pool = get_test_pool().await;
 
         let mobile_no = "12345678929";
@@ -155,20 +155,20 @@ pub mod tests {
         .await;
 
         let user_id = user_res.unwrap();
-        let project_res = setup_project(&pool, mobile_no, "project@example.com").await;
-        let project_id = project_res.unwrap();
-        let permission_res = validate_user_project_permission(
+        let business_res = setup_business(&pool, mobile_no, "business@example.com").await;
+        let business_id = business_res.unwrap();
+        let permission_res = validate_user_business_permission(
             &pool,
             user_id,
-            project_id,
-            &vec![PermissionType::AssociateUserProject.to_string()],
+            business_id,
+            &vec![PermissionType::AssociateUserBusiness.to_string()],
         )
         .await;
         assert!(permission_res.unwrap().len() > 0);
-        let permission_res = validate_user_project_permission(
+        let permission_res = validate_user_business_permission(
             &pool,
             user_id,
-            project_id,
+            business_id,
             &vec!["create:setting1".to_string()],
         )
         .await;
@@ -178,20 +178,20 @@ pub mod tests {
             &format!("{}{}", DUMMY_INTERNATIONAL_DIALING_CODE, mobile_no),
         )
         .await;
-        let _ = hard_delete_project_account(&pool, project_id).await;
+        let _ = hard_delete_business_account(&pool, business_id).await;
 
-        let permission_res = validate_user_project_permission(
+        let permission_res = validate_user_business_permission(
             &pool,
             user_id,
-            project_id,
-            &vec![PermissionType::CreateProjectSetting.to_string()],
+            business_id,
+            &vec![PermissionType::CreateBusinessSetting.to_string()],
         )
         .await;
         assert!(permission_res.unwrap().len() == 0);
     }
 
     #[tokio::test]
-    async fn test_list_associated_project_accounts() {
+    async fn test_list_associated_business_accounts() {
         let pool = get_test_pool().await;
 
         let mobile_no = "12345678934";
@@ -205,14 +205,15 @@ pub mod tests {
         .await;
 
         let user_id = user_res.unwrap();
-        let project_res = setup_project(&pool, mobile_no, "project@example.com").await;
-        let project_id = project_res.unwrap();
-        let project_account_list_res = get_basic_project_accounts_by_user_id(user_id, &pool).await;
-        assert!(project_account_list_res.is_ok());
-        let project_account_list = project_account_list_res.unwrap();
-        let frst_project_account = project_account_list.first().unwrap();
-        assert!(frst_project_account.id == project_id);
-        let delete_bus_res = hard_delete_project_account(&pool, project_id).await;
+        let business_res = setup_business(&pool, mobile_no, "business@example.com").await;
+        let business_id = business_res.unwrap();
+        let business_account_list_res =
+            get_basic_business_accounts_by_user_id(user_id, &pool).await;
+        assert!(business_account_list_res.is_ok());
+        let business_account_list = business_account_list_res.unwrap();
+        let frst_business_account = business_account_list.first().unwrap();
+        assert!(frst_business_account.id == business_id);
+        let delete_bus_res = hard_delete_business_account(&pool, business_id).await;
         assert!(delete_bus_res.is_ok());
         let delete_res = hard_delete_user_account(
             &pool,
@@ -223,7 +224,7 @@ pub mod tests {
     }
 
     #[tokio::test]
-    async fn test_project_user_association() {
+    async fn test_business_user_association() {
         let pool = get_test_pool().await;
 
         let mobile_no_1 = "12345678939";
@@ -251,23 +252,24 @@ pub mod tests {
         let user_id_1 = user_res_1.unwrap();
         let user_id_2 = user_res_2.unwrap();
 
-        // Project and role fetching can happen concurrently
-        let (project_res, role_obj_opt) = join!(
-            setup_project(&pool, mobile_no_1, "project@example.com"),
-            get_role(&pool, &UserRoleType::Employee),
+        // business and role fetching can happen concurrently
+        let role = UserRoleType::User.to_lowercase_string();
+        let (business_res, role_obj_opt) = join!(
+            setup_business(&pool, mobile_no_1, "business@example.com"),
+            get_role(&pool, &role),
         );
 
-        let project_id = project_res.unwrap();
+        let business_id = business_res.unwrap();
         let role_obj_opt = role_obj_opt.unwrap();
         assert!(role_obj_opt.is_some());
         let role_obj = role_obj_opt.unwrap();
-        // Associate user to project
-        let user_project_association =
-            associate_user_to_project(&pool, user_id_2, project_id, role_obj.id, user_id_1).await;
-        assert!(user_project_association.is_ok());
+        // Associate user to business
+        let user_business_association =
+            associate_user_to_business(&pool, user_id_2, business_id, role_obj.id, user_id_1).await;
+        assert!(user_business_association.is_ok());
 
         // Fetch and assert association
-        let fetched_association = get_project_account(&pool, user_id_2, project_id)
+        let fetched_association = get_business_account(&pool, user_id_2, business_id)
             .await
             .unwrap();
         assert!(fetched_association.is_some());
@@ -275,7 +277,7 @@ pub mod tests {
         // Perform deletions concurrently
 
         let (delete_bus_res, delete_res_1, delete_res_2) = join!(
-            hard_delete_project_account(&pool, project_id),
+            hard_delete_business_account(&pool, business_id),
             hard_delete_user_account(&pool, &mobile_with_code_1,),
             hard_delete_user_account(&pool, &mobile_with_code_2),
         );

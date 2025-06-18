@@ -1,9 +1,9 @@
 use crate::configuration::SecretConfig;
 use crate::errors::GenericError;
-use crate::routes::project::schemas::ProjectAccount;
-use crate::routes::project::utils::{
-    fetch_project_account_model_by_id, get_project_account, validate_project_account_active,
-    validate_user_permission, validate_user_project_permission,
+use crate::routes::business::schemas::BusinessAccount;
+use crate::routes::business::utils::{
+    fetch_business_account_model_by_id, get_business_account, validate_business_account_active,
+    validate_user_business_permission, validate_user_permission,
 };
 use crate::routes::user::schemas::{UserAccount, UserRoleType};
 use crate::routes::user::utils::get_user;
@@ -128,11 +128,11 @@ where
     }
 }
 
-//Middleware to validate the project account
-pub struct ProjectAccountMiddleware<S> {
+//Middleware to validate the business account
+pub struct BusinessAccountMiddleware<S> {
     service: Rc<S>,
 }
-impl<S> Service<ServiceRequest> for ProjectAccountMiddleware<S>
+impl<S> Service<ServiceRequest> for BusinessAccountMiddleware<S>
 where
     S: Service<ServiceRequest, Response = ServiceResponse<actix_web::body::BoxBody>, Error = Error>
         + 'static,
@@ -144,7 +144,7 @@ where
     forward_ready!(service);
 
     /// Handles incoming requests.
-    #[instrument(skip(self), name = "project Account Middleware", fields(path = %req.path()))]
+    #[instrument(skip(self), name = "business Account Middleware", fields(path = %req.path()))]
     fn call(&self, req: ServiceRequest) -> Self::Future {
         let srv = Rc::clone(&self.service);
 
@@ -158,34 +158,36 @@ where
                 })?
                 .to_owned();
 
-            if let Some(project_id) = get_header_value(&req, "x-project-id") // Convert HeaderValue to &str
-                .and_then(|value| Uuid::parse_str(value).ok())
+            if let Some(business_id) =
+                get_header_value(&req, "x-business-id") // Convert HeaderValue to &str
+                    .and_then(|value| Uuid::parse_str(value).ok())
             {
-                let project_account = if user_account.user_role != UserRoleType::Admin.to_string() {
-                    get_project_account(db_pool, user_account.id, project_id)
+                let business_account = if user_account.user_role != UserRoleType::Admin.to_string()
+                {
+                    get_business_account(db_pool, user_account.id, business_id)
                         .await
                         .map_err(GenericError::UnexpectedError)?
                 } else {
-                    fetch_project_account_model_by_id(db_pool, Some(project_id))
+                    fetch_business_account_model_by_id(db_pool, Some(business_id))
                         .await
                         .map_err(GenericError::UnexpectedError)?
                         .map(|model| model.into_schema())
                 };
-                let extracted_project_account = project_account.ok_or_else(|| {
-                    GenericError::ValidationError("project Account doesn't exist".to_string())
+                let extracted_business_account = business_account.ok_or_else(|| {
+                    GenericError::ValidationError("business Account doesn't exist".to_string())
                 })?;
-                let error_message = validate_project_account_active(&extracted_project_account);
+                let error_message = validate_business_account_active(&extracted_business_account);
                 if let Some(message) = error_message {
                     let (request, _pl) = req.into_parts();
                     let json_error = GenericError::ValidationError(message);
                     return Ok(ServiceResponse::from_err(json_error, request));
                 }
                 req.extensions_mut()
-                    .insert::<ProjectAccount>(extracted_project_account);
+                    .insert::<BusinessAccount>(extracted_business_account);
             } else {
                 let (request, _pl) = req.into_parts();
                 return Ok(ServiceResponse::from_err(
-                    GenericError::ValidationError("Please set x-project-id".to_string()),
+                    GenericError::ValidationError("Please set x-business-id".to_string()),
                     request,
                 ));
             }
@@ -196,20 +198,20 @@ where
     }
 }
 
-pub struct ProjectAccountValidation;
+pub struct BusinessAccountValidation;
 
-impl<S> Transform<S, ServiceRequest> for ProjectAccountValidation
+impl<S> Transform<S, ServiceRequest> for BusinessAccountValidation
 where
     S: Service<ServiceRequest, Response = ServiceResponse<actix_web::body::BoxBody>, Error = Error>
         + 'static,
 {
     type Response = ServiceResponse<actix_web::body::BoxBody>;
     type Error = Error;
-    type Transform = ProjectAccountMiddleware<S>;
+    type Transform = BusinessAccountMiddleware<S>;
     type InitError = ();
     type Future = Ready<Result<Self::Transform, Self::InitError>>;
     fn new_transform(&self, service: S) -> Self::Future {
-        ready(Ok(ProjectAccountMiddleware {
+        ready(Ok(BusinessAccountMiddleware {
             service: Rc::new(service),
         }))
     }
@@ -366,11 +368,11 @@ where
     }
 }
 
-pub struct ProjectPermissionMiddleware<S> {
+pub struct BusinessPermissionMiddleware<S> {
     service: Rc<S>,
     pub permission_list: Vec<String>,
 }
-impl<S> Service<ServiceRequest> for ProjectPermissionMiddleware<S>
+impl<S> Service<ServiceRequest> for BusinessPermissionMiddleware<S>
 where
     S: Service<ServiceRequest, Response = ServiceResponse<actix_web::body::BoxBody>, Error = Error>
         + 'static,
@@ -396,19 +398,19 @@ where
                     GenericError::ValidationError("User Account doesn't exist".to_string())
                 })?
                 .to_owned();
-            let project_account = req
+            let business_account = req
                 .extensions()
-                .get::<ProjectAccount>()
+                .get::<BusinessAccount>()
                 .ok_or_else(|| {
                     GenericError::ValidationError(
-                        "project Account Account doesn't exist".to_string(),
+                        "business Account Account doesn't exist".to_string(),
                     )
                 })?
                 .to_owned();
-            let permission_list = validate_user_project_permission(
+            let permission_list = validate_user_business_permission(
                 db_pool,
                 user_account.id,
-                project_account.id,
+                business_account.id,
                 &permission_list,
             )
             .await
@@ -437,26 +439,26 @@ where
     }
 }
 
-// Middleware factory for project account validation.
-pub struct ProjectPermissionValidation {
+// Middleware factory for business account validation.
+pub struct BusinessPermissionValidation {
     pub permission_list: Vec<String>,
 }
 
-impl<S> Transform<S, ServiceRequest> for ProjectPermissionValidation
+impl<S> Transform<S, ServiceRequest> for BusinessPermissionValidation
 where
     S: Service<ServiceRequest, Response = ServiceResponse<actix_web::body::BoxBody>, Error = Error>
         + 'static,
 {
     type Response = ServiceResponse<actix_web::body::BoxBody>;
     type Error = Error;
-    type Transform = ProjectPermissionMiddleware<S>;
+    type Transform = BusinessPermissionMiddleware<S>;
     type InitError = ();
     type Future = Ready<Result<Self::Transform, Self::InitError>>;
 
     /// Creates and returns a new AuthMiddleware wrapped in a Result.
     fn new_transform(&self, service: S) -> Self::Future {
         // Wrap the AuthMiddleware instance in a Result and return it.
-        ready(Ok(ProjectPermissionMiddleware {
+        ready(Ok(BusinessPermissionMiddleware {
             service: Rc::new(service),
             permission_list: self.permission_list.clone(),
         }))
@@ -522,7 +524,7 @@ where
     }
 }
 
-// Middleware factory for project account validation.
+// Middleware factory for business account validation.
 pub struct UserPermissionValidation {
     pub permission_list: Vec<String>,
 }

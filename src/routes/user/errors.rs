@@ -1,6 +1,7 @@
 use crate::{errors::GenericError, utils::error_chain_fmt};
 
 #[derive(thiserror::Error)]
+#[allow(dead_code)]
 pub enum UserRegistrationError {
     #[error("Duplicate email")]
     DuplicateEmail(String),

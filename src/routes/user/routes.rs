@@ -3,7 +3,10 @@ use super::handlers::{
     reset_password_req, send_otp_req, user_edit_req, user_list_req,
 };
 use crate::{
-    middlewares::{RequireAuth, UserPermissionValidation},
+    middlewares::{
+        BusinessAccountValidation, BusinessPermissionValidation, RequireAuth,
+        UserPermissionValidation,
+    },
     schemas::PermissionType,
 };
 
@@ -34,9 +37,10 @@ pub fn user_routes(cfg: &mut web::ServiceConfig) {
             "/list",
             web::post()
                 .to(user_list_req)
-                .wrap(UserPermissionValidation {
+                .wrap(BusinessPermissionValidation {
                     permission_list: vec![PermissionType::ListUsers.to_string()],
                 })
+                .wrap(BusinessAccountValidation)
                 .wrap(RequireAuth {
                     allow_deleted_user: false,
                 }),

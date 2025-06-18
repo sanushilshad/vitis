@@ -470,7 +470,7 @@ pub async fn leave_request_deletion_req(
         ("Authorization" = String, Header, description = "JWT token"),
         ("x-request-id" = String, Header, description = "Request id"),
         ("x-device-id" = String, Header, description = "Device id"),
-        ("id" = String, Path, description = "Leave ID"),
+        // ("id" = String, Path, description = "Leave ID"),
       )
 )]
 #[tracing::instrument(err, name = "Leave Request fetch request", skip(pool), fields())]

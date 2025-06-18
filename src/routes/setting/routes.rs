@@ -2,28 +2,28 @@ use actix_web::web;
 
 use crate::{
     middlewares::{
-        ProjectAccountValidation, ProjectPermissionValidation, UserPermissionValidation,
+        BusinessAccountValidation, BusinessPermissionValidation, UserPermissionValidation,
     },
     schemas::PermissionType,
 };
 
 use super::handlers::{
-    create_project_config_req, create_user_config_req, fetch_config_enums, fetch_global_setting,
-    fetch_project_config_req, fetch_user_config_req, save_global_setting,
+    create_business_config_req, create_user_config_req, fetch_business_config_req,
+    fetch_config_enums, fetch_global_setting, fetch_user_config_req, save_global_setting,
 };
 
 pub fn setting_routes(cfg: &mut web::ServiceConfig) {
     cfg.route(
-        "/project/save",
+        "/business/save",
         web::post()
-            .to(create_project_config_req)
-            .wrap(ProjectPermissionValidation {
+            .to(create_business_config_req)
+            .wrap(BusinessPermissionValidation {
                 permission_list: vec![
-                    PermissionType::CreateProjectSetting.to_string(),
-                    PermissionType::CreateProjectSettingSelf.to_string(),
+                    PermissionType::CreateBusinessSetting.to_string(),
+                    PermissionType::CreateBusinessSettingSelf.to_string(),
                 ],
             })
-            .wrap(ProjectAccountValidation),
+            .wrap(BusinessAccountValidation),
     );
     cfg.route(
         "/user/save",
@@ -37,10 +37,10 @@ pub fn setting_routes(cfg: &mut web::ServiceConfig) {
             }),
     );
     cfg.route(
-        "/project/fetch",
+        "/business/fetch",
         web::post()
-            .to(fetch_project_config_req)
-            .wrap(ProjectAccountValidation),
+            .to(fetch_business_config_req)
+            .wrap(BusinessAccountValidation),
     );
     cfg.route(
         "/user/fetch",

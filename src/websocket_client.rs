@@ -18,7 +18,7 @@ const CLIENT_TIMEOUT: Duration = Duration::from_secs(60);
 #[derive(Debug, Serialize, ToSchema, Deserialize, Clone)]
 #[serde(rename_all = "snake_case")]
 pub enum WebSocketActionType {
-    UserProjectAssociation,
+    UserBusinessAssociation,
     UserDepartmentAssociation,
     LeaveRequest,
     LeaveRequestStatusUpdation,

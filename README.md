@@ -208,7 +208,7 @@ The API Docmentation can be found at `https://{{domain}}/docs/` after running th
 }
 ```
 
-## MILESTONE 1 (25/25) (USER ACCOUNT + USER SETTING + LEAVE MANAGEMENT):
+## MILESTONE 1 (20/20) (USER ACCOUNT + USER SETTING + LEAVE MANAGEMENT):
 * [x] Setup the application structure.
 * [x] Create user account creation API.
 * [x] Create user account Authentication API.
@@ -217,7 +217,6 @@ The API Docmentation can be found at `https://{{domain}}/docs/` after running th
 * [x] Create user account reactivation API.
 * [x] Create User Setting creation API.
 * [x] Create User Setting fetch API.
-* [x] Fetch All Minimal User Account API.
 * [x] Limit No of OTP Authentication.
 * [x] Create user account edit API.
 * [x] Password Reset Request API.
@@ -228,12 +227,9 @@ The API Docmentation can be found at `https://{{domain}}/docs/` after running th
 * [x] Create Global Setting Creation API.
 * [x] Create Global Setting Fetch API.
 * [x] Fetch Setting Enum API.
-* [x] Add leave request management API.  
-* [x] Add causual leave approval API. 
-* [x] Add leave deletion API.
-* [x] Add leave fetch API.
 * [x] Add websocket notification to all APIs. 
 * [x] Add auto-slack alert notification With Pulsar.
+
 
 ## MILESTONE 2 (5/5):
 * [x] Integrate Websocket.
@@ -242,7 +238,27 @@ The API Docmentation can be found at `https://{{domain}}/docs/` after running th
 * [x] Integrate Slack.
 * [x] Integrate Whatsapp.
 
-## MILESTONE 3 DEPARTMENT:
+
+## MILESTONE 3 (8/15) (BUSINESS MANAGEMENT):
+* [x] Create business creation API.
+* [x] List all business of a user data API.
+* [x] Fetch business data API.
+* [x] Create Project Setting fetch API.
+* [x] Create Project Setting creation API.
+* [x] Create Project Setting fetch API.
+* [x] Create user-business association API.
+* [x] Create fetch all user associated to a business API.
+* [ ] Create business deletion API (if admin else remove the association).
+* [ ] Create business edit API.
+* [ ] Create Project Setting edit API.
+* [ ] Add leave request management API. (Need updation)
+* [ ] Add causual leave approval API.  (Need updation)
+* [ ] Add leave deletion API. (Need updation)
+* [ ] Add leave fetch API. (Need updation)
+* [ ] API for admin business user to set leave counts.
+
+
+## MILESTONE 4 DEPARTMENT:
 * [x] Department Creation.
 * [x] Department-User Association.
 * [ ] Department Deletion.
@@ -250,19 +266,7 @@ The API Docmentation can be found at `https://{{domain}}/docs/` after running th
 
 
 
-## MILESTONE 4 (7/12) (PROJECT MANAGEMENT):
-* [x] Create project creation API.
-* [x] List all project of a user data API.
-* [x] Fetch project data API.
-* [x] Create Project Setting fetch API.
-* [x] Create Project Setting creation API.
-* [x] Create Project Setting fetch API.
-* [x] Create user-project association API.
-* [ ] Fetch allowed Setting detail API for a project.
-* [ ] Create project deletion API (if admin else remove the association).
-* [ ] Create fetch all user associated to a project API.
-* [ ] Create project edit API.
-* [ ] Create Project Setting edit API.
+
 
 
 ## MILESTONE 5 (0/4) (ROLE AND PERMISSION MANAGEMENT):

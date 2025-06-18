@@ -22,7 +22,7 @@ pub enum UserRoleType {
     // Guest,
     // Developer,
     // Qa,
-    Employee,
+    User,
     Superadmin,
     Admin,
 }
@@ -64,7 +64,7 @@ pub struct CreateUserAccount {
     pub email: EmailObject,
     pub display_name: String,
     pub is_test_user: bool,
-    pub user_type: UserRoleType,
+    // pub user_type: UserRoleType,
 }
 
 // impl HasFullMobileNumber for CreateUserAccount {

@@ -3,10 +3,10 @@ use uuid::Uuid;
 
 use crate::{routes::user::schemas::UserVector, schemas::Status};
 
-use super::schemas::{BasicprojectAccount, ProjectAccount};
+use super::schemas::{BasicBusinessAccount, BusinessAccount};
 
 #[derive(Debug, FromRow)]
-pub struct ProjectAccountModel {
+pub struct BusinessAccountModel {
     pub id: Uuid,
     pub name: String,
     pub vectors: Json<Vec<UserVector>>,
@@ -15,15 +15,15 @@ pub struct ProjectAccountModel {
     pub verified: bool,
 }
 
-impl ProjectAccountModel {
-    pub fn into_basic_schema(self) -> BasicprojectAccount {
-        BasicprojectAccount {
+impl BusinessAccountModel {
+    pub fn into_basic_schema(self) -> BasicBusinessAccount {
+        BasicBusinessAccount {
             id: self.id,
             name: self.name,
         }
     }
-    pub fn into_schema(self) -> ProjectAccount {
-        ProjectAccount {
+    pub fn into_schema(self) -> BusinessAccount {
+        BusinessAccount {
             id: self.id,
             name: self.name.to_string(),
             vectors: self.vectors.0.to_owned(),
@@ -35,7 +35,7 @@ impl ProjectAccountModel {
 }
 
 #[derive(Debug, FromRow)]
-pub struct UserprojectRelationAccountModel {
+pub struct UserBusinessRelationAccountModel {
     pub id: Uuid,
     pub name: String,
     pub vectors: Json<Vec<UserVector>>,
@@ -44,9 +44,9 @@ pub struct UserprojectRelationAccountModel {
     pub is_deleted: bool,
 }
 
-impl UserprojectRelationAccountModel {
-    pub fn into_schema(self) -> ProjectAccount {
-        ProjectAccount {
+impl UserBusinessRelationAccountModel {
+    pub fn into_schema(self) -> BusinessAccount {
+        BusinessAccount {
             id: self.id,
             name: self.name.to_string(),
             vectors: self.vectors.0.to_owned(),

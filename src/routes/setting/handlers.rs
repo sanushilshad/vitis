@@ -6,31 +6,31 @@ use utoipa::TupleUnit;
 
 use crate::{
     errors::GenericError,
-    routes::{project::schemas::ProjectAccount, user::schemas::UserAccount},
+    routes::{business::schemas::BusinessAccount, user::schemas::UserAccount},
     schemas::{AllowedPermission, GenericResponse, PermissionType},
 };
 
 use super::{
     models::SettingModel,
     schemas::{
-        CreateProjectSettingRequest, CreateUserSettingRequest, FetchSettingEnumRequest,
+        CreateBusinessSettingRequest, CreateUserSettingRequest, FetchSettingEnumRequest,
         FetchSettingRequest, SettingData, SettingEnumData, SettingType,
     },
     utils::{
-        create_global_setting, create_project_setting, create_user_setting, fetch_setting,
+        create_business_setting, create_global_setting, create_user_setting, fetch_setting,
         fetch_setting_enums, get_setting_value,
     },
 };
 
 #[utoipa::path(
     post,
-    description = "API for creating configs specific to project.",
-    summary = "Project Setting Create API",
-    path = "/setting/project/save",
+    description = "API for creating configs specific to business.",
+    summary = "Business Setting Create API",
+    path = "/setting/business/save",
     tag = "Setting",
-    request_body(content = CreateProjectSettingRequest, description = "Request Body"),
+    request_body(content = CreateBusinessSettingRequest, description = "Request Body"),
     responses(
-        (status=200, description= "project Account created successfully", body= GenericResponse<TupleUnit>),
+        (status=200, description= "business Account created successfully", body= GenericResponse<TupleUnit>),
         (status=400, description= "Invalid Request body", body= GenericResponse<TupleUnit>),
         (status=401, description= "Invalid Token", body= GenericResponse<TupleUnit>),
 	    (status=403, description= "Insufficient Previlege", body= GenericResponse<TupleUnit>),
@@ -39,20 +39,20 @@ use super::{
     ),
     params(
         ("Authorization" = String, Header, description = "JWT token"),
-        ("x-project-id" = String, Header, description = "id of project_account"),
+        ("x-business-id" = String, Header, description = "id of business_account"),
         ("x-request-id" = String, Header, description = "Request id"),
         ("x-device-id" = String, Header, description = "Device id"),
       )
 )]
-#[tracing::instrument(err, name = "Project Config Creation API", skip(pool, body), fields())]
-pub async fn create_project_config_req(
-    body: CreateProjectSettingRequest,
+#[tracing::instrument(err, name = "Business Config Creation API", skip(pool, body), fields())]
+pub async fn create_business_config_req(
+    body: CreateBusinessSettingRequest,
     pool: web::Data<PgPool>,
     user: UserAccount,
-    project_account: ProjectAccount,
+    business_account: BusinessAccount,
 ) -> Result<web::Json<GenericResponse<()>>, GenericError> {
     let key_list: Vec<String> = body.settings.iter().map(|a| a.key.to_owned()).collect();
-    let valid_settings = fetch_setting(&pool, &key_list, SettingType::Project)
+    let valid_settings = fetch_setting(&pool, &key_list, SettingType::Business)
         .await
         .map_err(|e| GenericError::DatabaseError(e.to_string(), e))?;
     let setting_map: HashMap<String, &SettingModel> = valid_settings
@@ -76,11 +76,11 @@ pub async fn create_project_config_req(
             invalid_keys_str
         )));
     }
-    create_project_setting(&pool, &body, user.id, project_account.id, &setting_map)
+    create_business_setting(&pool, &body, user.id, business_account.id, &setting_map)
         .await
         .map_err(|e| GenericError::DatabaseError(e.to_string(), e))?;
     Ok(web::Json(GenericResponse::success(
-        "Sucessfully created Project config/s",
+        "Sucessfully created Business config/s",
         (),
     )))
 }
@@ -91,9 +91,9 @@ pub async fn create_project_config_req(
     summary = "User Setting Create API",
     path = "/setting/user/save",
     tag = "Setting",
-    request_body(content = CreateProjectSettingRequest, description = "Request Body"),
+    request_body(content = CreateBusinessSettingRequest, description = "Request Body"),
     responses(
-        (status=200, description= "project Account created successfully", body= GenericResponse<TupleUnit>),
+        (status=200, description= "business Account created successfully", body= GenericResponse<TupleUnit>),
         (status=400, description= "Invalid Request body", body= GenericResponse<TupleUnit>),
         (status=401, description= "Invalid Token", body= GenericResponse<TupleUnit>),
 	    (status=403, description= "Insufficient Previlege", body= GenericResponse<TupleUnit>),
@@ -173,13 +173,13 @@ pub async fn create_user_config_req(
 
 #[utoipa::path(
     post,
-    description = "API for fetching configs specific to user/project/TSP.",
-    summary = "Project Setting Fetch API",
-    path = "/setting/project/fetch",
+    description = "API for fetching configs specific to user/business/TSP.",
+    summary = "Business Setting Fetch API",
+    path = "/setting/business/fetch",
     tag = "Setting",
     request_body(content = FetchSettingRequest, description = "Request Body"),
     responses(
-        (status=200, description= "project Account created successfully", body= GenericResponse<SettingData>),
+        (status=200, description= "business Account created successfully", body= GenericResponse<SettingData>),
         (status=400, description= "Invalid Request body", body= GenericResponse<TupleUnit>),
         (status=401, description= "Invalid Token", body= GenericResponse<TupleUnit>),
 	    (status=403, description= "Insufficient Previlege", body= GenericResponse<TupleUnit>),
@@ -188,30 +188,24 @@ pub async fn create_user_config_req(
     ),
     params(
         ("Authorization" = String, Header, description = "JWT token"),
-        ("x-project-id" = String, Header, description = "id of project_account"),
+        ("x-business-id" = String, Header, description = "id of business_account"),
         ("x-request-id" = String, Header, description = "Request id"),
         ("x-device-id" = String, Header, description = "Device id"),
       )
 )]
-#[tracing::instrument(err, name = "Project Config Fetch API", skip(pool, body), fields())]
-pub async fn fetch_project_config_req(
+#[tracing::instrument(err, name = "Business Config Fetch API", skip(pool, body), fields())]
+pub async fn fetch_business_config_req(
     body: FetchSettingRequest,
     pool: web::Data<PgPool>,
     user: UserAccount,
-    project_account: ProjectAccount,
+    business_account: BusinessAccount,
 ) -> Result<web::Json<GenericResponse<SettingData>>, GenericError> {
-    let settings = get_setting_value(
-        &pool,
-        &body.keys,
-        Some(project_account.id),
-        Some(user.id),
-        true,
-    )
-    .await
-    .map_err(|e| GenericError::DatabaseError(e.to_string(), e))?;
+    let settings = get_setting_value(&pool, &body.keys, Some(business_account.id), None, false)
+        .await
+        .map_err(|e| GenericError::DatabaseError(e.to_string(), e))?;
     let data = SettingData { settings };
     Ok(web::Json(GenericResponse::success(
-        "Sucessfully fetched project config/s",
+        "Sucessfully fetched business config/s",
         data,
     )))
 }
@@ -224,7 +218,7 @@ pub async fn fetch_project_config_req(
     tag = "Setting",
     request_body(content = FetchSettingRequest, description = "Request Body"),
     responses(
-        (status=200, description= "project Account created successfully", body= GenericResponse<SettingData>),
+        (status=200, description= "business Account created successfully", body= GenericResponse<SettingData>),
         (status=400, description= "Invalid Request body", body= GenericResponse<TupleUnit>),
         (status=401, description= "Invalid Token", body= GenericResponse<TupleUnit>),
 	    (status=403, description= "Insufficient Previlege", body= GenericResponse<TupleUnit>),
@@ -271,7 +265,7 @@ pub async fn fetch_user_config_req(
     tag = "Setting",
     request_body(content = FetchSettingRequest, description = "Request Body"),
     responses(
-        (status=200, description= "project Account created successfully", body= GenericResponse<SettingData>),
+        (status=200, description= "business Account created successfully", body= GenericResponse<SettingData>),
         (status=400, description= "Invalid Request body", body= GenericResponse<TupleUnit>),
         (status=401, description= "Invalid Token", body= GenericResponse<TupleUnit>),
 	    (status=403, description= "Insufficient Previlege", body= GenericResponse<TupleUnit>),
@@ -280,7 +274,7 @@ pub async fn fetch_user_config_req(
     ),
     params(
         ("Authorization" = String, Header, description = "JWT token"),
-        ("x-project-id" = String, Header, description = "id of project_account"),
+        ("x-business-id" = String, Header, description = "id of business_account"),
         ("x-request-id" = String, Header, description = "Request id"),
         ("x-device-id" = String, Header, description = "Device id"),
       )
@@ -307,9 +301,9 @@ pub async fn fetch_global_setting(
     summary = "Global Setting Create API",
     path = "/setting/global/save",
     tag = "Setting",
-    request_body(content = CreateProjectSettingRequest, description = "Request Body"),
+    request_body(content = CreateBusinessSettingRequest, description = "Request Body"),
     responses(
-        (status=200, description= "project Account created successfully", body= GenericResponse<TupleUnit>),
+        (status=200, description= "business Account created successfully", body= GenericResponse<TupleUnit>),
         (status=400, description= "Invalid Request body", body= GenericResponse<TupleUnit>),
         (status=401, description= "Invalid Token", body= GenericResponse<TupleUnit>),
 	    (status=403, description= "Insufficient Previlege", body= GenericResponse<TupleUnit>),
@@ -377,7 +371,7 @@ pub async fn save_global_setting(
     tag = "Setting",
     request_body(content = FetchSettingEnumRequest, description = "Request Body"),
     responses(
-        (status=200, description= "project Account created successfully", body= GenericResponse<Vec<SettingEnumData>>),
+        (status=200, description= "business Account created successfully", body= GenericResponse<Vec<SettingEnumData>>),
         (status=400, description= "Invalid Request body", body= GenericResponse<TupleUnit>),
         (status=401, description= "Invalid Token", body= GenericResponse<TupleUnit>),
 	    (status=403, description= "Insufficient Previlege", body= GenericResponse<TupleUnit>),
@@ -386,7 +380,7 @@ pub async fn save_global_setting(
     ),
     params(
         ("Authorization" = String, Header, description = "JWT token"),
-        ("x-project-id" = String, Header, description = "id of project_account"),
+        ("x-business-id" = String, Header, description = "id of business_account"),
         ("x-request-id" = String, Header, description = "Request id"),
         ("x-device-id" = String, Header, description = "Device id"),
       )

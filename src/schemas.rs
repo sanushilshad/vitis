@@ -124,8 +124,8 @@ pub enum PermissionType {
     CreateUserSetting,
     #[serde(rename = "create:user-setting:self")]
     CreateUserSettingSelf,
-    #[serde(rename = "associate:user-project")]
-    AssociateUserProject,
+    #[serde(rename = "associate:user-business")]
+    AssociateUserBusiness,
     #[serde(rename = "create:leave-request:self")]
     CreateLeaveRequestSelf,
     #[serde(rename = "create:leave-request")]
@@ -139,10 +139,10 @@ pub enum PermissionType {
     #[serde(rename = "create:global-setting")]
     CreateGlobalSetting,
 
-    #[serde(rename = "create:project-setting")]
-    CreateProjectSetting,
-    #[serde(rename = "create:project-setting:self")]
-    CreateProjectSettingSelf,
+    #[serde(rename = "create:business-setting")]
+    CreateBusinessSetting,
+    #[serde(rename = "create:business-setting:self")]
+    CreateBusinessSettingSelf,
     #[serde(rename = "associate:user-department")]
     AssociateUserDepartment,
     #[serde(rename = "create:department")]
@@ -158,7 +158,7 @@ impl fmt::Display for PermissionType {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let display_str = match self {
             PermissionType::CreateUserSetting => "create:user-setting",
-            PermissionType::AssociateUserProject => "associate:user-project",
+            PermissionType::AssociateUserBusiness => "associate:user-business",
             PermissionType::CreateLeaveRequestSelf => "create:leave-request:self",
             PermissionType::CreateLeaveRequest => "create:leave-request",
             PermissionType::ApproveLeaveRequest => "approve:leave-request",
@@ -167,8 +167,8 @@ impl fmt::Display for PermissionType {
             PermissionType::ListUsers => "list:users",
             PermissionType::CreateGlobalSetting => "create:global-setting",
             PermissionType::AssociateUserDepartment => "associate:user-department",
-            PermissionType::CreateProjectSetting => "create:project-setting",
-            PermissionType::CreateProjectSettingSelf => "create:project-setting:self",
+            PermissionType::CreateBusinessSetting => "create:business-setting",
+            PermissionType::CreateBusinessSettingSelf => "create:business-setting:self",
             PermissionType::CreateDepartment => "create:department",
             PermissionType::ListLeaveRequestSelf => "list:leave-request:self",
             PermissionType::ListLeaveRequest => "list:leave-request",

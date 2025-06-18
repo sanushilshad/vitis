@@ -17,12 +17,12 @@ pub struct CreateSettingData {
 
 #[derive(Deserialize, Debug, ToSchema)]
 #[serde(rename_all = "camelCase")]
-pub struct CreateProjectSettingRequest {
+pub struct CreateBusinessSettingRequest {
     pub user_id: Option<Uuid>,
     pub settings: Vec<CreateSettingData>,
 }
 
-impl FromRequest for CreateProjectSettingRequest {
+impl FromRequest for CreateBusinessSettingRequest {
     type Error = GenericError;
     type Future = LocalBoxFuture<'static, Result<Self, Self::Error>>;
 
@@ -76,7 +76,7 @@ pub struct Settings {
     pub is_editable: bool,
     pub global_level: Vec<Setting>,
     pub user_level: Vec<Setting>,
-    pub project_level: Vec<Setting>,
+    pub business_level: Vec<Setting>,
 }
 
 impl Settings {
@@ -84,8 +84,11 @@ impl Settings {
         if !self.user_level.is_empty() {
             return self.user_level.first().and_then(|obj| obj.value.clone());
         }
-        if !self.project_level.is_empty() {
-            return self.project_level.first().and_then(|obj| obj.value.clone());
+        if !self.business_level.is_empty() {
+            return self
+                .business_level
+                .first()
+                .and_then(|obj| obj.value.clone());
         }
         if !self.global_level.is_empty() {
             return self.global_level.first().and_then(|obj| obj.value.clone());
@@ -137,7 +140,7 @@ impl FromRequest for CreateUserSettingRequest {
 pub enum SettingType {
     Global,
     User,
-    Project,
+    Business,
 }
 
 impl SettingType {
@@ -145,7 +148,7 @@ impl SettingType {
     //     match self {
     //         // SettingType::Global => "global",
     //         SettingType::User => "user",
-    //         SettingType::Project => "project",
+    //         SettingType::Business => "business",
     //     }
     // }
 }

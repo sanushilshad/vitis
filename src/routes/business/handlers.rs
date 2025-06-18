@@ -2,12 +2,13 @@ use actix::Addr;
 use actix_web::web;
 use sqlx::PgPool;
 use utoipa::TupleUnit;
+use uuid::Uuid;
 
 use crate::{
     errors::GenericError,
     routes::{
         user::{
-            schemas::{UserRoleType, UserAccount},
+            schemas::{UserAccount, UserRoleType},
             utils::get_role,
         },
         web_socket::{schemas::ProcessType, utils::send_notification},
@@ -18,25 +19,25 @@ use crate::{
 
 use super::{
     schemas::{
-        BasicprojectAccount, CreateprojectAccount, ProjectAccount, ProjectFetchRequest,
-        ProjectPermissionRequest, ProjectUserAssociationRequest,
+        BasicBusinessAccount, BusinessAccount, BusinessFetchRequest, BusinessPermissionRequest,
+        BusinessUserAssociationRequest, CreateBusinessAccount,
     },
     utils::{
-        associate_user_to_project, create_project_account, get_basic_project_accounts,
-        get_basic_project_accounts_by_user_id, get_project_account,
-        validate_user_project_permission,
+        associate_user_to_business, create_business_account, get_basic_business_accounts,
+        get_basic_business_accounts_by_user_id, get_business_account,
+        validate_user_business_permission,
     },
 };
 
 #[utoipa::path(
     post,
-    description = "API for creating project accounts for a user. A single user can have multiple project accounts",
-    summary = "project Account Registration API",
-    path = "/project/register",
-    tag = "project Account",
-    request_body(content = CreateprojectAccount, description = "Request Body"),
+    description = "API for creating business accounts for a user. A single user can have multiple business accounts",
+    summary = "business Account Registration API",
+    path = "/business/register",
+    tag = "business Account",
+    request_body(content = CreateBusinessAccount, description = "Request Body"),
     responses(
-        (status=200, description= "project Account created successfully", body= GenericResponse<TupleUnit>),
+        (status=200, description= "business Account created successfully", body= GenericResponse<TupleUnit>),
         (status=400, description= "Invalid Request body", body= GenericResponse<TupleUnit>),
         (status=401, description= "Invalid Token", body= GenericResponse<TupleUnit>),
 	    (status=403, description= "Insufficient Previlege", body= GenericResponse<TupleUnit>),
@@ -51,32 +52,32 @@ use super::{
 )]
 #[tracing::instrument(
     err,
-    name = "project Account Registration API",
+    name = "business Account Registration API",
     skip(pool, body),
     fields()
 )]
-pub async fn register_project_account_req(
-    body: CreateprojectAccount,
+pub async fn register_business_account_req(
+    body: CreateBusinessAccount,
     pool: web::Data<PgPool>,
     meta_data: RequestMetaData,
     user: UserAccount,
 ) -> Result<web::Json<GenericResponse<()>>, GenericError> {
-    create_project_account(&pool, &user, &body).await?;
+    create_business_account(&pool, &user, &body).await?;
     Ok(web::Json(GenericResponse::success(
-        "Sucessfully Registered project Account.",
+        "Sucessfully Registered business Account.",
         (),
     )))
 }
 
 #[utoipa::path(
-    post,
-    path = "/project/fetch",
-    tag = "project Account",
-    description = "API for fetching project account detail.",
-    summary = "project Account Fetch API",
-    request_body(content = ProjectFetchRequest, description = "Request Body"),
+    get,
+    path = "/business/fetch",
+    tag = "business Account",
+    description = "API for fetching business account detail.",
+    summary = "business Account Fetch API",
+    request_body(content = BusinessFetchRequest, description = "Request Body"),
     responses(
-        (status=200, description= "Sucessfully fetched project data.", body= GenericResponse<ProjectAccount>),
+        (status=200, description= "Sucessfully fetched business data.", body= GenericResponse<BusinessAccount>),
         (status=400, description= "Invalid Request body", body= GenericResponse<TupleUnit>),
         (status=401, description= "Invalid Token", body= GenericResponse<TupleUnit>),
 	    (status=403, description= "Insufficient Previlege", body= GenericResponse<TupleUnit>),
@@ -87,33 +88,35 @@ pub async fn register_project_account_req(
         ("Authorization" = String, Header, description = "JWT token"),
         ("x-request-id" = String, Header, description = "Request id"),
         ("x-device-id" = String, Header, description = "Device id"),
+        ("id" = String, Path, description = "Business ID"),
       )
 )]
-#[tracing::instrument(err, name = "fetch project detail", skip(db_pool), fields())]
-pub async fn fetch_project_req(
+#[tracing::instrument(err, name = "fetch business detail", skip(db_pool), fields())]
+pub async fn fetch_business_req(
     db_pool: web::Data<PgPool>,
     user_account: UserAccount,
-    body: ProjectFetchRequest,
-) -> Result<web::Json<GenericResponse<ProjectAccount>>, GenericError> {
-    let project_account = get_project_account(&db_pool, user_account.id, body.id)
+    path: web::Path<Uuid>,
+) -> Result<web::Json<GenericResponse<BusinessAccount>>, GenericError> {
+    let business_id = path.into_inner();
+    let business_account = get_business_account(&db_pool, user_account.id, business_id)
         .await
         .map_err(|e| GenericError::DatabaseError(e.to_string(), e))?
         .ok_or_else(|| {
-            GenericError::ValidationError("project account does not exist.".to_string())
+            GenericError::ValidationError("business account does not exist.".to_string())
         })?;
     Ok(web::Json(GenericResponse::success(
-        "Sucessfully fetched project data.",
-        project_account,
+        "Sucessfully fetched business data.",
+        business_account,
     )))
 }
 
 #[utoipa::path(
     post,
-    path = "/project/permission",
-    tag = "project Account",
-    description = "API for checking the permission of a project.",
-    summary = "project Account Permission API",
-    request_body(content = ProjectPermissionRequest, description = "Request Body"),
+    path = "/business/permission",
+    tag = "business Account",
+    description = "API for checking the permission of a business.",
+    summary = "business Account Permission API",
+    request_body(content = BusinessPermissionRequest, description = "Request Body"),
     responses(
         (status=200, description= "Sucessfully verified permission.", body= GenericResponse<TupleUnit>),
         (status=400, description= "Invalid Request body", body= GenericResponse<TupleUnit>),
@@ -128,16 +131,16 @@ pub async fn fetch_project_req(
         ("x-device-id" = String, Header, description = "Device id"),
       )
 )]
-#[tracing::instrument(err, name = "project Permission", skip(db_pool), fields())]
-pub async fn project_permission_validation(
+#[tracing::instrument(err, name = "business Permission", skip(db_pool), fields())]
+pub async fn business_permission_validation(
     db_pool: web::Data<PgPool>,
     user_account: UserAccount,
-    body: ProjectPermissionRequest,
+    body: BusinessPermissionRequest,
 ) -> Result<web::Json<GenericResponse<Vec<String>>>, GenericError> {
-    let permission_list = validate_user_project_permission(
+    let permission_list = validate_user_business_permission(
         &db_pool,
         user_account.id,
-        body.project_id,
+        body.business_id,
         &body.action_list,
     )
     .await
@@ -162,13 +165,13 @@ pub async fn project_permission_validation(
 
 #[utoipa::path(
     get,
-    path = "/project/list",
-    tag = "project Account",
-    description = "API for listing all project account associated to a user",
-    summary = "project Account List API",
-    // request_body(content = ProjectAccountListReq, description = "Request Body"),
+    path = "/business/list",
+    tag = "business Account",
+    description = "API for listing all business account associated to a user",
+    summary = "business Account List API",
+    // request_body(content = BusinessAccountListReq, description = "Request Body"),
     responses(
-        (status=200, description= "Sucessfully fetched project data.", body= GenericResponse<Vec<BasicprojectAccount>>),
+        (status=200, description= "Sucessfully fetched business data.", body= GenericResponse<Vec<BasicBusinessAccount>>),
         (status=400, description= "Invalid Request body", body= GenericResponse<TupleUnit>),
         (status=401, description= "Invalid Token", body= GenericResponse<TupleUnit>),
 	    (status=403, description= "Insufficient Previlege", body= GenericResponse<TupleUnit>),
@@ -181,32 +184,33 @@ pub async fn project_permission_validation(
         ("x-device-id" = String, Header, description = "Device id"),
       )
 )]
-#[tracing::instrument(err, name = "fetch project detail", skip(db_pool), fields())]
-pub async fn list_project_req(
+#[tracing::instrument(err, name = "fetch business detail", skip(db_pool), fields())]
+pub async fn list_business_req(
     db_pool: web::Data<PgPool>,
     user_account: UserAccount,
-) -> Result<web::Json<GenericResponse<Vec<BasicprojectAccount>>>, GenericError> {
-    let project_obj = if user_account.user_role != UserRoleType::Superadmin.to_string() {
-        get_basic_project_accounts_by_user_id(user_account.id, &db_pool).await
+) -> Result<web::Json<GenericResponse<Vec<BasicBusinessAccount>>>, GenericError> {
+    let business_obj = if user_account.user_role != UserRoleType::Superadmin.to_string() {
+        get_basic_business_accounts_by_user_id(user_account.id, &db_pool).await?
     } else {
-        get_basic_project_accounts(&db_pool).await
-    }
-    .map_err(|e| GenericError::DatabaseError(e.to_string(), e))?;
+        get_basic_business_accounts(&db_pool)
+            .await
+            .map_err(|e| GenericError::DatabaseError(e.to_string(), e))?
+    };
     Ok(web::Json(GenericResponse::success(
-        "Sucessfully fetched all associated project accounts.",
-        project_obj,
+        "Sucessfully fetched all associated business accounts.",
+        business_obj,
     )))
 }
 
 #[utoipa::path(
     post,
     path = "/user/assocation",
-    tag = "project Account",
-    description = "API for association of user with project account",
-    summary = "Use project Account Association API",
-    // request_body(content = ProjectAccountListReq, description = "Request Body"),
+    tag = "business Account",
+    description = "API for association of user with business account",
+    summary = "Use business Account Association API",
+    // request_body(content = BusinessAccountListReq, description = "Request Body"),
     responses(
-        (status=200, description= "Sucessfully fetched project data.", body= GenericResponse<TupleUnit>),
+        (status=200, description= "Sucessfully fetched business data.", body= GenericResponse<TupleUnit>),
         (status=400, description= "Invalid Request body", body= GenericResponse<TupleUnit>),
         (status=401, description= "Invalid Token", body= GenericResponse<TupleUnit>),
 	    (status=403, description= "Insufficient Previlege", body= GenericResponse<TupleUnit>),
@@ -219,31 +223,32 @@ pub async fn list_project_req(
         ("x-device-id" = String, Header, description = "Device id"),
       )
 )]
-#[tracing::instrument(err, name = "user project association", skip(db_pool), fields())]
-pub async fn user_project_association_req(
-    req: ProjectUserAssociationRequest,
+#[tracing::instrument(err, name = "user business association", skip(db_pool), fields())]
+pub async fn user_business_association_req(
+    req: BusinessUserAssociationRequest,
     db_pool: web::Data<PgPool>,
     user_account: UserAccount,
-    project_account: ProjectAccount,
+    business_account: BusinessAccount,
     websocket_srv: web::Data<Addr<Server>>,
 ) -> Result<web::Json<GenericResponse<()>>, GenericError> {
-    if req.role == UserRoleType::Superadmin {
-        return Err(GenericError::InsufficientPrevilegeError(
-            "Insufficient previlege to assign Superadmin".to_string(),
-        ));
-    }
-    let role_obj_task = get_role(&db_pool, &req.role);
+    let role_id = req.role_id.to_string();
+    let role_obj_task = get_role(&db_pool, &role_id);
 
-    let assocated_user_task = get_project_account(&db_pool, user_account.id, project_account.id);
+    let assocated_user_task = get_business_account(&db_pool, user_account.id, business_account.id);
+    let assocating_user_task = get_business_account(&db_pool, req.user_id, business_account.id);
+    let (role_obj_res, assocated_user_res, assocating_user_res) =
+        tokio::join!(role_obj_task, assocated_user_task, assocating_user_task);
 
-    let (role_obj_res, assocated_user_res) = tokio::join!(role_obj_task, assocated_user_task);
-
-    let assocated_user = assocated_user_res.map_err(|e| {
-        GenericError::DatabaseError(
-            "Something went wrong while fetching existing user-project association".to_owned(),
-            e,
-        )
-    })?;
+    assocated_user_res
+        .map_err(|e| {
+            GenericError::DatabaseError(
+                "Something went wrong while fetching existing user-business association".to_owned(),
+                e,
+            )
+        })?
+        .ok_or_else(|| {
+            GenericError::ValidationError("You are not associated to the business".to_owned())
+        })?;
 
     let role_obj = role_obj_res
         .map_err(|e| {
@@ -251,26 +256,33 @@ pub async fn user_project_association_req(
         })?
         .ok_or_else(|| GenericError::ValidationError("role does not exist.".to_string()))?;
 
-    if assocated_user.is_some() {
+    let assocating_user = assocating_user_res.map_err(|e| {
+        GenericError::DatabaseError(
+            "Something went wrong while fetching existing user-business association".to_owned(),
+            e,
+        )
+    })?;
+
+    if assocating_user.is_some() {
         return Err(GenericError::ValidationError(
-            "User already associated with project".to_owned(),
+            "User already associated with business".to_owned(),
         ));
     }
-    associate_user_to_project(
+    associate_user_to_business(
         &db_pool,
         req.user_id,
-        project_account.id,
+        business_account.id,
         role_obj.id,
         user_account.id,
     )
     .await
     .map_err(|_| {
         GenericError::UnexpectedCustomError(
-            "Something went wrong while associating user to project".to_owned(),
+            "Something went wrong while associating user to business".to_owned(),
         )
     })?;
     // let msg: MessageToClient = MessageToClient::new(
-    //     WebSocketActionType::UserProjectAssociation,
+    //     WebSocketActionType::UserBusinessAssociation,
     //     serde_json::to_value(WebSocketData {
     //         message: "Successfully associated user".to_string(),
     //     })
@@ -284,18 +296,18 @@ pub async fn user_project_association_req(
     send_notification(
         &db_pool,
         &websocket_srv,
-        WebSocketActionType::UserProjectAssociation,
+        WebSocketActionType::UserBusinessAssociation,
         ProcessType::Deferred,
         Some(req.user_id),
         format!(
-            "{} Project is associated to you account by {}",
-            project_account.name, user_account.display_name
+            "{} Business is associated to you account by {}",
+            business_account.name, user_account.display_name
         ),
     )
     .await
     .map_err(|e| GenericError::UnexpectedCustomError(e.to_string()))?;
     Ok(web::Json(GenericResponse::success(
-        "Sucessfully associated user with project account.",
+        "Sucessfully associated user with business account.",
         (),
     )))
 }
