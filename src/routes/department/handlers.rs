@@ -6,7 +6,7 @@ use utoipa::TupleUnit;
 use crate::{
     errors::GenericError,
     routes::user::{
-        schemas::{RoleType, UserAccount},
+        schemas::{UserAccount, UserRoleType},
         utils::get_role,
     },
     schemas::{GenericResponse, RequestMetaData},
@@ -188,7 +188,7 @@ pub async fn list_department_req(
     db_pool: web::Data<PgPool>,
     user_account: UserAccount,
 ) -> Result<web::Json<GenericResponse<Vec<BasicDepartmentAccount>>>, GenericError> {
-    let department_obj = if user_account.user_role != RoleType::Superadmin.to_string() {
+    let department_obj = if user_account.user_role != UserRoleType::Superadmin.to_string() {
         get_basic_department_accounts_by_user_id(user_account.id, &db_pool).await
     } else {
         get_basic_department_accounts(&db_pool).await
@@ -229,7 +229,7 @@ pub async fn user_department_association_req(
     // department_account: DepartmentAccount,
     websocket_srv: web::Data<Addr<Server>>,
 ) -> Result<web::Json<GenericResponse<()>>, GenericError> {
-    if req.role == RoleType::Superadmin {
+    if req.role == UserRoleType::Superadmin {
         return Err(GenericError::InsufficientPrevilegeError(
             "Insufficient previlege to assign Superadmin".to_string(),
         ));

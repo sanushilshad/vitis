@@ -165,14 +165,14 @@ pub async fn create_leave_req(
     .await
     .map_err(|e| GenericError::DatabaseError(e.to_string(), e))?
     {
-        let name = to_title_case(&reciever_account.display_name);
+        let receiver = to_title_case(&reciever_account.display_name);
         let sender = to_title_case(&user.display_name);
         let reason = body.reason.unwrap_or("NA".to_string());
         let context_data = LeaveRequestEmailContext::new(
-            &name,
+            &sender,
             body.leave_data.iter().map(|a| a.date.to_string()).collect(),
             &reason,
-            &sender,
+            &receiver,
             &body.r#type,
         );
         let context = TeraContext::from_serialize(&context_data).map_err(|e: tera::Error| {
@@ -309,7 +309,7 @@ pub async fn update_leave_status_req(
                     SettingKey::LeaveStatusUpdateTemplate
                 ))
             })?;
-        let name = to_title_case(&reciever_account.display_name);
+        let receiver = to_title_case(&reciever_account.display_name);
         let sender = to_title_case(&user.display_name);
         if body.status == LeaveStatus::Approved {
             let msg = SchedulerMessageData {
@@ -330,7 +330,7 @@ pub async fn update_leave_status_req(
                 .map_err(|e| GenericError::UnexpectedError(e.into()))?;
         }
         let context_data =
-            LeaveRequestStatusEmailContext::new(&name, &sender, &body.status, &leave.date);
+            LeaveRequestStatusEmailContext::new(&sender, &receiver, &body.status, &leave.date);
         let context = TeraContext::from_serialize(&context_data).map_err(|e: tera::Error| {
             tracing::error!("{}", e);
             GenericError::UnexpectedCustomError(
@@ -418,7 +418,7 @@ pub async fn leave_request_deletion_req(
     pool: web::Data<PgPool>,
     user: UserAccount,
     mail_config: web::Data<EmailClientConfig>,
-    permissions: AllowedPermission,
+    // permissions: AllowedPermission,
 ) -> Result<web::Json<GenericResponse<()>>, GenericError> {
     let leave_id = path.into_inner();
 
@@ -479,6 +479,7 @@ pub async fn leave_request_fetch_req(
     req: FetchLeaveRequest,
     user: UserAccount,
     mail_config: web::Data<EmailClientConfig>,
+    permissions: AllowedPermission,
 ) -> Result<web::Json<GenericResponse<Vec<LeaveData>>>, GenericError> {
     let setting_key_list = vec![SettingKey::TimeZone.to_string()];
     let setting_list = get_setting_value(&pool, &setting_key_list, None, Some(user.id), false)
@@ -487,9 +488,15 @@ pub async fn leave_request_fetch_req(
     let timezone = setting_list
         .get_setting(&SettingKey::TimeZone.to_string())
         .ok_or_else(|| {
-            GenericError::DataNotFound(format!("Please set the {}", SettingKey::EmailAppPassword))
+            GenericError::DataNotFound(format!("Please set the {}", SettingKey::TimeZone))
         })?;
-    let sender_id = if req.action_type == FetchLeaveType::Sender {
+    let sender_id = if req.user_id.is_some()
+        && !permissions
+            .permission_list
+            .contains(&PermissionType::CreateLeaveRequest.to_string())
+    {
+        req.user_id
+    } else if req.action_type == FetchLeaveType::Sender {
         Some(user.id)
     } else {
         None

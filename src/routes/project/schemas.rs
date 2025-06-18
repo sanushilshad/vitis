@@ -8,7 +8,7 @@ use uuid::Uuid;
 
 use crate::email::EmailObject;
 use crate::errors::GenericError;
-use crate::routes::user::schemas::{RoleType, UserVector};
+use crate::routes::user::schemas::{UserRoleType, UserVector};
 use crate::schemas::Status;
 use anyhow::anyhow;
 
@@ -161,7 +161,7 @@ impl FromRequest for ProjectAccount {
 #[serde(rename_all = "camelCase")]
 pub struct ProjectUserAssociationRequest {
     pub user_id: Uuid,
-    pub role: RoleType,
+    pub role: UserRoleType,
 }
 
 impl FromRequest for ProjectUserAssociationRequest {

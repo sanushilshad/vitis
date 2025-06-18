@@ -10,7 +10,7 @@ pub mod tests {
         hard_delete_department_account, validate_department_account_active,
     };
 
-    use crate::routes::user::schemas::RoleType;
+    use crate::routes::user::schemas::UserRoleType;
     use crate::routes::user::tests::tests::setup_user;
     use crate::routes::user::utils::{get_role, get_user, hard_delete_user_account};
 
@@ -216,7 +216,7 @@ pub mod tests {
         //department and role fetching can happen concurrently
         let (department_res, role_obj_opt) = join!(
             setup_department(&pool, mobile_no_1),
-            get_role(&pool, &RoleType::Developer),
+            get_role(&pool, &UserRoleType::Employee),
         );
 
         let department_id = department_res.unwrap();
@@ -261,7 +261,7 @@ pub mod tests {
                 mobile_no,
                 "testuser@123",
             ),
-            get_role(&pool, &RoleType::Developer)
+            get_role(&pool, &UserRoleType::Employee)
         );
         // .await;
         let role_obj_opt = role_res.unwrap();

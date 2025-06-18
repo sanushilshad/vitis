@@ -62,6 +62,7 @@ async fn run(
     let email_config = web::Data::new(configuration.email);
     let slack_client = web::Data::new(configuration.slack.client());
     let pulsar_client = configuration.pulsar.client().await?;
+    let whatsapp_client = web::Data::new(configuration.whatsapp.client());
     pulsar_client
         .start_ws_consumer(
             "ws_consumer",
@@ -84,8 +85,8 @@ async fn run(
 
     let pulsar_client_data = web::Data::new(pulsar_client);
     let governor_config = GovernorConfigBuilder::default()
-        .seconds_per_request(10)
-        .burst_size(12)
+        .seconds_per_request(60)
+        .burst_size(1000)
         .finish()
         .unwrap();
 
@@ -104,7 +105,7 @@ async fn run(
             .app_data(ws_server.clone())
             .app_data(email_client.clone())
             .app_data(email_config.clone())
-            // .app_data(pulsar_producer.clone())
+            .app_data(whatsapp_client.clone())
             .app_data(slack_client.clone())
             .app_data(pulsar_client_data.clone())
             .configure(routes)

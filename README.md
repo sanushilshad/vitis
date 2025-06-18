@@ -80,10 +80,6 @@ export APPLICATION__PORT=8001
 export APPLICATION__HOST=0.0.0.0
 export APPLICATION__WORKERS=16
 export APPLICATION__SERVICE_ID="9a3c0909-3c5d-4a84-8fb6-71928e28cb5b"
-## WEBSOCKET SERVICE
-export WEBSOCKET__TOKEN=""
-export WEBSOCKET__BASE_URL="http://0.0.0.0:8229"
-export WEBSOCKET__TIMEOUT_MILLISECONDS=600000
 
 ## EMAIL VARIABLES
 export EMAIL__USERNAME=""
@@ -239,18 +235,20 @@ The API Docmentation can be found at `https://{{domain}}/docs/` after running th
 * [x] Add websocket notification to all APIs. 
 * [x] Add auto-slack alert notification With Pulsar.
 
-## MILESTONE 2 DEPARTMENT AND L:
+## MILESTONE 2 (5/5):
+* [x] Integrate Websocket.
+* [x] Integrate Email.
+* [x] Integrate Pulsar.
+* [x] Integrate Slack.
+* [x] Integrate Whatsapp.
+
+## MILESTONE 3 DEPARTMENT:
 * [x] Department Creation.
 * [x] Department-User Association.
 * [ ] Department Deletion.
 * [ ] Department Edit.
 
-## MILESTONE 3 (4/5):
-* [x] Integrate Websocket.
-* [x] Integrate Email.
-* [x] Integrate Pulsar.
-* [x] Integrate Slack.
-* [ ] Integrate Whatsapp.
+
 
 ## MILESTONE 4 (7/12) (PROJECT MANAGEMENT):
 * [x] Create project creation API.

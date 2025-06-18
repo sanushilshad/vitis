@@ -1,45 +1,36 @@
 use crate::configuration::SlackChannel;
 use reqwest::Client;
 use secrecy::{ExposeSecret, SecretString};
-use serde::{Deserialize, Serialize};
-#[derive(Debug, Serialize, Deserialize)]
+use serde::Serialize;
+#[derive(Debug, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum SlackBlockType {
     Header,
     Section,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum SlackTextType {
     PlainText,
     Mrkdwn,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize)]
 pub struct SlackText {
     #[serde(rename = "type")]
     pub r#type: SlackTextType,
     pub text: String,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize)]
 pub struct SlackBlock {
     #[serde(rename = "type")]
     pub r#type: SlackBlockType,
     pub text: SlackText,
 }
 
-// impl SlackBlock {
-//     pub fn new(block_type: SlackBlockType, data: Vec<SlackText>) -> SlackBlock {
-//         SlackBlock {
-//             block_type,
-//             text: data,
-//         }
-//     }
-// }
-
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize)]
 pub struct SlackNotificationPayload {
     text: String,
     blocks: Vec<SlackBlock>,
@@ -86,7 +77,7 @@ pub struct SlackClient {
     pub channel: SlackChannel,
 }
 
-#[derive(Debug, Deserialize, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Serialize, Clone, PartialEq, Eq, Hash)]
 #[serde(rename_all = "snake_case")]
 pub enum SlackChannelType {
     Leave,

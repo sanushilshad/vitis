@@ -17,13 +17,13 @@ use crate::email_client::{GenericEmailService, SmtpEmailClient};
 use crate::routes::setting::schemas::{SettingKey, Settings, SettingsExt};
 // use crate::routes::project::utils::get_basic_project_account_by_user_id;
 use crate::routes::user::errors::UserRegistrationError;
-use crate::routes::user::schemas::HasFullMobileNumber;
+// use crate::routes::user::schemas::HasFullMobileNumber;
 use crate::schemas::{  MaskingType, Status};
 use crate::utils::{spawn_blocking_with_tracing, to_title_case};
 use sqlx::{Transaction, Postgres, Executor};
 use super::errors::AuthError;
 use super::models::{AuthMechanismModel, MinimalUserAccountModel, UserAccountModel, RoleModel};
-use super::schemas::{AccountRole, AuthData, AuthMechanism, AuthenticateRequest, AuthenticationScope, BulkAuthMechanismInsert, BulkAuthMechanismUpdate, CreateUserAccount, EditUserAccount, JWTClaims, MinimalUserAccount, EmailOTPContext, RoleType, UserAccount, UserVector, VectorType};
+use super::schemas::{AccountRole, AuthData, AuthMechanism, AuthenticateRequest, AuthenticationScope, BulkAuthMechanismInsert, BulkAuthMechanismUpdate, CreateUserAccount, EditUserAccount, JWTClaims, MinimalUserAccount, EmailOTPContext, UserRoleType, UserAccount, UserVector, VectorType};
 use anyhow::anyhow;
 
 #[tracing::instrument(
@@ -227,7 +227,7 @@ pub async fn fetch_user(
         r#"SELECT 
             ua.id, username, is_test_user, mobile_no, email, is_active as "is_active!:Status", 
             vectors as "vectors:sqlx::types::Json<Vec<UserVector>>", display_name, 
-            international_dialing_code, ua.is_deleted, r.role_name FROM user_account as ua
+            ua.is_deleted, r.role_name FROM user_account as ua
             INNER JOIN user_role ur ON ua.id = ur.user_id
             INNER JOIN role r ON ur.role_id = r.id
         WHERE ua.email = ANY($1) OR ua.mobile_no = ANY($1) OR ua.id::text = ANY($1)
@@ -286,8 +286,8 @@ pub async fn save_user(
     let vector_list = create_vector_from_create_account(user_account)?;
     let query = sqlx::query!(
         r#"
-        INSERT INTO user_account (id, username, email, mobile_no, created_by, created_on, display_name, vectors, is_active, is_test_user, international_dialing_code)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+        INSERT INTO user_account (id, username, email, mobile_no, created_by, created_on, display_name, vectors, is_active, is_test_user)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
         "#,
         user_id,
         &user_account.username,
@@ -299,7 +299,7 @@ pub async fn save_user(
         sqlx::types::Json(vector_list) as sqlx::types::Json<Vec<UserVector>>,
         Status::Active as Status,
         &user_account.is_test_user,
-        &user_account.international_dialing_code,
+        // &user_account.international_dialing_code,
     );
 
     transaction.execute(query).await.map_err(|e| {
@@ -315,7 +315,7 @@ pub async fn save_user(
 
 // test case not needed
 #[tracing::instrument(name = "get_role_model", skip(pool))]
-pub async fn get_role_model(pool: &PgPool, role_type: &RoleType) -> Result<Option<RoleModel>, anyhow::Error> {
+pub async fn get_role_model(pool: &PgPool, role_type: &UserRoleType) -> Result<Option<RoleModel>, anyhow::Error> {
     let row: Option<RoleModel> = sqlx::query_as!(
         RoleModel,
         r#"SELECT id, role_name, role_status as "role_status!:Status", created_on, created_by, is_deleted from role where role_name  = $1"#,
@@ -329,7 +329,7 @@ pub async fn get_role_model(pool: &PgPool, role_type: &RoleType) -> Result<Optio
 
 // test case not needed
 #[tracing::instrument(name = "get_role", skip(pool))]
-pub async fn get_role(pool: &PgPool, role_type: &RoleType) -> Result<Option<AccountRole>, anyhow::Error> {
+pub async fn get_role(pool: &PgPool, role_type: &UserRoleType) -> Result<Option<AccountRole>, anyhow::Error> {
     let role_model = get_role_model(pool, role_type).await?;
     match role_model {
         Some(role) => {
@@ -797,7 +797,7 @@ pub fn prepare_auth_mechanism_update(
     ];
     let auth_identifier: Vec<String> = vec![
         data.username.to_owned(),
-        data.get_full_mobile_no(),
+        data.mobile_no.to_owned(),
         data.email.get().to_owned(),
     ];
     let updated_on = vec![current_utc, current_utc, current_utc];
@@ -923,21 +923,20 @@ fn generate_updated_user_vectors(
 
 #[tracing::instrument(name = "update user account", skip(tx))]
 pub async fn update_user_account(tx: &mut Transaction<'_, Postgres>, data: &EditUserAccount, user_account: &UserAccount) -> Result<(), anyhow::Error>{
-    let vector_list: Vec<UserVector> = generate_updated_user_vectors(&user_account.vectors, &data.get_full_mobile_no(), &data.email);
+    let vector_list: Vec<UserVector> = generate_updated_user_vectors(&user_account.vectors, &data.mobile_no, &data.email);
     let query= sqlx::query!(
         r#"UPDATE user_account SET
             username = $1,
-            international_dialing_code = $2,
-            mobile_no = $3,
-            email = $4,
-            display_name = $5,
-            vectors = $6,
-            updated_on = $7,
-            updated_by = $8
-        WHERE id = $9"#,
+            mobile_no = $2,
+            email = $3,
+            display_name = $4,
+            vectors = $5,
+            updated_on = $6,
+            updated_by = $7
+        WHERE id = $8"#,
         data.username,
-        data.international_dialing_code,
-        data.get_full_mobile_no(),
+        // data.international_dialing_code,
+        data.mobile_no,
         data.email.get(),
         data.display_name,
         sqlx::types::Json(vector_list) as sqlx::types::Json<Vec<UserVector>>,

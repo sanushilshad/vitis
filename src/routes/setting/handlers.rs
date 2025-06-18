@@ -242,8 +242,18 @@ pub async fn fetch_user_config_req(
     body: FetchSettingRequest,
     pool: web::Data<PgPool>,
     user: UserAccount,
+    permissions: AllowedPermission,
 ) -> Result<web::Json<GenericResponse<SettingData>>, GenericError> {
-    let settings = get_setting_value(&pool, &body.keys, None, Some(user.id), false)
+    let user_id = if body.user_id.is_some()
+        && permissions
+            .permission_list
+            .contains(&PermissionType::CreateUserSetting.to_string())
+    {
+        body.user_id
+    } else {
+        Some(user.id)
+    };
+    let settings = get_setting_value(&pool, &body.keys, None, user_id, false)
         .await
         .map_err(|e| GenericError::DatabaseError(e.to_string(), e))?;
     let data = SettingData { settings };

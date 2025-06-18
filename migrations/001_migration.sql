@@ -4,8 +4,7 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
 CREATE TYPE user_type AS ENUM (
   'guest',
-  'developer',
-  'maintainer',
+  'employee',
   'superadmin',
   'admin'
 );
@@ -22,7 +21,6 @@ CREATE TABLE IF NOT EXISTS user_account(
     id uuid PRIMARY KEY,
     is_test_user BOOLEAN NOT NULL DEFAULT false,
     username TEXT NOT NULL UNIQUE,
-    international_dialing_code TEXT NOT NULL,
     mobile_no TEXT NOT NULL,
     email TEXT NOT NULL,
     display_name TEXT NOT NULL,

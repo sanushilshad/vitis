@@ -42,7 +42,17 @@ pub fn setting_routes(cfg: &mut web::ServiceConfig) {
             .to(fetch_project_config_req)
             .wrap(ProjectAccountValidation),
     );
-    cfg.route("/user/fetch", web::post().to(fetch_user_config_req));
+    cfg.route(
+        "/user/fetch",
+        web::post()
+            .to(fetch_user_config_req)
+            .wrap(UserPermissionValidation {
+                permission_list: vec![
+                    PermissionType::CreateUserSetting.to_string(),
+                    PermissionType::CreateUserSettingSelf.to_string(),
+                ],
+            }),
+    );
     cfg.route(
         "/global/fetch",
         web::post()

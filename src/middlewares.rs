@@ -5,7 +5,7 @@ use crate::routes::project::utils::{
     fetch_project_account_model_by_id, get_project_account, validate_project_account_active,
     validate_user_permission, validate_user_project_permission,
 };
-use crate::routes::user::schemas::{RoleType, UserAccount};
+use crate::routes::user::schemas::{UserAccount, UserRoleType};
 use crate::routes::user::utils::get_user;
 use crate::schemas::{AllowedPermission, RequestMetaData, Status};
 use crate::utils::{decode_token, get_header_value};
@@ -161,7 +161,7 @@ where
             if let Some(project_id) = get_header_value(&req, "x-project-id") // Convert HeaderValue to &str
                 .and_then(|value| Uuid::parse_str(value).ok())
             {
-                let project_account = if user_account.user_role != RoleType::Admin.to_string() {
+                let project_account = if user_account.user_role != UserRoleType::Admin.to_string() {
                     get_project_account(db_pool, user_account.id, project_id)
                         .await
                         .map_err(GenericError::UnexpectedError)?

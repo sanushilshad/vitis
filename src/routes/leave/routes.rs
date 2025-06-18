@@ -30,5 +30,15 @@ pub fn leave_routes(cfg: &mut web::ServiceConfig) {
             }),
     );
     cfg.route("/delete/{id}", web::delete().to(leave_request_deletion_req));
-    cfg.route("/fetch", web::post().to(leave_request_fetch_req));
+    cfg.route(
+        "/fetch",
+        web::post()
+            .to(leave_request_fetch_req)
+            .wrap(UserPermissionValidation {
+                permission_list: vec![
+                    PermissionType::ListLeaveRequestSelf.to_string(),
+                    PermissionType::ListLeaveRequest.to_string(), // PermissionType::CreateLeaveRequest.to_string(),
+                ],
+            }),
+    );
 }

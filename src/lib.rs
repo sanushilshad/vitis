@@ -19,3 +19,4 @@ pub mod telemetry;
 mod tests;
 pub mod utils;
 pub mod websocket_client;
+pub mod whatsapp_client;

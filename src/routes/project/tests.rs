@@ -9,7 +9,7 @@ pub mod tests {
         validate_project_account_active, validate_user_project_permission,
     };
 
-    use crate::routes::user::schemas::RoleType;
+    use crate::routes::user::schemas::UserRoleType;
     use crate::routes::user::tests::tests::setup_user;
     use crate::routes::user::utils::{
         get_role, get_user, hard_delete_project_account, hard_delete_user_account,
@@ -254,7 +254,7 @@ pub mod tests {
         // Project and role fetching can happen concurrently
         let (project_res, role_obj_opt) = join!(
             setup_project(&pool, mobile_no_1, "project@example.com"),
-            get_role(&pool, &RoleType::Developer),
+            get_role(&pool, &UserRoleType::Employee),
         );
 
         let project_id = project_res.unwrap();

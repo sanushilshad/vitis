@@ -477,6 +477,7 @@ async fn get_approved_leaves_by_lock(
         WHERE date = $1 
           AND (alert_status = 'pending' OR alert_status = 'failed') 
           AND status = 'approved'
+          AND is_deleted = false
         FOR UPDATE
         "#,
         leave_date,

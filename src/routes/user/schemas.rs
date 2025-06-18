@@ -18,22 +18,22 @@ use uuid::Uuid;
 #[derive(Serialize, Deserialize, Debug, sqlx::Type, PartialEq, ToSchema)]
 #[sqlx(type_name = "user_type", rename_all = "snake_case")]
 #[serde(rename_all = "snake_case")]
-pub enum RoleType {
+pub enum UserRoleType {
     // Guest,
-    Developer,
-    Maintainer,
-    // Agent,
+    // Developer,
+    // Qa,
+    Employee,
     Superadmin,
     Admin,
 }
 
-impl fmt::Display for RoleType {
+impl fmt::Display for UserRoleType {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{:?}", self)
     }
 }
 
-impl RoleType {
+impl UserRoleType {
     pub fn to_lowercase_string(&self) -> String {
         format!("{:?}", self).to_lowercase()
     }
@@ -64,18 +64,18 @@ pub struct CreateUserAccount {
     pub email: EmailObject,
     pub display_name: String,
     pub is_test_user: bool,
-    pub user_type: RoleType,
+    pub user_type: UserRoleType,
 }
 
-impl HasFullMobileNumber for CreateUserAccount {
-    fn get_international_dialing_code(&self) -> &str {
-        &self.international_dialing_code
-    }
+// impl HasFullMobileNumber for CreateUserAccount {
+//     fn get_international_dialing_code(&self) -> &str {
+//         &self.international_dialing_code
+//     }
 
-    fn get_mobile_no(&self) -> &str {
-        &self.mobile_no
-    }
-}
+//     fn get_mobile_no(&self) -> &str {
+//         &self.mobile_no
+//     }
+// }
 impl CreateUserAccount {
     pub fn get_full_mobile_no(&self) -> String {
         format!("{}{}", self.international_dialing_code, self.mobile_no)
@@ -237,7 +237,7 @@ pub struct UserAccount {
     pub is_active: Status,
     pub display_name: String,
     pub vectors: Vec<UserVector>,
-    pub international_dialing_code: String,
+    // pub international_dialing_code: String,
     pub is_test_user: bool,
     pub is_deleted: bool,
     pub user_role: String,
@@ -370,7 +370,7 @@ impl FromRequest for ListUserAccountRequest {
 pub struct EditUserAccount {
     pub username: String,
     pub mobile_no: String,
-    pub international_dialing_code: String,
+    // pub international_dialing_code: String,
     #[serde(deserialize_with = "deserialize_subscriber_email")]
     pub email: EmailObject,
     pub display_name: String,
@@ -392,15 +392,15 @@ impl FromRequest for EditUserAccount {
     }
 }
 
-impl HasFullMobileNumber for EditUserAccount {
-    fn get_international_dialing_code(&self) -> &str {
-        &self.international_dialing_code
-    }
+// impl HasFullMobileNumber for EditUserAccount {
+//     fn get_international_dialing_code(&self) -> &str {
+//         &self.international_dialing_code
+//     }
 
-    fn get_mobile_no(&self) -> &str {
-        &self.mobile_no
-    }
-}
+//     fn get_mobile_no(&self) -> &str {
+//         &self.mobile_no
+//     }
+// }
 
 #[derive(Serialize)]
 pub struct EmailOTPContext<'a> {

@@ -147,6 +147,11 @@ pub enum PermissionType {
     AssociateUserDepartment,
     #[serde(rename = "create:department")]
     CreateDepartment,
+
+    #[serde(rename = "list:leave-request:self")]
+    ListLeaveRequestSelf,
+    #[serde(rename = "list:leave-request")]
+    ListLeaveRequest,
 }
 
 impl fmt::Display for PermissionType {
@@ -165,6 +170,8 @@ impl fmt::Display for PermissionType {
             PermissionType::CreateProjectSetting => "create:project-setting",
             PermissionType::CreateProjectSettingSelf => "create:project-setting:self",
             PermissionType::CreateDepartment => "create:department",
+            PermissionType::ListLeaveRequestSelf => "list:leave-request:self",
+            PermissionType::ListLeaveRequest => "list:leave-request",
         };
         write!(f, "{}", display_str)
     }

@@ -42,6 +42,7 @@ impl FromRequest for CreateProjectSettingRequest {
 #[serde(rename_all = "camelCase")]
 pub struct FetchSettingRequest {
     pub keys: Vec<String>,
+    pub user_id: Option<Uuid>,
 }
 
 impl FromRequest for FetchSettingRequest {

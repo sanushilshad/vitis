@@ -7,7 +7,7 @@ use utoipa::ToSchema;
 use uuid::Uuid;
 
 use crate::errors::GenericError;
-use crate::routes::user::schemas::RoleType;
+use crate::routes::user::schemas::UserRoleType;
 use crate::schemas::Status;
 use anyhow::anyhow;
 
@@ -154,7 +154,7 @@ impl FromRequest for DepartmentAccount {
 pub struct DepartmentUserAssociationRequest {
     pub user_id: Uuid,
     pub department_id: Uuid,
-    pub role: RoleType,
+    pub role: UserRoleType,
 }
 
 impl FromRequest for DepartmentUserAssociationRequest {

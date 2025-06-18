@@ -126,7 +126,7 @@ pub struct BulkLeaveRequestInsert<'a> {
 
 #[derive(Serialize)]
 pub struct LeaveRequestEmailContext<'a> {
-    name: &'a str,
+    sender: &'a str,
     dates: Vec<String>,
     reason: &'a str,
     receiver: &'a str,
@@ -135,14 +135,14 @@ pub struct LeaveRequestEmailContext<'a> {
 
 impl<'a> LeaveRequestEmailContext<'a> {
     pub fn new(
-        name: &'a str,
+        sender: &'a str,
         dates: Vec<String>,
         reason: &'a str,
         receiver: &'a str,
         r#type: &'a LeaveType,
     ) -> Self {
         Self {
-            name,
+            sender,
             dates,
             reason,
             receiver,
@@ -191,7 +191,7 @@ pub struct LeaveData {
 
 #[derive(Serialize)]
 pub struct LeaveRequestStatusEmailContext<'a> {
-    name: &'a str,
+    sender: &'a str,
     receiver: &'a str,
     status: &'a LeaveStatus,
     pub date: &'a DateTime<Utc>,
@@ -199,13 +199,13 @@ pub struct LeaveRequestStatusEmailContext<'a> {
 
 impl<'a> LeaveRequestStatusEmailContext<'a> {
     pub fn new(
-        name: &'a str,
+        sender: &'a str,
         receiver: &'a str,
         status: &'a LeaveStatus,
         date: &'a DateTime<Utc>,
     ) -> Self {
         Self {
-            name,
+            sender,
             receiver,
             status,
             date,
@@ -228,6 +228,7 @@ pub struct FetchLeaveRequest {
     pub offset: i32,
     pub start_date: Option<NaiveDateTime>,
     pub end_date: Option<NaiveDateTime>,
+    pub user_id: Option<Uuid>,
 }
 
 impl FromRequest for FetchLeaveRequest {

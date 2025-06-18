@@ -4,7 +4,7 @@ use super::{
     errors::ProjectAccountError, models::ProjectAccountModel, schemas::CreateprojectAccount,
 };
 use crate::routes::user::schemas::{
-    AuthenticationScope, BulkAuthMechanismInsert, RoleType, UserAccount, UserVector, VectorType,
+    AuthenticationScope, BulkAuthMechanismInsert, UserRoleType, UserAccount, UserVector, VectorType,
 };
 use crate::routes::user::utils::get_role;
 use crate::schemas::{MaskingType, Status};
@@ -145,7 +145,7 @@ pub async fn create_project_account(
         .context("Failed to acquire a Postgres connection from the pool")?;
     let project_account_id =
         save_project_account(&mut transaction, user_account, create_project_obj).await?;
-    if let Some(role_obj) = get_role(pool, &RoleType::Admin).await? {
+    if let Some(role_obj) = get_role(pool, &UserRoleType::Admin).await? {
         if role_obj.is_deleted || role_obj.role_status == Status::Inactive {
             return Err(ProjectAccountError::InvalidRoleError(
                 "Role is deleted / Inactive".to_string(),

@@ -12,8 +12,8 @@ use tracing::{error, info, warn};
 use utoipa::ToSchema;
 use uuid::Uuid;
 
-const HEARTBEAT_INTERVAL: Duration = Duration::from_secs(5);
-const CLIENT_TIMEOUT: Duration = Duration::from_secs(30);
+const HEARTBEAT_INTERVAL: Duration = Duration::from_secs(20);
+const CLIENT_TIMEOUT: Duration = Duration::from_secs(60);
 
 #[derive(Debug, Serialize, ToSchema, Deserialize, Clone)]
 #[serde(rename_all = "snake_case")]

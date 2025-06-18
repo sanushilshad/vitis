@@ -9,6 +9,7 @@ use crate::email::EmailObject;
 use crate::email_client::SmtpEmailClient;
 use crate::pulsar_client::PulsarClient;
 use crate::slack_client::SlackClient;
+use crate::whatsapp_client::WhatsAppClient;
 
 #[derive(Debug, Deserialize, Clone)]
 pub struct DatabaseConfig {
@@ -93,6 +94,7 @@ pub struct Config {
     pub email: EmailClientConfig,
     pub pulsar: PulsarConfig,
     pub slack: SlackConfig,
+    pub whatsapp: WhatsAppConfig,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -132,6 +134,24 @@ impl EmailClientConfig {
 #[allow(dead_code)]
 pub struct SlackChannel {
     pub leave: SecretString,
+}
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct WhatsAppConfig {
+    pub base_url: String,
+    pub username: String,
+    pub password: String,
+    pub timeout_milliseconds: u64,
+}
+
+impl WhatsAppConfig {
+    pub fn client(self) -> WhatsAppClient {
+        let timeout = self.timeout();
+        WhatsAppClient::new(self.base_url, self.username, self.password, timeout)
+    }
+    fn timeout(&self) -> std::time::Duration {
+        std::time::Duration::from_millis(self.timeout_milliseconds)
+    }
 }
 
 #[derive(Debug, Deserialize, Clone)]

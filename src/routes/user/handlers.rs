@@ -10,14 +10,15 @@ use crate::{
     errors::GenericError,
     routes::setting::{schemas::SettingKey, utils::get_setting_value},
     schemas::{DeleteType, GenericResponse, RequestMetaData, Status},
+    whatsapp_client::{TemplateType, WhatsAppClient},
 };
 
 use super::{
     errors::UserRegistrationError,
     schemas::{
         AuthData, AuthenticateRequest, AuthenticationScope, CreateUserAccount, EditUserAccount,
-        ListUserAccountRequest, MinimalUserAccount, PasswordResetReq, RoleType, SendOTPRequest,
-        UserAccount,
+        ListUserAccountRequest, MinimalUserAccount, PasswordResetReq, SendOTPRequest, UserAccount,
+        UserRoleType,
     },
     utils::{
         fetch_user, get_auth_data, get_minimal_user_list, get_stored_credentials, get_user,
@@ -59,7 +60,7 @@ pub async fn register_user_account_req(
     meta_data: RequestMetaData,
     user_settings: web::Data<UserConfig>,
 ) -> Result<web::Json<GenericResponse<()>>, GenericError> {
-    let admin_role = [RoleType::Admin, RoleType::Superadmin];
+    let admin_role = [UserRoleType::Admin, UserRoleType::Superadmin];
     if admin_role.contains(&body.user_type) && !user_settings.admin_list.contains(&body.mobile_no) {
         return Err(UserRegistrationError::InsufficientPrevilegeError(
             "Insufficient previlege to register Admin/Superadmin".to_string(),
@@ -198,6 +199,7 @@ pub async fn send_otp_req(
     pool: web::Data<PgPool>,
     secret_obj: web::Data<SecretConfig>,
     email_client: web::Data<SmtpEmailClient>,
+    whatsapp_client: web::Data<WhatsAppClient>,
 ) -> Result<web::Json<GenericResponse<()>>, GenericError> {
     let user_task_1 = get_user(vec![&req.identifier], &pool);
     let credential_task_2 = get_stored_credentials(&req.identifier, &req.scope, &pool);
@@ -228,9 +230,21 @@ pub async fn send_otp_req(
         tokio::spawn(
             async move { send_email_otp(email_client, &user, &otp_clone, &configs).await },
         );
+    } else if req.scope == AuthenticationScope::Otp {
+        let otp_clone = otp.clone();
+        tokio::spawn(async move {
+            whatsapp_client
+                .send_text(
+                    TemplateType::Authentication,
+                    &user.mobile_no,
+                    vec![&otp_clone],
+                    true,
+                )
+                .await
+        });
     }
 
-    update_otp(&pool, &otp, secret_obj.otp.expiry, credential)
+    update_otp(&pool, &otp.clone(), secret_obj.otp.expiry, credential)
         .await
         .map_err(|_| {
             GenericError::UnexpectedCustomError(
@@ -425,7 +439,7 @@ pub async fn user_edit_req(
 
 #[utoipa::path(
     post,
-    path = "/password/reset/passord",
+    path = "/user/password/reset",
     tag = "User Account",
     description = "API for resetting password",
     summary = "Password Reset API",
@@ -452,7 +466,7 @@ pub async fn reset_password_req(
         .await
         .map_err(GenericError::UnexpectedError)?;
     Ok(web::Json(GenericResponse::success(
-        "Successfully verified OTP.",
+        "Successfully updated password.",
         (),
     )))
 }
