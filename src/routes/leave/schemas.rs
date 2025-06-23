@@ -3,7 +3,7 @@ use std::fmt;
 use crate::{email::EmailObject, errors::GenericError, routes::setting::schemas::SettingKey};
 use actix_http::Payload;
 use actix_web::{FromRequest, HttpRequest, web};
-use chrono::{DateTime, FixedOffset, NaiveDateTime, Utc};
+use chrono::{DateTime, FixedOffset, NaiveDate, NaiveDateTime, Utc};
 use chrono_tz::Tz;
 use futures::future::LocalBoxFuture;
 use serde::{Deserialize, Serialize};
@@ -34,17 +34,17 @@ impl fmt::Display for LeaveType {
     }
 }
 
-impl LeaveType {
-    pub fn get_setting_key(&self) -> SettingKey {
-        match self {
-            LeaveType::Medical => SettingKey::TotalMedicalLeaveCount,
-            LeaveType::Casual => SettingKey::TotalCasualLeaveCount,
-            LeaveType::Restricted => SettingKey::TotalRestrictedLeaveCount,
-            LeaveType::Common => SettingKey::TotalCommonLeaveCount,
-            LeaveType::Unpaid => SettingKey::UnpaidLeaveCount,
-        }
-    }
-}
+// impl LeaveType {
+//     pub fn get_setting_key(&self) -> SettingKey {
+//         match self {
+//             LeaveType::Medical => SettingKey::TotalMedicalLeaveCount,
+//             LeaveType::Casual => SettingKey::TotalCasualLeaveCount,
+//             LeaveType::Restricted => SettingKey::TotalRestrictedLeaveCount,
+//             LeaveType::Common => SettingKey::TotalCommonLeaveCount,
+//             LeaveType::Unpaid => SettingKey::UnpaidLeaveCount,
+//         }
+//     }
+// }
 
 #[derive(Serialize, Deserialize, Debug, ToSchema, sqlx::Type, PartialEq, Eq, Hash)]
 #[sqlx(type_name = "leave_period", rename_all = "snake_case")]
@@ -323,4 +323,103 @@ impl<'a> FetchLeaveQuery<'a> {
         self.tz = tz;
         self
     }
+}
+
+#[derive(Deserialize, Debug, ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct LeaveTypeCreationData {
+    pub id: Option<Uuid>,
+    pub label: String,
+}
+
+#[derive(Deserialize, Debug, ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct LeaveTypeCreationRequest {
+    pub data: Vec<LeaveTypeCreationData>,
+}
+
+impl FromRequest for LeaveTypeCreationRequest {
+    type Error = GenericError;
+    type Future = LocalBoxFuture<'static, Result<Self, Self::Error>>;
+
+    fn from_request(req: &HttpRequest, payload: &mut Payload) -> Self::Future {
+        let fut = web::Json::<Self>::from_request(req, payload);
+
+        Box::pin(async move {
+            match fut.await {
+                Ok(json) => Ok(json.into_inner()),
+                Err(e) => Err(GenericError::ValidationError(e.to_string())),
+            }
+        })
+    }
+}
+
+#[derive(Debug)]
+pub struct BulkLeaveTypeInsert<'a> {
+    pub id: Vec<Uuid>,
+    pub label: Vec<&'a str>,
+    pub created_on: Vec<DateTime<Utc>>,
+    pub created_by: Vec<Uuid>,
+    pub business_id: Vec<Uuid>,
+}
+
+#[derive(Debug, Serialize, ToSchema)]
+pub struct LeaveTypeData {
+    pub id: Uuid,
+    pub label: String,
+}
+
+#[derive(Deserialize, Debug, ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct LeaveTypeFetchRequest {
+    pub query: Option<String>,
+}
+
+impl FromRequest for LeaveTypeFetchRequest {
+    type Error = GenericError;
+    type Future = LocalBoxFuture<'static, Result<Self, Self::Error>>;
+
+    fn from_request(req: &HttpRequest, payload: &mut Payload) -> Self::Future {
+        let fut = web::Json::<Self>::from_request(req, payload);
+
+        Box::pin(async move {
+            match fut.await {
+                Ok(json) => Ok(json.into_inner()),
+                Err(e) => Err(GenericError::ValidationError(e.to_string())),
+            }
+        })
+    }
+}
+
+#[derive(Deserialize, Debug, ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct LeaveGroupCreationRequest {
+    pub start_date: DateTime<Utc>,
+    pub end_date: DateTime<Utc>,
+    pub label: String,
+    pub id: Option<Uuid>,
+}
+
+impl FromRequest for LeaveGroupCreationRequest {
+    type Error = GenericError;
+    type Future = LocalBoxFuture<'static, Result<Self, Self::Error>>;
+
+    fn from_request(req: &HttpRequest, payload: &mut Payload) -> Self::Future {
+        let fut = web::Json::<Self>::from_request(req, payload);
+
+        Box::pin(async move {
+            match fut.await {
+                Ok(json) => Ok(json.into_inner()),
+                Err(e) => Err(GenericError::ValidationError(e.to_string())),
+            }
+        })
+    }
+}
+
+#[derive(Debug, Serialize, ToSchema)]
+pub struct LeaveGroup {
+    pub id: Uuid,
+    pub label: String,
+    pub start_date: DateTime<Utc>,
+    pub end_date: DateTime<Utc>,
 }

@@ -8,7 +8,7 @@ use super::schemas::{BasicBusinessAccount, BusinessAccount};
 #[derive(Debug, FromRow)]
 pub struct BusinessAccountModel {
     pub id: Uuid,
-    pub name: String,
+    pub display_name: String,
     pub vectors: Json<Vec<UserVector>>,
     pub is_active: Status,
     pub is_deleted: bool,
@@ -19,13 +19,13 @@ impl BusinessAccountModel {
     pub fn into_basic_schema(self) -> BasicBusinessAccount {
         BasicBusinessAccount {
             id: self.id,
-            name: self.name,
+            display_name: self.display_name,
         }
     }
     pub fn into_schema(self) -> BusinessAccount {
         BusinessAccount {
             id: self.id,
-            name: self.name.to_string(),
+            display_name: self.display_name.to_string(),
             vectors: self.vectors.0.to_owned(),
             is_active: self.is_active.to_owned(),
             is_deleted: self.is_deleted,
@@ -37,7 +37,7 @@ impl BusinessAccountModel {
 #[derive(Debug, FromRow)]
 pub struct UserBusinessRelationAccountModel {
     pub id: Uuid,
-    pub name: String,
+    pub display_name: String,
     pub vectors: Json<Vec<UserVector>>,
     pub is_active: Status,
     pub verified: bool,
@@ -48,7 +48,7 @@ impl UserBusinessRelationAccountModel {
     pub fn into_schema(self) -> BusinessAccount {
         BusinessAccount {
             id: self.id,
-            name: self.name.to_string(),
+            display_name: self.display_name.to_string(),
             vectors: self.vectors.0.to_owned(),
 
             is_active: self.is_active.to_owned(),

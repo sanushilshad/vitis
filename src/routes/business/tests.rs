@@ -12,7 +12,8 @@ pub mod tests {
     use crate::routes::user::schemas::UserRoleType;
     use crate::routes::user::tests::tests::setup_user;
     use crate::routes::user::utils::{
-        get_role, get_user, hard_delete_business_account, hard_delete_user_account,
+        fetch_user_account_by_business_account, get_role, get_user, hard_delete_business_account,
+        hard_delete_user_account,
     };
 
     use crate::schemas::{PermissionType, Status};
@@ -26,7 +27,7 @@ pub mod tests {
     async fn test_validate_active_business_account() {
         let mut business_account = BusinessAccount {
             id: Uuid::new_v4(),
-            name: "SANU PRIVATE LIMITED".to_string(),
+            display_name: "SANU PRIVATE LIMITED".to_string(),
             vectors: vec![],
             is_active: Status::Active,
             is_deleted: false,
@@ -211,8 +212,8 @@ pub mod tests {
             get_basic_business_accounts_by_user_id(user_id, &pool).await;
         assert!(business_account_list_res.is_ok());
         let business_account_list = business_account_list_res.unwrap();
-        let frst_business_account = business_account_list.first().unwrap();
-        assert!(frst_business_account.id == business_id);
+        let first_business_account = business_account_list.first().unwrap();
+        assert!(first_business_account.id == business_id);
         let delete_bus_res = hard_delete_business_account(&pool, business_id).await;
         assert!(delete_bus_res.is_ok());
         let delete_res = hard_delete_user_account(
@@ -285,5 +286,38 @@ pub mod tests {
         assert!(delete_bus_res.is_ok());
         assert!(delete_res_1.is_ok());
         assert!(delete_res_2.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_list_business_associated_user_accounts() {
+        let pool = get_test_pool().await;
+
+        let mobile_no = "12345618934";
+        let user_res = setup_user(
+            &pool,
+            "testuser34",
+            "testuser34@example.com",
+            mobile_no,
+            "testuser@123",
+        )
+        .await;
+
+        let user_id = user_res.unwrap();
+        let business_res = setup_business(&pool, mobile_no, "business@example.com").await;
+        let business_id = business_res.unwrap();
+        let user_account_list_res =
+            fetch_user_account_by_business_account(&pool, business_id).await;
+        assert!(user_account_list_res.is_ok());
+        let user_account_list = user_account_list_res.unwrap();
+        let first_user_account = user_account_list.first().unwrap();
+        assert!(first_user_account.id == user_id);
+        let delete_bus_res = hard_delete_business_account(&pool, business_id).await;
+        assert!(delete_bus_res.is_ok());
+        let delete_res = hard_delete_user_account(
+            &pool,
+            &format!("{}{}", DUMMY_INTERNATIONAL_DIALING_CODE, mobile_no),
+        )
+        .await;
+        assert!(delete_res.is_ok());
     }
 }

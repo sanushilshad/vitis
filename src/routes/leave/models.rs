@@ -1,6 +1,6 @@
 use crate::email::EmailObject;
 
-use super::schemas::{LeaveData, LeavePeriod, LeaveStatus, LeaveType};
+use super::schemas::{LeaveData, LeaveGroup, LeavePeriod, LeaveStatus, LeaveType, LeaveTypeData};
 use chrono::{DateTime, TimeZone, Utc};
 use chrono_tz::Tz;
 
@@ -49,4 +49,38 @@ pub struct MinimalLeaveModel {
     pub r#type: LeaveType,
     pub period: LeavePeriod,
     pub sender_id: Uuid,
+}
+
+#[derive(Debug, FromRow)]
+pub struct LeaveTypeModel {
+    pub id: Uuid,
+    pub label: String,
+}
+
+impl LeaveTypeModel {
+    pub fn into_schema(self) -> LeaveTypeData {
+        LeaveTypeData {
+            id: self.id,
+            label: self.label,
+        }
+    }
+}
+
+#[derive(Debug, FromRow)]
+pub struct LeaveGroupModel {
+    pub id: Uuid,
+    pub label: String,
+    pub start_date: DateTime<Utc>,
+    pub end_date: DateTime<Utc>,
+}
+
+impl LeaveGroupModel {
+    pub fn into_schema(self) -> LeaveGroup {
+        LeaveGroup {
+            id: self.id,
+            label: self.label,
+            start_date: self.start_date,
+            end_date: self.end_date,
+        }
+    }
 }

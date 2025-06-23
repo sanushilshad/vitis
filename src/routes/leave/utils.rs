@@ -9,7 +9,11 @@ use uuid::Uuid;
 use crate::{
     errors::GenericError,
     routes::{
-        leave::schemas::{LeavePeriod, LeaveType},
+        business,
+        leave::{
+            models::{LeaveGroupModel, LeaveTypeModel},
+            schemas::{LeavePeriod, LeaveType},
+        },
         user::{schemas::MinimalUserAccount, utils::get_minimal_user_list},
     },
     schemas::{AlertStatus, AllowedPermission, PermissionType},
@@ -20,97 +24,648 @@ use crate::{
 use super::{
     models::{LeaveDataModel, MinimalLeaveModel},
     schemas::{
-        BulkLeaveRequestInsert, CreateLeaveRequest, FetchLeaveQuery, LeaveData, LeaveStatus,
+        BulkLeaveRequestInsert, BulkLeaveTypeInsert, CreateLeaveRequest, FetchLeaveQuery,
+        LeaveData, LeaveGroup, LeaveGroupCreationRequest, LeaveStatus, LeaveTypeCreationData,
+        LeaveTypeCreationRequest, LeaveTypeData,
     },
 };
 use serde_json::Value;
-#[tracing::instrument(name = "prepare bulk leave request data", skip(created_by))]
-pub async fn prepare_bulk_leave_request_data<'a>(
-    leave_request_data: &'a CreateLeaveRequest,
+// #[tracing::instrument(name = "prepare bulk leave request data", skip(created_by))]
+// pub async fn prepare_bulk_leave_request_data<'a>(
+//     leave_request_data: &'a CreateLeaveRequest,
+//     created_by: Uuid,
+//     received_by: Uuid,
+//     email_message_id: &'a str,
+// ) -> Result<Option<BulkLeaveRequestInsert<'a>>, anyhow::Error> {
+//     let current_utc = Utc::now();
+//     let mut created_by_list = vec![];
+//     let mut created_on_list = vec![];
+//     let mut id_list = vec![];
+//     let mut sender_id_list = vec![];
+//     let mut leave_type_list = vec![];
+//     let mut leave_period_list = vec![];
+//     let mut date_list = vec![];
+//     let mut status_list = vec![];
+//     let mut reason_list = vec![];
+//     let mut email_message_id_list = vec![];
+//     let mut cc_list = vec![];
+//     let mut receiver_id_list = vec![];
+//     if leave_request_data.leave_data.is_empty() {
+//         return Ok(None);
+//     }
+//     for leave_request in leave_request_data.leave_data.iter() {
+//         created_on_list.push(current_utc);
+//         created_by_list.push(created_by);
+//         id_list.push(Uuid::new_v4());
+//         sender_id_list.push(leave_request_data.user_id.unwrap_or(created_by));
+//         leave_type_list.push(&leave_request_data.r#type);
+//         leave_period_list.push(&leave_request.period);
+
+//         date_list.push(Utc.from_utc_datetime(&leave_request.date.and_hms_opt(0, 0, 0).unwrap()));
+//         status_list.push(LeaveStatus::Requested); // Assuming default status is Requested
+//         email_message_id_list.push(Some(email_message_id));
+//         reason_list.push(leave_request_data.reason.as_deref());
+//         cc_list.push(
+//             leave_request_data
+//                 .cc
+//                 .as_ref()
+//                 .map(|cc| serde_json::to_value(cc).unwrap()),
+//         );
+//         receiver_id_list.push(received_by);
+//     }
+//     Ok(Some(BulkLeaveRequestInsert {
+//         id: id_list,
+//         sender_id: sender_id_list,
+//         receiver_id: receiver_id_list,
+//         created_on: created_on_list,
+//         created_by: created_by_list,
+//         leave_type: leave_type_list,
+//         leave_period: leave_period_list,
+//         date: date_list,
+//         status: status_list,
+//         reason: reason_list,
+//         email_message_id: email_message_id_list,
+//         cc: cc_list,
+//     }))
+// }
+
+// // test case not needed
+// #[tracing::instrument(name = "save leave request to database", skip(transaction, data))]
+// pub async fn save_leave_to_database<'a>(
+//     transaction: &mut Transaction<'_, Postgres>,
+//     data: BulkLeaveRequestInsert<'a>,
+// ) -> Result<bool, anyhow::Error> {
+//     let query = sqlx::query!(
+//         r#"
+//         INSERT INTO leave_request (id, sender_id, created_by, created_on, period,type, date, status, reason, email_message_id, cc, receiver_id)
+//         SELECT * FROM UNNEST($1::uuid[], $2::uuid[], $3::uuid[], $4::TIMESTAMP[],  $5::leave_period[], $6::leave_type[], $7::TIMESTAMP[], $8::leave_status[],
+//         $9::TEXT[], $10::TEXT[], $11::jsonb[], $12::uuid[]) ON CONFLICT DO NOTHING
+//         "#,
+//         &data.id[..] as &[Uuid],
+//         &data.sender_id[..] as &[Uuid],
+//         &data.created_by[..] as &[Uuid],
+//         &data.created_on[..] as &[DateTime<Utc>],
+//         &data.leave_period[..] as &[&LeavePeriod],
+//         &data.leave_type[..] as &[&LeaveType],
+//         &data.date[..] as &[DateTime<Utc>],
+//         &data.status[..] as &[LeaveStatus],
+//         &data.reason[..] as &[Option<&str>],
+//         &data.email_message_id[..] as &[Option<&str>],
+//         &data.cc[..] as &[Option<Value>],
+//         &data.receiver_id[..] as &[Uuid],
+//     );
+//     let query_string = query.sql();
+//     println!("Generated SQL query for: {}", query_string);
+//     let result = transaction.execute(query).await.map_err(|e| {
+//         tracing::error!("Failed to execute query: {:?}", e);
+//         anyhow!(e).context("A database failure occurred while saving leave request")
+//     })?;
+
+//     Ok(result.rows_affected() > 0)
+// }
+
+// #[tracing::instrument(name = "save leave request", skip(transaction))]
+// pub async fn save_leave_request(
+//     transaction: &mut Transaction<'_, Postgres>,
+//     leave_request_data: &CreateLeaveRequest,
+//     created_by: Uuid,
+//     received_by: Uuid,
+//     email_message_id: &str,
+// ) -> Result<bool, anyhow::Error> {
+//     let bulk_data = prepare_bulk_leave_request_data(
+//         leave_request_data,
+//         created_by,
+//         received_by,
+//         email_message_id,
+//     )
+//     .await?;
+//     if let Some(data) = bulk_data {
+//         return save_leave_to_database(transaction, data).await;
+//     }
+//     Ok(false)
+// }
+// #[tracing::instrument(name = "Fetch leave models", skip(pool))]
+// pub async fn fetch_leave_models<'a>(
+//     pool: &PgPool,
+//     query: &'a FetchLeaveQuery<'a>,
+// ) -> Result<Vec<LeaveDataModel>, anyhow::Error> {
+//     let mut query_builder = QueryBuilder::new(
+//         r#"
+//         SELECT id, sender_id, created_on, type, period, date, status, email_message_id, cc, reason FROM leave WHERE is_deleted=false "#,
+//     );
+//     if let Some(user_id) = query.sender_id {
+//         query_builder.push(" AND sender_id =");
+//         query_builder.push_bind(user_id);
+//     }
+//     if let Some(receiver_id) = query.receiver_id {
+//         query_builder.push(" AND receiver_id =");
+//         query_builder.push_bind(receiver_id);
+//     }
+//     if let Some(date) = query.date {
+//         query_builder.push(" AND date =");
+//         query_builder.push_bind(date);
+//     }
+//     if let Some(period) = query.period {
+//         query_builder.push(" AND period =");
+//         query_builder.push_bind(period);
+//     }
+
+//     if let Some(leave_id) = query.leave_id {
+//         query_builder.push(" AND id =");
+//         query_builder.push_bind(leave_id);
+//     }
+
+//     if let Some(start) = query.start_date {
+//         if let Some(tz) = query.tz {
+//             // Interpret NaiveDateTime as a datetime in timezone tz
+//             let localized = tz
+//                 .from_local_datetime(start)
+//                 .single()
+//                 .ok_or_else(|| anyhow!("Ambiguous or invalid local datetime for start_date"))?;
+
+//             // Convert to UTC
+//             let utc_start = localized.with_timezone(&Utc);
+
+//             query_builder.push(" AND created_on >= ");
+//             query_builder.push_bind(utc_start);
+//         };
+//     }
+
+//     if let Some(end) = query.end_date {
+//         if let Some(tz) = query.tz {
+//             let localized = tz
+//                 .from_local_datetime(end)
+//                 .single()
+//                 .ok_or_else(|| anyhow!("Ambiguous or invalid local datetime for end_date"))?;
+//             let utc_end = localized.with_timezone(&Utc);
+//             query_builder.push(" AND created_on <= ");
+//             query_builder.push_bind(utc_end);
+//         };
+//     }
+//     if let Some(limit) = query.limit {
+//         query_builder.push(" LIMIT ");
+//         query_builder.push_bind(limit);
+//     }
+
+//     if let Some(offset) = query.offset {
+//         query_builder.push(" OFFSET ");
+//         query_builder.push_bind(offset);
+//     }
+
+//     let query = query_builder.build_query_as::<LeaveDataModel>();
+//     println!("Generated SQL query for: {}", query.sql());
+//     let leaves = query.fetch_all(pool).await.map_err(|e| {
+//         tracing::error!("Failed to execute query: {:?}", e);
+//         anyhow!(e).context("A database failure occurred while fetching leave")
+//     })?;
+
+//     Ok(leaves)
+// }
+
+// pub async fn get_leaves<'a>(
+//     pool: &PgPool,
+//     query: &'a FetchLeaveQuery<'a>,
+// ) -> Result<Vec<LeaveData>, anyhow::Error> {
+//     let models = fetch_leave_models(pool, query).await?;
+
+//     let data: Vec<LeaveData> = models
+//         .into_iter()
+//         .map(|a| a.into_schema(query.tz))
+//         .collect();
+//     Ok(data)
+// }
+
+// // pub async fn _leave_exists(
+// //     pool: &PgPool,
+// //     date: DateTime<Utc>,
+// //     period: LeavePeriod,
+// //     user_id: Uuid,
+// // ) -> Result<bool, anyhow::Error> {
+// //     let exists = sqlx::query_scalar!(
+// //         r#"
+// //         SELECT EXISTS (
+// //             SELECT 1 FROM leave
+// //             WHERE sender_id = $1
+// //               AND date = $2
+// //               AND period = $3
+// //         )
+// //         "#,
+// //         user_id,
+// //         date,
+// //         period as LeavePeriod // Explicit cast if needed
+// //     )
+// //     .fetch_one(pool)
+// //     .await?;
+
+// //     Ok(exists.unwrap_or(false)) // just in case DB returns NULL (unlikely here)
+// // }
+
+// pub async fn get_leave_count(
+//     pool: &PgPool,
+//     start_date: DateTime<Utc>,
+//     end_date: DateTime<Utc>,
+//     r#type: &LeaveType,
+//     user_id: Uuid,
+// ) -> Result<BigDecimal, anyhow::Error> {
+//     let count: Option<BigDecimal> = sqlx::query_scalar!(
+//         r#"
+//         SELECT
+//             SUM(
+//                 CASE period
+//                     WHEN 'half_day' THEN 0.5
+//                     WHEN 'full_day' THEN 1.0
+//                     ELSE 0.0
+//                 END
+//             ) as count
+//         FROM leave_request
+//         WHERE sender_id = $1
+//           AND date >= $2
+//           AND date <= $3
+//           AND type = $4
+//           AND status != $5 AND status != $6
+//           AND is_deleted = false
+//           AND status !='rejected'
+//           AND status !='cancelled'
+//         "#,
+//         user_id,
+//         start_date,
+//         end_date,
+//         r#type as &LeaveType,
+//         &LeaveStatus::Rejected as &LeaveStatus,
+//         &LeaveStatus::Cancelled as &LeaveStatus,
+//     )
+//     .fetch_one(pool)
+//     .await
+//     .map_err(|e| {
+//         tracing::error!("Failed to execute query: {:?}", e);
+//         anyhow!(e).context("A database failure occurred while fetching leave count")
+//     })?;
+
+//     Ok(count.unwrap_or_default())
+// }
+
+// pub async fn validate_leave_request(
+//     pool: &PgPool,
+//     financial_year_start: DateTime<Utc>,
+//     body: &CreateLeaveRequest,
+//     user_id: Uuid,
+//     allowed_leave_count: i32,
+// ) -> Result<(), anyhow::Error> {
+//     // let mut unique_entries = HashSet::new();
+//     let mut leave_map: HashMap<NaiveDate, Vec<&LeavePeriod>> = HashMap::new();
+
+//     for entry in body.leave_data.iter() {
+//         leave_map.entry(entry.date).or_default().push(&entry.period);
+//     }
+
+//     for (date, periods) in leave_map {
+//         let full_days = periods
+//             .iter()
+//             .filter(|&&p| p == &LeavePeriod::FullDay)
+//             .count();
+//         let half_days = periods
+//             .iter()
+//             .filter(|&&p| p == &LeavePeriod::HalfDay)
+//             .count();
+
+//         if full_days > 1 {
+//             return Err(anyhow!("More than one FullDay leave applied for {}", date));
+//         }
+
+//         if full_days > 0 && half_days > 0 {
+//             return Err(anyhow!(
+//                 "Cannot mix FullDay and HalfDay leaves on the same date: {}",
+//                 date
+//             ));
+//         }
+
+//         if half_days > 2 {
+//             return Err(anyhow!("More than two HalfDay leaves applied for {}", date));
+//         }
+//     }
+
+//     let end_date = financial_year_start
+//         .with_year(financial_year_start.year() + 1)
+//         .unwrap()
+//         - Duration::seconds(1);
+//     let current_count =
+//         get_leave_count(pool, financial_year_start, end_date, &body.r#type, user_id)
+//             .await
+//             .unwrap_or(BigDecimal::default());
+//     let new_leave_count = body
+//         .leave_data
+//         .iter()
+//         .fold(BigDecimal::from(0), |acc, item| {
+//             acc + match item.period {
+//                 LeavePeriod::FullDay => BigDecimal::from_f64(1.0).unwrap(),
+//                 LeavePeriod::HalfDay => BigDecimal::from_f64(0.5).unwrap(),
+//             }
+//         });
+
+//     if current_count + &new_leave_count > BigDecimal::from(&allowed_leave_count) {
+//         return Err(anyhow!(
+//             "You have exceeded the allowed leave count of {} for the current financial year.",
+//             allowed_leave_count
+//         ));
+//     } else if new_leave_count > allowed_leave_count.into() {
+//         return Err(anyhow!(
+//             "You are applying for more than {} leaves.",
+//             allowed_leave_count
+//         ));
+//     }
+//     Ok(())
+// }
+
+// #[tracing::instrument(name = "reactivate user account", skip(transaction))]
+// pub async fn update_leave_status(
+//     transaction: &mut Transaction<'_, Postgres>,
+//     id: Uuid,
+//     status: &LeaveStatus,
+//     updated_by: Uuid,
+// ) -> Result<(), anyhow::Error> {
+//     let query = sqlx::query!(
+//         r#"
+//         UPDATE leave
+//         SET
+//         status = $1,
+//         updated_on = $2,
+//         updated_by = $3
+//         WHERE id = $4
+//         "#,
+//         status as &LeaveStatus,
+//         Utc::now(),
+//         updated_by,
+//         id
+//     );
+
+//     transaction.execute(query).await.map_err(|e| {
+//         tracing::error!("Failed to execute query: {:?}", e);
+//         anyhow::Error::new(e).context("A database failure occurred while updating leave status")
+//     })?;
+//     Ok(())
+// }
+
+// pub fn validate_leave_status_update(
+//     incoming_status: &LeaveStatus,
+//     current_status: &LeaveStatus,
+
+//     permissions: &AllowedPermission,
+// ) -> Result<(), GenericError> {
+//     let has_approval_permission = permissions
+//         .permission_list
+//         .contains(&PermissionType::ApproveLeaveRequest.to_string());
+
+//     match (incoming_status, current_status, has_approval_permission) {
+//         (_, LeaveStatus::Rejected, _) => Err(GenericError::ValidationError(
+//             "Leave request is already rejected.".to_string(),
+//         )),
+//         (_, LeaveStatus::Cancelled, _) => Err(GenericError::ValidationError(
+//             "Leave request is already cancelled.".to_string(),
+//         )),
+//         (LeaveStatus::Approved, LeaveStatus::Approved, false) => {
+//             Err(GenericError::InsufficientPrevilegeError(
+//                 "Leave request is already approved.".to_string(),
+//             ))
+//         }
+//         (LeaveStatus::Approved, _, false) | (LeaveStatus::Rejected, _, false) => {
+//             Err(GenericError::InsufficientPrevilegeError(
+//                 "You don't have sufficient privilege for this operation.".to_string(),
+//             ))
+//         }
+//         _ => Ok(()),
+//     }
+// }
+
+// // pub async fn send_personal_html() -> Result<(), anyhow::Error> {
+// //     Ok(())
+// // }
+
+// #[tracing::instrument(name = "reactivate user account", skip(pool))]
+// pub async fn delete_leave(
+//     pool: &PgPool,
+//     leave_id: Uuid,
+//     deleted_by: Uuid,
+// ) -> Result<(), anyhow::Error> {
+//     let _ = sqlx::query!(
+//         r#"
+//         UPDATE leave
+//         SET is_deleted = true,
+//         deleted_on = $2,
+//         deleted_by = $3
+//         WHERE id = $1
+//         "#,
+//         leave_id,
+//         Utc::now(),
+//         deleted_by
+//     )
+//     .execute(pool)
+//     .await
+//     .map_err(|e| {
+//         tracing::error!("Failed to execute query: {:?}", e);
+//         anyhow::Error::new(e).context("A database failure occurred while deleting leave")
+//     })?;
+//     Ok(())
+// }
+
+// async fn get_approved_leaves_by_lock(
+//     transaction: &mut Transaction<'_, Postgres>,
+//     leave_date: DateTime<Utc>,
+// ) -> Result<Vec<MinimalLeaveModel>, anyhow::Error> {
+//     let rows = sqlx::query_as!(
+//         MinimalLeaveModel,
+//         r#"
+//         SELECT
+//             id,
+//             sender_id,
+//             type as "type: LeaveType",
+//             period as "period: LeavePeriod"
+//         FROM leave
+//         WHERE date = $1
+//           AND (alert_status = 'pending' OR alert_status = 'failed')
+//           AND status = 'approved'
+//           AND is_deleted = false
+//         FOR UPDATE
+//         "#,
+//         leave_date,
+//     )
+//     .fetch_all(&mut **transaction)
+//     .await
+//     .map_err(|e| {
+//         tracing::error!("Failed to execute query: {:?}", e);
+//         anyhow::Error::new(e).context("A database failure occurred while fetching leave with lock")
+//     })?;
+
+//     Ok(rows)
+// }
+
+// #[tracing::instrument(name = "update leave alert status", skip(transaction))]
+// pub async fn update_leave_alert_status(
+//     id_list: &Vec<Uuid>,
+//     transaction: &mut Transaction<'_, Postgres>,
+//     alert_status: &AlertStatus,
+// ) -> Result<(), anyhow::Error> {
+//     // let val_list: Vec<String> = id_list.iter().map(|&s| s.to_string()).collect();
+//     let query = sqlx::query!(
+//         r#"
+//         UPDATE leave_request
+//         SET
+//         alert_status = $1
+//         Where id = ANY($2)
+//         "#,
+//         alert_status as &AlertStatus,
+//         id_list
+//     );
+
+//     transaction.execute(query).await.map_err(|e| {
+//         tracing::error!("Failed to execute query: {:?}", e);
+//         anyhow::Error::new(e)
+//             .context("A database failure occurred while updating leave alert status")
+//     })?;
+//     Ok(())
+// }
+
+// pub async fn send_slack_notification_for_approved_leave(
+//     pool: &PgPool,
+//     slack_client: &SlackClient,
+//     leave_date: DateTime<Utc>,
+// ) -> Result<(), anyhow::Error> {
+//     let mut transaction = pool
+//         .begin()
+//         .await
+//         .context("Failed to acquire a Postgres connection from the pool")?;
+
+//     let leave_data = get_approved_leaves_by_lock(&mut transaction, leave_date).await?;
+//     if !leave_data.is_empty() {
+//         let mut leave_id_list = Vec::new();
+//         let mut sender_id_list = Vec::new();
+//         let mut grouped: HashMap<(&LeaveType, &LeavePeriod), Vec<&MinimalLeaveModel>> =
+//             HashMap::new();
+//         for leave in &leave_data {
+//             leave_id_list.push(leave.id);
+//             sender_id_list.push(leave.sender_id);
+//             grouped
+//                 .entry((&leave.r#type, &leave.period))
+//                 .or_default()
+//                 .push(leave);
+//         }
+
+//         let users = get_minimal_user_list(pool, None, 1000, 0, Some(&sender_id_list)).await?;
+//         let user_map: HashMap<Uuid, MinimalUserAccount> =
+//             users.into_iter().map(|x| (x.id, x)).collect();
+
+//         let mut notification = SlackNotificationPayload::new("Leave Notification".to_string())
+//             .add_section(
+//                 // format!("🗓️ *Leave* on {}", leave_date.format("%Y-%m-%d")),
+//                 format!("🗓️ Leave on {}", leave_date.format("%Y-%m-%d")),
+//                 SlackBlockType::Header,
+//                 SlackTextType::PlainText,
+//             );
+//         for ((leave_type, period), leaves) in grouped {
+//             let mut user_string = String::new();
+
+//             for leave in &leaves {
+//                 if let Some(user_obj) = user_map.get(&leave.sender_id) {
+//                     user_string.push_str(&format!("{}, ", user_obj.display_name));
+//                 }
+//             }
+//             if !user_string.is_empty() {
+//                 user_string.truncate(user_string.len().saturating_sub(2));
+//             }
+
+//             let section_text = format!(
+//                 "*{}* — {}: {}",
+//                 snake_to_title_case(&leave_type.to_string()),
+//                 snake_to_title_case(&period.to_string()),
+//                 user_string
+//             );
+
+//             notification = notification.add_section(
+//                 section_text,
+//                 SlackBlockType::Section,
+//                 SlackTextType::Mrkdwn,
+//             );
+//         }
+//         let result = slack_client
+//             .send_notification(notification.build(), &slack_client.channel.leave)
+//             .await;
+
+//         let status = if result.is_ok() {
+//             AlertStatus::Success
+//         } else {
+//             AlertStatus::Failed
+//         };
+
+//         update_leave_alert_status(&leave_id_list, &mut transaction, &status).await?;
+//     }
+
+//     transaction
+//         .commit()
+//         .await
+//         .context("Failed to commit SQL transaction to store a new user account.")?;
+//     Ok(())
+// }
+
+// pub fn create_leave
+
+#[tracing::instrument(name = "prepare bulk leave type data", skip(created_by))]
+pub async fn prepare_bulk_leave_type_data<'a>(
+    leave_type_data: &'a Vec<LeaveTypeCreationData>,
+    business_id: Uuid,
     created_by: Uuid,
-    received_by: Uuid,
-    email_message_id: &'a str,
-) -> Result<Option<BulkLeaveRequestInsert<'a>>, anyhow::Error> {
+) -> Result<Option<BulkLeaveTypeInsert<'a>>, anyhow::Error> {
     let current_utc = Utc::now();
-    let mut created_by_list = vec![];
+    let mut label_list = vec![];
     let mut created_on_list = vec![];
     let mut id_list = vec![];
-    let mut sender_id_list = vec![];
-    let mut leave_type_list = vec![];
-    let mut leave_period_list = vec![];
-    let mut date_list = vec![];
-    let mut status_list = vec![];
-    let mut reason_list = vec![];
-    let mut email_message_id_list = vec![];
-    let mut cc_list = vec![];
-    let mut receiver_id_list = vec![];
-    if leave_request_data.leave_data.is_empty() {
+    let mut business_id_list = vec![];
+    let mut created_by_list = vec![];
+    if leave_type_data.is_empty() {
         return Ok(None);
     }
-    for leave_request in leave_request_data.leave_data.iter() {
+    for leave_data in leave_type_data.iter() {
         created_on_list.push(current_utc);
         created_by_list.push(created_by);
-        id_list.push(Uuid::new_v4());
-        sender_id_list.push(leave_request_data.user_id.unwrap_or(created_by));
-        leave_type_list.push(&leave_request_data.r#type);
-        leave_period_list.push(&leave_request.period);
-
-        date_list.push(Utc.from_utc_datetime(&leave_request.date.and_hms_opt(0, 0, 0).unwrap()));
-        status_list.push(LeaveStatus::Requested); // Assuming default status is Requested
-        email_message_id_list.push(Some(email_message_id));
-        reason_list.push(leave_request_data.reason.as_deref());
-        cc_list.push(
-            leave_request_data
-                .cc
-                .as_ref()
-                .map(|cc| serde_json::to_value(cc).unwrap()),
-        );
-        receiver_id_list.push(received_by);
+        if let Some(id) = leave_data.id {
+            id_list.push(id);
+        } else {
+            id_list.push(Uuid::new_v4());
+        }
+        label_list.push(leave_data.label.as_ref());
+        business_id_list.push(business_id);
     }
-    Ok(Some(BulkLeaveRequestInsert {
+    Ok(Some(BulkLeaveTypeInsert {
         id: id_list,
-        sender_id: sender_id_list,
-        receiver_id: receiver_id_list,
+        label: label_list,
         created_on: created_on_list,
         created_by: created_by_list,
-        leave_type: leave_type_list,
-        leave_period: leave_period_list,
-        date: date_list,
-        status: status_list,
-        reason: reason_list,
-        email_message_id: email_message_id_list,
-        cc: cc_list,
+        business_id: business_id_list,
     }))
 }
 
 // test case not needed
-#[tracing::instrument(name = "save leave request to database", skip(transaction, data))]
-pub async fn save_leave_to_database<'a>(
-    transaction: &mut Transaction<'_, Postgres>,
-    data: BulkLeaveRequestInsert<'a>,
+#[tracing::instrument(name = "save leave type to database", skip(pool, data))]
+pub async fn save_leave_type_to_database<'a>(
+    pool: &PgPool,
+    data: BulkLeaveTypeInsert<'a>,
 ) -> Result<bool, anyhow::Error> {
     let query = sqlx::query!(
         r#"
-        INSERT INTO leave (id, sender_id, created_by, created_on, period,type, date, status, reason, email_message_id, cc, receiver_id)
-        SELECT * FROM UNNEST($1::uuid[], $2::uuid[], $3::uuid[], $4::TIMESTAMP[],  $5::leave_period[], $6::leave_type[], $7::TIMESTAMP[], $8::leave_status[],
-        $9::TEXT[], $10::TEXT[], $11::jsonb[], $12::uuid[]) ON CONFLICT DO NOTHING
+        INSERT INTO leave_type (id, created_by, created_on, label, business_id)
+        SELECT * FROM UNNEST($1::uuid[], $2::uuid[], $3::TIMESTAMP[],  $4::TEXT[], $5::uuid[]) 
+        ON CONFLICT (id) DO UPDATE
+        SET label = EXCLUDED.label,
+        updated_by = EXCLUDED.created_by,
+        updated_on = EXCLUDED.created_on
         "#,
         &data.id[..] as &[Uuid],
-        &data.sender_id[..] as &[Uuid],
         &data.created_by[..] as &[Uuid],
         &data.created_on[..] as &[DateTime<Utc>],
-        &data.leave_period[..] as &[&LeavePeriod],
-        &data.leave_type[..] as &[&LeaveType],
-        &data.date[..] as &[DateTime<Utc>],
-        &data.status[..] as &[LeaveStatus],
-        &data.reason[..] as &[Option<&str>],
-        &data.email_message_id[..] as &[Option<&str>],
-        &data.cc[..] as &[Option<Value>],
-        &data.receiver_id[..] as &[Uuid],
+        &data.label[..] as &[&str],
+        &data.business_id[..] as &[Uuid]
     );
     let query_string = query.sql();
     println!("Generated SQL query for: {}", query_string);
-    let result = transaction.execute(query).await.map_err(|e| {
+    let result = pool.execute(query).await.map_err(|e| {
         tracing::error!("Failed to execute query: {:?}", e);
         anyhow!(e).context("A database failure occurred while saving leave request")
     })?;
@@ -118,483 +673,277 @@ pub async fn save_leave_to_database<'a>(
     Ok(result.rows_affected() > 0)
 }
 
-#[tracing::instrument(name = "save leave request", skip(transaction))]
-pub async fn save_leave_request(
-    transaction: &mut Transaction<'_, Postgres>,
-    leave_request_data: &CreateLeaveRequest,
+#[tracing::instrument(name = "save leave type", skip(pool))]
+pub async fn save_leave_type(
+    pool: &PgPool,
+    leave_type_data: &Vec<LeaveTypeCreationData>,
     created_by: Uuid,
-    received_by: Uuid,
-    email_message_id: &str,
+    business_id: Uuid,
 ) -> Result<bool, anyhow::Error> {
-    let bulk_data = prepare_bulk_leave_request_data(
-        leave_request_data,
-        created_by,
-        received_by,
-        email_message_id,
-    )
-    .await?;
+    let bulk_data = prepare_bulk_leave_type_data(leave_type_data, business_id, created_by).await?;
     if let Some(data) = bulk_data {
-        return save_leave_to_database(transaction, data).await;
+        return save_leave_type_to_database(pool, data).await;
     }
     Ok(false)
 }
+
 #[tracing::instrument(name = "Fetch leave models", skip(pool))]
-pub async fn fetch_leave_models<'a>(
+async fn fetch_leave_type_models<'a>(
     pool: &PgPool,
-    query: &'a FetchLeaveQuery<'a>,
-) -> Result<Vec<LeaveDataModel>, anyhow::Error> {
+    business_id: Uuid,
+    id_list: Option<Vec<Uuid>>,
+    label_list: Option<Vec<&str>>,
+    query: Option<String>,
+) -> Result<Vec<LeaveTypeModel>, anyhow::Error> {
     let mut query_builder = QueryBuilder::new(
         r#"
-        SELECT id, sender_id, created_on, type, period, date, status, email_message_id, cc, reason FROM leave WHERE is_deleted=false "#,
+        SELECT id, label FROM leave_type WHERE business_id="#,
     );
-    if let Some(user_id) = query.sender_id {
-        query_builder.push(" AND sender_id =");
-        query_builder.push_bind(user_id);
+    query_builder.push_bind(business_id);
+    if let Some(id_list) = id_list {
+        if !id_list.is_empty() {
+            query_builder.push(" AND id = ANY(");
+            query_builder.push_bind(id_list);
+            query_builder.push(")");
+        }
     }
-    if let Some(receiver_id) = query.receiver_id {
-        query_builder.push(" AND receiver_id =");
-        query_builder.push_bind(receiver_id);
+    if let Some(label_list) = label_list {
+        if !label_list.is_empty() {
+            query_builder.push(" AND label = ANY(");
+            query_builder.push_bind(label_list);
+            query_builder.push(")");
+        }
     }
-    if let Some(date) = query.date {
-        query_builder.push(" AND date =");
-        query_builder.push_bind(date);
-    }
-    if let Some(period) = query.period {
-        query_builder.push(" AND period =");
-        query_builder.push_bind(period);
-    }
-
-    if let Some(leave_id) = query.leave_id {
-        query_builder.push(" AND id =");
-        query_builder.push_bind(leave_id);
-    }
-
-    if let Some(start) = query.start_date {
-        if let Some(tz) = query.tz {
-            // Interpret NaiveDateTime as a datetime in timezone tz
-            let localized = tz
-                .from_local_datetime(start)
-                .single()
-                .ok_or_else(|| anyhow!("Ambiguous or invalid local datetime for start_date"))?;
-
-            // Convert to UTC
-            let utc_start = localized.with_timezone(&Utc);
-
-            query_builder.push(" AND created_on >= ");
-            query_builder.push_bind(utc_start);
-        };
+    if let Some(query) = query {
+        let like_pattern = format!("%{}%", query);
+        query_builder.push(" AND label ILIKE ");
+        query_builder.push_bind(like_pattern);
     }
 
-    if let Some(end) = query.end_date {
-        if let Some(tz) = query.tz {
-            let localized = tz
-                .from_local_datetime(end)
-                .single()
-                .ok_or_else(|| anyhow!("Ambiguous or invalid local datetime for end_date"))?;
-            let utc_end = localized.with_timezone(&Utc);
-            query_builder.push(" AND created_on <= ");
-            query_builder.push_bind(utc_end);
-        };
-    }
-    if let Some(limit) = query.limit {
-        query_builder.push(" LIMIT ");
-        query_builder.push_bind(limit);
-    }
-
-    if let Some(offset) = query.offset {
-        query_builder.push(" OFFSET ");
-        query_builder.push_bind(offset);
-    }
-
-    let query = query_builder.build_query_as::<LeaveDataModel>();
+    let query = query_builder.build_query_as::<LeaveTypeModel>();
     println!("Generated SQL query for: {}", query.sql());
-    let leaves = query.fetch_all(pool).await.map_err(|e| {
+    let leave_type = query.fetch_all(pool).await.map_err(|e| {
         tracing::error!("Failed to execute query: {:?}", e);
-        anyhow!(e).context("A database failure occurred while fetching leave")
+        anyhow!(e).context("A database failure occurred while fetching leave type")
     })?;
 
-    Ok(leaves)
+    Ok(leave_type)
 }
 
-pub async fn get_leaves<'a>(
+pub async fn get_leave_type(
     pool: &PgPool,
-    query: &'a FetchLeaveQuery<'a>,
-) -> Result<Vec<LeaveData>, anyhow::Error> {
-    let models = fetch_leave_models(pool, query).await?;
-
-    let data: Vec<LeaveData> = models
-        .into_iter()
-        .map(|a| a.into_schema(query.tz))
-        .collect();
+    business_id: Uuid,
+    id_list: Option<Vec<Uuid>>,
+    label_list: Option<Vec<&str>>,
+    query: Option<String>,
+) -> Result<Vec<LeaveTypeData>, anyhow::Error> {
+    let data_models =
+        fetch_leave_type_models(pool, business_id, id_list, label_list, query).await?;
+    let data = data_models.into_iter().map(|a| a.into_schema()).collect();
     Ok(data)
 }
 
-// pub async fn _leave_exists(
-//     pool: &PgPool,
-//     date: DateTime<Utc>,
-//     period: LeavePeriod,
-//     user_id: Uuid,
-// ) -> Result<bool, anyhow::Error> {
-//     let exists = sqlx::query_scalar!(
-//         r#"
-//         SELECT EXISTS (
-//             SELECT 1 FROM leave
-//             WHERE sender_id = $1
-//               AND date = $2
-//               AND period = $3
-//         )
-//         "#,
-//         user_id,
-//         date,
-//         period as LeavePeriod // Explicit cast if needed
-//     )
-//     .fetch_one(pool)
-//     .await?;
+#[tracing::instrument(name = "delete payment", skip(pool))]
+pub async fn delete_leave_type(pool: &PgPool, id: Uuid) -> Result<(), anyhow::Error> {
+    sqlx::query("DELETE FROM leave_type WHERE id = $1")
+        .bind(id)
+        .execute(pool)
+        .await
+        .context("Failed to delete leave type by ID")?;
 
-//     Ok(exists.unwrap_or(false)) // just in case DB returns NULL (unlikely here)
-// }
-
-pub async fn get_leave_count(
-    pool: &PgPool,
-    start_date: DateTime<Utc>,
-    end_date: DateTime<Utc>,
-    r#type: &LeaveType,
-    user_id: Uuid,
-) -> Result<BigDecimal, anyhow::Error> {
-    let count: Option<BigDecimal> = sqlx::query_scalar!(
-        r#"
-        SELECT 
-            SUM(
-                CASE period
-                    WHEN 'half_day' THEN 0.5
-                    WHEN 'full_day' THEN 1.0
-                    ELSE 0.0
-                END
-            ) as count
-        FROM leave
-        WHERE sender_id = $1
-          AND date >= $2
-          AND date <= $3
-          AND type = $4
-          AND status != $5 AND status != $6
-          AND is_deleted = false 
-          AND status !='rejected'
-          AND status !='cancelled'
-        "#,
-        user_id,
-        start_date,
-        end_date,
-        r#type as &LeaveType,
-        &LeaveStatus::Rejected as &LeaveStatus,
-        &LeaveStatus::Cancelled as &LeaveStatus,
-    )
-    .fetch_one(pool)
-    .await
-    .map_err(|e| {
-        tracing::error!("Failed to execute query: {:?}", e);
-        anyhow!(e).context("A database failure occurred while fetching leave count")
-    })?;
-
-    Ok(count.unwrap_or_default())
+    Ok(())
 }
-
-pub async fn validate_leave_request(
+pub async fn leave_type_create_validation(
     pool: &PgPool,
-    financial_year_start: DateTime<Utc>,
-    body: &CreateLeaveRequest,
-    user_id: Uuid,
-    allowed_leave_count: i32,
-) -> Result<(), anyhow::Error> {
-    // let mut unique_entries = HashSet::new();
-    let mut leave_map: HashMap<NaiveDate, Vec<&LeavePeriod>> = HashMap::new();
-
-    for entry in body.leave_data.iter() {
-        leave_map.entry(entry.date).or_default().push(&entry.period);
+    req: &LeaveTypeCreationRequest,
+    business_id: Uuid,
+) -> Result<(), GenericError> {
+    if req.data.is_empty() {
+        return Err(GenericError::ValidationError(
+            "Incoming Data is empty".to_string(),
+        ));
+    }
+    let label_list: Vec<&str> = req
+        .data
+        .iter()
+        .filter(|a| a.id.is_none())
+        .map(|f| f.label.as_str())
+        .collect();
+    if !label_list.is_empty() {
+        let leave_types = get_leave_type(&pool, business_id, None, Some(label_list), None)
+            .await
+            .map_err(|e| {
+                GenericError::DatabaseError(
+                    "Something went wrong while creating leave type".to_string(),
+                    e,
+                )
+            })?;
+        if !leave_types.is_empty() {
+            let invalid_keys_str = leave_types
+                .iter()
+                .map(|s| s.label.as_str())
+                .collect::<Vec<&str>>()
+                .join(", ");
+            return Err(GenericError::ValidationError(format!(
+                "Leave Type/s already exists: {}",
+                invalid_keys_str
+            )));
+        }
     }
 
-    for (date, periods) in leave_map {
-        let full_days = periods
-            .iter()
-            .filter(|&&p| p == &LeavePeriod::FullDay)
-            .count();
-        let half_days = periods
-            .iter()
-            .filter(|&&p| p == &LeavePeriod::HalfDay)
-            .count();
+    Ok(())
+}
 
-        if full_days > 1 {
-            return Err(anyhow!("More than one FullDay leave applied for {}", date));
+#[tracing::instrument(name = "Fetch leave models", skip(pool))]
+async fn fetch_leave_group_models<'a>(
+    pool: &PgPool,
+    business_id: Uuid,
+    id_list: Option<&[uuid::Uuid]>,
+    query: Option<String>,
+    start_date: Option<DateTime<Utc>>,
+    end_date: Option<DateTime<Utc>>,
+) -> Result<Vec<LeaveGroupModel>, anyhow::Error> {
+    let mut query_builder = QueryBuilder::new(
+        r#"
+        SELECT id, label, start_date, end_date FROM leave_group WHERE business_id="#,
+    );
+    query_builder.push_bind(business_id);
+    if let Some(id_list) = id_list {
+        if !id_list.is_empty() {
+            query_builder.push(" AND id = ANY(");
+            query_builder.push_bind(id_list);
+            query_builder.push(")");
         }
+    }
+    if let Some(query) = query {
+        let like_pattern = format!("%{}%", query);
+        query_builder.push(" AND label ILIKE ");
+        query_builder.push_bind(like_pattern);
+    }
+    if let Some(start_date) = start_date {
+        query_builder.push(" AND start_date >= ");
+        query_builder.push_bind(start_date);
+    }
+    if let Some(end_date) = end_date {
+        query_builder.push(" AND end_date <= ");
+        query_builder.push_bind(end_date);
+    }
 
-        if full_days > 0 && half_days > 0 {
-            return Err(anyhow!(
-                "Cannot mix FullDay and HalfDay leaves on the same date: {}",
-                date
+    let query = query_builder.build_query_as::<LeaveGroupModel>();
+    println!("Generated SQL query for: {}", query.sql());
+    let leave_group = query.fetch_all(pool).await.map_err(|e| {
+        tracing::error!("Failed to execute query: {:?}", e);
+        print!("{}", e);
+        anyhow!(e).context("A database failure occurred while fetching leave group")
+    })?;
+
+    Ok(leave_group)
+}
+
+pub async fn get_leave_group(
+    pool: &PgPool,
+    business_id: Uuid,
+    id_list: Option<&[uuid::Uuid]>,
+    query: Option<String>,
+    start_date: Option<DateTime<Utc>>,
+    end_date: Option<DateTime<Utc>>,
+) -> Result<Vec<LeaveGroup>, anyhow::Error> {
+    let data_models =
+        fetch_leave_group_models(pool, business_id, id_list, query, start_date, end_date).await?;
+    let data = data_models.into_iter().map(|a| a.into_schema()).collect();
+    Ok(data)
+}
+
+pub async fn leave_group_create_validation(
+    pool: &PgPool,
+    req: &LeaveGroupCreationRequest,
+    business_id: Uuid,
+    // start_date: DateTime<Utc>,
+    // end_date: DateTime<Utc>,
+) -> Result<(), GenericError> {
+    let id_list = if let Some(id) = req.id {
+        Some(vec![id])
+    } else {
+        None
+    };
+    let group_data_list = get_leave_group(
+        pool,
+        business_id,
+        id_list.as_deref(),
+        None,
+        Some(req.start_date),
+        Some(req.end_date),
+    )
+    .await
+    .map_err(|e| {
+        GenericError::DatabaseError(
+            "Something went wrong while fetching leave group".to_string(),
+            e,
+        )
+    })?;
+    if let Some(group_data) = group_data_list.first() {
+        if id_list.is_some() {
+            return Err(GenericError::ValidationError(
+                "Leave Group is not found for given id".to_string(),
             ));
         }
 
-        if half_days > 2 {
-            return Err(anyhow!("More than two HalfDay leaves applied for {}", date));
+        if group_data.label == req.label {
+            return Err(GenericError::ValidationError("Duplicate Label".to_string()));
         }
+
+        return Err(GenericError::ValidationError(format!(
+            "Leave Group already exists for start date {} end date {}",
+            group_data.start_date, group_data.end_date
+        )));
     }
 
-    let end_date = financial_year_start
-        .with_year(financial_year_start.year() + 1)
-        .unwrap()
-        - Duration::seconds(1);
-    let current_count =
-        get_leave_count(pool, financial_year_start, end_date, &body.r#type, user_id)
-            .await
-            .unwrap_or(BigDecimal::default());
-    let new_leave_count = body
-        .leave_data
-        .iter()
-        .fold(BigDecimal::from(0), |acc, item| {
-            acc + match item.period {
-                LeavePeriod::FullDay => BigDecimal::from_f64(1.0).unwrap(),
-                LeavePeriod::HalfDay => BigDecimal::from_f64(0.5).unwrap(),
-            }
-        });
-
-    if current_count + &new_leave_count > BigDecimal::from(&allowed_leave_count) {
-        return Err(anyhow!(
-            "You have exceeded the allowed leave count of {} for the current financial year.",
-            allowed_leave_count
-        ));
-    } else if new_leave_count > allowed_leave_count.into() {
-        return Err(anyhow!(
-            "You are applying for more than {} leaves.",
-            allowed_leave_count
-        ));
-    }
     Ok(())
 }
 
-#[tracing::instrument(name = "reactivate user account", skip(transaction))]
-pub async fn update_leave_status(
-    transaction: &mut Transaction<'_, Postgres>,
-    id: Uuid,
-    status: &LeaveStatus,
-    updated_by: Uuid,
-) -> Result<(), anyhow::Error> {
+#[tracing::instrument(name = "save leave group to database", skip(pool, req))]
+pub async fn save_leave_group<'a>(
+    pool: &PgPool,
+    req: &LeaveGroupCreationRequest,
+    business_id: Uuid,
+    created_by: Uuid,
+) -> Result<Uuid, anyhow::Error> {
     let query = sqlx::query!(
         r#"
-        UPDATE leave 
-        SET
-        status = $1,
-        updated_on = $2,
-        updated_by = $3
-        WHERE id = $4
+        INSERT INTO leave_group (id, label, business_id, start_date, end_date,  created_by, created_on)
+        VALUES($1, $2, $3, $4, $5, $6, $7)
+        ON CONFLICT (id) DO UPDATE
+        SET label = EXCLUDED.label,
+        updated_by = EXCLUDED.created_by,
+        updated_on = EXCLUDED.created_on
+        RETURNING id
         "#,
-        status as &LeaveStatus,
-        Utc::now(),
-        updated_by,
-        id
+        &req.id.unwrap_or(Uuid::new_v4()),
+        &req.label,
+        business_id,
+        &req.start_date,
+        &req.end_date,
+        &created_by,
+        &Utc::now()
     );
-
-    transaction.execute(query).await.map_err(|e| {
+    let result = query.fetch_one(pool).await.map_err(|e| {
         tracing::error!("Failed to execute query: {:?}", e);
-        anyhow::Error::new(e).context("A database failure occurred while updating leave status")
+        anyhow!(e).context("A database failure occurred while saving leave group")
     })?;
-    Ok(())
+    Ok(result.id)
 }
 
-pub fn validate_leave_status_update(
-    incoming_status: &LeaveStatus,
-    current_status: &LeaveStatus,
-
-    permissions: &AllowedPermission,
-) -> Result<(), GenericError> {
-    let has_approval_permission = permissions
-        .permission_list
-        .contains(&PermissionType::ApproveLeaveRequest.to_string());
-
-    match (incoming_status, current_status, has_approval_permission) {
-        (_, LeaveStatus::Rejected, _) => Err(GenericError::ValidationError(
-            "Leave request is already rejected.".to_string(),
-        )),
-        (_, LeaveStatus::Cancelled, _) => Err(GenericError::ValidationError(
-            "Leave request is already cancelled.".to_string(),
-        )),
-        (LeaveStatus::Approved, LeaveStatus::Approved, false) => {
-            Err(GenericError::InsufficientPrevilegeError(
-                "Leave request is already approved.".to_string(),
-            ))
-        }
-        (LeaveStatus::Approved, _, false) | (LeaveStatus::Rejected, _, false) => {
-            Err(GenericError::InsufficientPrevilegeError(
-                "You don't have sufficient privilege for this operation.".to_string(),
-            ))
-        }
-        _ => Ok(()),
-    }
-}
-
-// pub async fn send_personal_html() -> Result<(), anyhow::Error> {
-//     Ok(())
-// }
-
-#[tracing::instrument(name = "reactivate user account", skip(pool))]
-pub async fn delete_leave(
-    pool: &PgPool,
-    leave_id: Uuid,
-    deleted_by: Uuid,
-) -> Result<(), anyhow::Error> {
-    let _ = sqlx::query!(
-        r#"
-        UPDATE leave 
-        SET is_deleted = true,
-        deleted_on = $2,
-        deleted_by = $3
-        WHERE id = $1
-        "#,
-        leave_id,
-        Utc::now(),
-        deleted_by
-    )
-    .execute(pool)
-    .await
-    .map_err(|e| {
-        tracing::error!("Failed to execute query: {:?}", e);
-        anyhow::Error::new(e).context("A database failure occurred while deleting leave")
-    })?;
-    Ok(())
-}
-
-async fn get_approved_leaves_by_lock(
-    transaction: &mut Transaction<'_, Postgres>,
-    leave_date: DateTime<Utc>,
-) -> Result<Vec<MinimalLeaveModel>, anyhow::Error> {
-    let rows = sqlx::query_as!(
-        MinimalLeaveModel,
-        r#"
-        SELECT 
-            id, 
-            sender_id, 
-            type as "type: LeaveType", 
-            period as "period: LeavePeriod" 
-        FROM leave 
-        WHERE date = $1 
-          AND (alert_status = 'pending' OR alert_status = 'failed') 
-          AND status = 'approved'
-          AND is_deleted = false
-        FOR UPDATE
-        "#,
-        leave_date,
-    )
-    .fetch_all(&mut **transaction)
-    .await
-    .map_err(|e| {
-        tracing::error!("Failed to execute query: {:?}", e);
-        anyhow::Error::new(e).context("A database failure occurred while fetching leave with lock")
-    })?;
-
-    Ok(rows)
-}
-
-#[tracing::instrument(name = "update leave alert status", skip(transaction))]
-pub async fn update_leave_alert_status(
-    id_list: &Vec<Uuid>,
-    transaction: &mut Transaction<'_, Postgres>,
-    alert_status: &AlertStatus,
-) -> Result<(), anyhow::Error> {
-    // let val_list: Vec<String> = id_list.iter().map(|&s| s.to_string()).collect();
-    let query = sqlx::query!(
-        r#"
-        UPDATE leave 
-        SET
-        alert_status = $1
-        Where id = ANY($2)
-        "#,
-        alert_status as &AlertStatus,
-        id_list
-    );
-
-    transaction.execute(query).await.map_err(|e| {
-        tracing::error!("Failed to execute query: {:?}", e);
-        anyhow::Error::new(e)
-            .context("A database failure occurred while updating leave alert status")
-    })?;
-    Ok(())
-}
-
-pub async fn send_slack_notification_for_approved_leave(
-    pool: &PgPool,
-    slack_client: &SlackClient,
-    leave_date: DateTime<Utc>,
-) -> Result<(), anyhow::Error> {
-    let mut transaction = pool
-        .begin()
+#[tracing::instrument(name = "delete payment", skip(pool))]
+pub async fn delete_leave_group(pool: &PgPool, id: Uuid) -> Result<(), anyhow::Error> {
+    sqlx::query("DELETE FROM leave_group WHERE id = $1")
+        .bind(id)
+        .execute(pool)
         .await
-        .context("Failed to acquire a Postgres connection from the pool")?;
+        .context("Failed to delete leave group by ID")
+        .map_err(|e| {
+            tracing::error!("Failed to execute query: {:?}", e);
+            anyhow!(e).context("A database failure occurred while deleting leave group")
+        })?;
 
-    let leave_data = get_approved_leaves_by_lock(&mut transaction, leave_date).await?;
-    if !leave_data.is_empty() {
-        let mut leave_id_list = Vec::new();
-        let mut sender_id_list = Vec::new();
-        let mut grouped: HashMap<(&LeaveType, &LeavePeriod), Vec<&MinimalLeaveModel>> =
-            HashMap::new();
-        for leave in &leave_data {
-            leave_id_list.push(leave.id);
-            sender_id_list.push(leave.sender_id);
-            grouped
-                .entry((&leave.r#type, &leave.period))
-                .or_default()
-                .push(leave);
-        }
-
-        let users = get_minimal_user_list(pool, None, 1000, 0, Some(&sender_id_list)).await?;
-        let user_map: HashMap<Uuid, MinimalUserAccount> =
-            users.into_iter().map(|x| (x.id, x)).collect();
-
-        let mut notification = SlackNotificationPayload::new("Leave Notification".to_string())
-            .add_section(
-                // format!("🗓️ *Leave* on {}", leave_date.format("%Y-%m-%d")),
-                format!("🗓️ Leave on {}", leave_date.format("%Y-%m-%d")),
-                SlackBlockType::Header,
-                SlackTextType::PlainText,
-            );
-        for ((leave_type, period), leaves) in grouped {
-            let mut user_string = String::new();
-
-            for leave in &leaves {
-                if let Some(user_obj) = user_map.get(&leave.sender_id) {
-                    user_string.push_str(&format!("{}, ", user_obj.display_name));
-                }
-            }
-            if !user_string.is_empty() {
-                user_string.truncate(user_string.len().saturating_sub(2));
-            }
-
-            let section_text = format!(
-                "*{}* — {}: {}",
-                snake_to_title_case(&leave_type.to_string()),
-                snake_to_title_case(&period.to_string()),
-                user_string
-            );
-
-            notification = notification.add_section(
-                section_text,
-                SlackBlockType::Section,
-                SlackTextType::Mrkdwn,
-            );
-        }
-        let result = slack_client
-            .send_notification(notification.build(), &slack_client.channel.leave)
-            .await;
-
-        let status = if result.is_ok() {
-            AlertStatus::Success
-        } else {
-            AlertStatus::Failed
-        };
-
-        update_leave_alert_status(&leave_id_list, &mut transaction, &status).await?;
-    }
-
-    transaction
-        .commit()
-        .await
-        .context("Failed to commit SQL transaction to store a new user account.")?;
     Ok(())
 }

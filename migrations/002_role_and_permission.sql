@@ -1,4 +1,71 @@
 
+CREATE TABLE IF NOT EXISTS role (
+  id uuid PRIMARY KEY,
+  role_name TEXT NOT NULL,
+  role_status status NOT NULL,
+  created_on TIMESTAMPTZ NOT NULL,
+  updated_on TIMESTAMPTZ,
+  deleted_on TIMESTAMPTZ,
+  created_by uuid NOT NULL,
+  updated_by uuid,
+  deleted_by uuid,
+  is_deleted BOOLEAN  NOT NULL DEFAULT false
+);
+
+ALTER TABLE role ADD CONSTRAINT unique_role_name UNIQUE (role_name);
+
+CREATE TABLE IF NOT EXISTS user_role(
+  id uuid PRIMARY KEY,
+  user_id uuid NOT NULL,
+  role_id uuid NOT NULL,
+  created_on TIMESTAMPTZ NOT NULL,
+  updated_on TIMESTAMPTZ,
+  deleted_on TIMESTAMPTZ,
+  created_by uuid NOT NULL,
+  updated_by uuid,
+  deleted_by uuid,
+  is_deleted BOOLEAN NOT NULL DEFAULT false
+);
+
+ALTER TABLE user_role ADD CONSTRAINT fk_role_id FOREIGN KEY ("role_id") REFERENCES role ("id") ON DELETE CASCADE;
+ALTER TABLE user_role ADD CONSTRAINT fk_user_id FOREIGN KEY ("user_id") REFERENCES user_account ("id") ON DELETE CASCADE;
+ALTER TABLE user_role ADD CONSTRAINT user_role_pk UNIQUE (user_id, role_id);
+
+CREATE TABLE IF NOT EXISTS permission (
+  id uuid PRIMARY KEY,
+  permission_name TEXT NOT NULL,
+  permission_description TEXT,
+  created_on TIMESTAMPTZ,
+  updated_on TIMESTAMPTZ,
+  deleted_on TIMESTAMPTZ,
+  created_by uuid,
+  updated_by uuid,
+  deleted_by uuid,
+  is_deleted BOOLEAN NOT NULL DEFAULT false
+);
+
+CREATE TABLE IF NOT EXISTS role_permission (
+  id uuid PRIMARY KEY,
+  role_id uuid,
+  permission_id uuid,
+  created_on TIMESTAMPTZ,
+  updated_on TIMESTAMPTZ,
+  deleted_on TIMESTAMPTZ,
+  created_by uuid,
+  updated_by uuid,
+  deleted_by uuid,
+  is_deleted BOOLEAN NOT NULL DEFAULT false
+);
+
+
+ALTER TABLE role_permission ADD CONSTRAINT "fk_permission_id" FOREIGN KEY ("permission_id") REFERENCES permission ("id") ON DELETE CASCADE;
+ALTER TABLE role_permission ADD CONSTRAINT "fk_role_id" FOREIGN KEY ("role_id") REFERENCES role ("id") ON DELETE CASCADE;
+ALTER TABLE permission ADD CONSTRAINT permission_name UNIQUE (permission_name);
+ALTER TABLE role_permission ADD CONSTRAINT permission_role_id UNIQUE (permission_id, role_id);
+
+
+
+
 INSERT INTO  role(id, role_name, role_status, created_on, created_by) VALUES(uuid_generate_v4(), 'superadmin', 'active'::status, CURRENT_TIMESTAMP, '00000000-0000-0000-0000-000000000000'::uuid);
 INSERT INTO  role(id, role_name, role_status, created_on, created_by) VALUES(uuid_generate_v4(), 'admin', 'active'::status, CURRENT_TIMESTAMP, '00000000-0000-0000-0000-000000000000'::uuid);
 INSERT INTO  role(id, role_name, role_status, created_on, created_by) VALUES(uuid_generate_v4(), 'user', 'active'::status, CURRENT_TIMESTAMP, '00000000-0000-0000-0000-000000000000'::uuid);
@@ -8,12 +75,18 @@ INSERT INTO permission(id, permission_name, permission_description, created_on, 
 INSERT INTO permission(id, permission_name, permission_description, created_on, created_by)VALUES(uuid_generate_v4(), 'list:users', 'list users', CURRENT_TIMESTAMP, '00000000-0000-0000-0000-000000000000'::uuid);
 
 
+INSERT INTO permission(id, permission_name, permission_description, created_on, created_by)VALUES(uuid_generate_v4(), 'list:user-business', 'List User Business', CURRENT_TIMESTAMP, '00000000-0000-0000-0000-000000000000'::uuid);
+INSERT INTO permission(id, permission_name, permission_description, created_on, created_by)VALUES(uuid_generate_v4(), 'list:user-business:self', 'List User Business Self', CURRENT_TIMESTAMP, '00000000-0000-0000-0000-000000000000'::uuid);
+
+
+
 INSERT INTO permission(id, permission_name, permission_description, created_on, created_by)VALUES(uuid_generate_v4(), 'create:leave-request:self', 'create leave request self', CURRENT_TIMESTAMP, '00000000-0000-0000-0000-000000000000'::uuid);
 INSERT INTO permission(id, permission_name, permission_description, created_on, created_by)VALUES(uuid_generate_v4(), 'create:leave-request', 'create leave request', CURRENT_TIMESTAMP, '00000000-0000-0000-0000-000000000000'::uuid);
 INSERT INTO permission(id, permission_name, permission_description, created_on, created_by)VALUES(uuid_generate_v4(), 'update:leave-request-status', 'update leave request status', CURRENT_TIMESTAMP, '00000000-0000-0000-0000-000000000000'::uuid);
 INSERT INTO permission(id, permission_name, permission_description, created_on, created_by)VALUES(uuid_generate_v4(), 'approve:leave-request', 'approve leave request', CURRENT_TIMESTAMP, '00000000-0000-0000-0000-000000000000'::uuid);
 INSERT INTO permission(id, permission_name, permission_description, created_on, created_by)VALUES(uuid_generate_v4(), 'list:leave-request', 'list leave requests', CURRENT_TIMESTAMP, '00000000-0000-0000-0000-000000000000'::uuid);
 INSERT INTO permission(id, permission_name, permission_description, created_on, created_by)VALUES(uuid_generate_v4(), 'list:leave-request:self', 'list leave requests self', CURRENT_TIMESTAMP, '00000000-0000-0000-0000-000000000000'::uuid);
+INSERT INTO permission(id, permission_name, permission_description, created_on, created_by)VALUES(uuid_generate_v4(), 'create:leave-type', 'create Leave Type', CURRENT_TIMESTAMP, '00000000-0000-0000-0000-000000000000'::uuid);
 
 
 
@@ -27,8 +100,8 @@ INSERT INTO permission(id, permission_name, permission_description, created_on, 
 
 
 WITH superadmin_role AS (SELECT "id" FROM "role" WHERE "role_name" = 'superadmin' LIMIT 1) INSERT INTO "role_permission" ("id", "role_id", "permission_id", "created_on", "created_by") SELECT uuid_generate_v4(), superadmin_role."id" AS "role_id", "permission"."id" AS "permission_id", NOW(), '00000000-0000-0000-0000-000000000000'::uuid  FROM superadmin_role, "permission" WHERE "permission"."permission_name" NOT LIKE '%:self';
-WITH admin_role AS (SELECT "id" FROM "role" WHERE "role_name" = 'admin' LIMIT 1) INSERT INTO "role_permission" ("id", "role_id", "permission_id", "created_on", "created_by")SELECT uuid_generate_v4(), admin_role."id" AS "role_id", "permission"."id" AS "permission_id", NOW(),'00000000-0000-0000-0000-000000000000'::uuid FROM admin_role, "permission" WHERE  "permission"."permission_name" NOT LIKE '%:self'  AND "permission"."permission_name"  NOT IN ('create:global-setting', 'create:user-business-setting');
-WITH user_role AS (SELECT "id" FROM "role" WHERE "role_name" = 'user' LIMIT 1) INSERT INTO "role_permission" ("id", "role_id", "permission_id", "created_on", "created_by") SELECT uuid_generate_v4(), user_role."id" AS "role_id", "permission"."id" AS "permission_id", NOW(), '00000000-0000-0000-0000-000000000000'::uuid FROM user_role, "permission" WHERE "permission"."permission_name" IN ('create:user-setting:self', 'create:leave-request:self', 'update:leave-request-status', 'list:leave-request:self', 'create:user-business-setting');
+WITH admin_role AS (SELECT "id" FROM "role" WHERE "role_name" = 'admin' LIMIT 1) INSERT INTO "role_permission" ("id", "role_id", "permission_id", "created_on", "created_by")SELECT uuid_generate_v4(), admin_role."id" AS "role_id", "permission"."id" AS "permission_id", NOW(),'00000000-0000-0000-0000-000000000000'::uuid FROM admin_role, "permission" WHERE  "permission"."permission_name" NOT LIKE '%:self'  AND "permission"."permission_name"  NOT IN ('create:global-setting', 'create:user-business-setting', 'list:user-business', 'list:users');
+WITH user_role AS (SELECT "id" FROM "role" WHERE "role_name" = 'user' LIMIT 1) INSERT INTO "role_permission" ("id", "role_id", "permission_id", "created_on", "created_by") SELECT uuid_generate_v4(), user_role."id" AS "role_id", "permission"."id" AS "permission_id", NOW(), '00000000-0000-0000-0000-000000000000'::uuid FROM user_role, "permission" WHERE "permission"."permission_name" IN ('create:user-setting:self', 'create:leave-request:self', 'update:leave-request-status', 'list:leave-request:self', 'create:user-business-setting', 'list:user-business-self', 'list:user-business');
 
 
 -- INSERT INTO  role(id, role_name, role_status, created_on, created_by) VALUES(uuid_generate_v4(), 'developer', 'active'::status, CURRENT_TIMESTAMP, '00000000-0000-0000-0000-000000000000'::uuid);

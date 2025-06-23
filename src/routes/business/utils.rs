@@ -46,15 +46,16 @@ pub async fn save_business_account(
 
     let query = sqlx::query!(
         r#"
-        INSERT INTO business_account (id, name, vectors, created_by, created_on, is_active)
-        VALUES ($1, $2, $3, $4, $5, $6)
+        INSERT INTO business_account (id, display_name, vectors, created_by, created_on, is_active, email)
+        VALUES ($1, $2, $3, $4, $5, $6, $7)
         "#,
         business_account_id,
         business_name,
         sqlx::types::Json(vector_list) as sqlx::types::Json<Vec<UserVector>>,
         user_account.id,
         Utc::now(),
-        Status::Active as Status
+        Status::Active as Status,
+        create_business_obj.email.get()
     );
 
     transaction.execute(query).await.map_err(|e| {
@@ -180,24 +181,25 @@ pub async fn fetch_business_account_models_by_user_account(
     pool: &PgPool,
     user_id: Uuid,
 ) -> Result<Vec<BusinessAccountModel>, anyhow::Error> {
-    let mut query_builder = QueryBuilder::new(
+    let rows = sqlx::query_as!(
+        BusinessAccountModel,
         r#"
         SELECT 
-            ba.id, ba.name, 
-            vectors,
-            ba.is_active,
+            ba.id, 
+            ba.display_name, 
+            ba.vectors as "vectors:sqlx::types::Json<Vec<UserVector>>",
+            ba.is_active as "is_active!:Status",
             ba.is_deleted,
             bur.verified
-        FROM business_user_relationship as bur
-            INNER JOIN business_account ba ON bur.business_id = ba.id
-        WHERE bur.user_id = "#,
-    );
+        FROM business_user_relationship AS bur
+        INNER JOIN business_account ba ON bur.business_id = ba.id
+        WHERE bur.user_id = $1
+        "#,
+        user_id
+    )
+    .fetch_all(pool)
+    .await?;
 
-    query_builder.push_bind(user_id);
-
-    let query = query_builder.build_query_as::<BusinessAccountModel>();
-
-    let rows = query.fetch_all(pool).await?;
     Ok(rows)
 }
 
@@ -205,14 +207,14 @@ pub async fn fetch_business_account_models_by_user_account(
 pub async fn fetch_business_account_model_by_id(
     pool: &PgPool,
     business_id: Option<Uuid>,
-) -> Result<Option<BusinessAccountModel>, anyhow::Error> {
+) -> Result<Vec<BusinessAccountModel>, anyhow::Error> {
     use sqlx::QueryBuilder;
 
     let mut query_builder = QueryBuilder::new(
         r#"
         SELECT 
             id,
-            name, 
+            display_name, 
             vectors,
             is_active,
             is_deleted,
@@ -225,11 +227,9 @@ pub async fn fetch_business_account_model_by_id(
         query_builder.push_bind(business_id);
     }
 
-    // query_builder.push_bind(business_id);
-
     let query = query_builder.build_query_as::<BusinessAccountModel>();
 
-    let row = query.fetch_optional(pool).await?;
+    let row = query.fetch_all(pool).await?;
     Ok(row)
 }
 
@@ -239,34 +239,29 @@ pub async fn fetch_associated_business_account_model(
     business_account_id: Uuid,
     pool: &PgPool,
 ) -> Result<Option<UserBusinessRelationAccountModel>, anyhow::Error> {
-    use sqlx::QueryBuilder;
-
-    let mut query_builder = QueryBuilder::new(
+    let row = sqlx::query_as!(
+        UserBusinessRelationAccountModel,
         r#"
         SELECT 
-            ba.id, ba.name,
-            vectors,
-            ba.is_active,
-            bur.verified, ba.is_deleted
-        FROM business_user_relationship as bur
-            INNER JOIN business_account ba ON bur.business_id = ba.id
-        WHERE bur.user_id = "#,
-    );
+            ba.id, 
+            ba.display_name,
+            ba.vectors as "vectors:sqlx::types::Json<Vec<UserVector>>",
+            ba.is_active as "is_active!:Status",
+            bur.verified, 
+            ba.is_deleted
+        FROM business_user_relationship AS bur
+        INNER JOIN business_account AS ba ON bur.business_id = ba.id
+        WHERE bur.user_id = $1
+          AND bur.business_id = $2
+        "#,
+        user_id,
+        business_account_id
+    )
+    .fetch_optional(pool)
+    .await?;
 
-    query_builder.push_bind(user_id);
-    query_builder.push(" AND bur.business_id = ");
-    query_builder.push_bind(business_account_id);
-
-    let query = query_builder.build_query_as::<UserBusinessRelationAccountModel>();
-    let query_string = query.sql();
-    println!(
-        "Generated SQL query for user_id {} and business_id {}: {}",
-        user_id, business_account_id, query_string
-    );
-    let row = query.fetch_optional(pool).await?;
     Ok(row)
 }
-
 #[tracing::instrument(name = "Get business Account by business id", skip(pool))]
 pub async fn get_business_account(
     pool: &PgPool,

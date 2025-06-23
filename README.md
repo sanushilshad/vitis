@@ -241,7 +241,7 @@ The API Docmentation can be found at `https://{{domain}}/docs/` after running th
 * [x] Integrate Whatsapp.
 
 
-## MILESTONE 3 (8/15) (BUSINESS MANAGEMENT):
+## MILESTONE 3 (9/12) (BUSINESS MANAGEMENT):
 * [x] Create business creation API.
 * [x] List all business of a user data API.
 * [x] Fetch business data API.
@@ -250,17 +250,36 @@ The API Docmentation can be found at `https://{{domain}}/docs/` after running th
 * [x] Create Project Setting fetch API.
 * [x] Create user-business association API.
 * [x] Create fetch all user associated to a business API.
+* [x] Fetch All Users Associated to a business
 * [ ] Create business deletion API (if admin else remove the association).
 * [ ] Create business edit API.
 * [ ] Create Project Setting edit API.
+
+## MILESTONE 4 (6/11) LEAVE:
+* [x] Add leave type creation / edit API.
+* [x] Add leave  type fetch API.
+* [x] Add leave  type deletion API.
+* [x] Add leave Group  creation / edit API.
+* [x] Add leave  Group fetch API.
+* [x] Add leave  Group deletion API.
+* [ ] Add user leave amount creation API.
+* [ ] Add user leave amount edit API.
+* [ ] Add user leave deletion edit API.
 * [ ] Add leave request management API. (Need updation)
-* [ ] Add causual leave approval API.  (Need updation)
-* [ ] Add leave deletion API. (Need updation)
+* [ ] Add leave request approval API.  (Need updation)
+* [ ] Add leave request deletion API. (Need updation)
 * [ ] Add leave fetch API. (Need updation)
-* [ ] API for admin business user to set leave counts.
 
 
-## MILESTONE 4 DEPARTMENT:
+## MILESTONE 5 (0/4) (ROLE AND PERMISSION MANAGEMENT):
+* [ ] Create Role fetch API.
+* [ ] Create role permissions assigment API.
+* [ ] Create Permission fetch API.
+* [ ] Create role permissions assigment edit API.
+* [ ] Add Cluster ID for setting
+* [ ] Move Slack + Personal Email Credential to Setting
+
+## MILESTONE 6 DEPARTMENT:
 * [x] Department Creation.
 * [x] Department-User Association.
 * [ ] Department Deletion.
@@ -270,21 +289,13 @@ The API Docmentation can be found at `https://{{domain}}/docs/` after running th
 
 
 
-
-## MILESTONE 5 (0/4) (ROLE AND PERMISSION MANAGEMENT):
-* [ ] Create Role fetch API.
-* [ ] Create role permissions assigment API.
-* [ ] Create Permission fetch API.
-* [ ] Create role permissions assigment edit API.
-
-
-## MILESTONE 6  (0/3) (ON-CALL MANAGEMENT):
+## MILESTONE 7  (0/3) (ON-CALL MANAGEMENT):
 * [ ] Create On-call creation API.
 * [ ] Create On-call fetch API.
 * [ ] Create On-call history fetch API.
 
 
-## MILESTONE 7 (0/7) (TASK MANAGEMENT):
+## MILESTONE 8 (0/7) (TASK MANAGEMENT):
 * [ ] Create project task assignment API.
 * [ ] Create project task unassignment API.
 * [ ] Create project task status update API.
@@ -294,14 +305,16 @@ The API Docmentation can be found at `https://{{domain}}/docs/` after running th
 * [ ] Create project task edit API.
 
 
-## MILESTONE 8 (QA LIVE BUILD MILESTONE):
+## MILESTONE 9 (QA LIVE BUILD MILESTONE):
 * [ ] In-progress
 
 
-## MILESTONE 9 (Expense Management):
+## MILESTONE 10 (Expense Management):
 * [ ] In-progress
 
 
+## MILESTONE 10 (Monthly Payment Management):
+* [ ] In-progress
 
 
 

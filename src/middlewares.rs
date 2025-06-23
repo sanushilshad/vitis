@@ -166,11 +166,23 @@ where
                 {
                     get_business_account(db_pool, user_account.id, business_id)
                         .await
-                        .map_err(GenericError::UnexpectedError)?
+                        .map_err(|e| {
+                            GenericError::DatabaseError(
+                                "Something went wrong while fetching business account".to_string(),
+                                e,
+                            )
+                        })?
                 } else {
                     fetch_business_account_model_by_id(db_pool, Some(business_id))
                         .await
-                        .map_err(GenericError::UnexpectedError)?
+                        .map_err(|e| {
+                            GenericError::DatabaseError(
+                                "Something went wrong while fetching business account".to_string(),
+                                e,
+                            )
+                        })?
+                        .into_iter()
+                        .next()
                         .map(|model| model.into_schema())
                 };
                 let extracted_business_account = business_account.ok_or_else(|| {

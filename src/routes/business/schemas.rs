@@ -91,7 +91,7 @@ impl FromRequest for BusinessPermissionRequest {
 
 #[derive(Debug, Serialize, ToSchema)]
 pub struct BasicBusinessAccount {
-    pub name: String,
+    pub display_name: String,
     pub id: Uuid,
 }
 
@@ -99,7 +99,7 @@ pub struct BasicBusinessAccount {
 #[serde(rename_all = "camelCase")]
 pub struct BusinessAccount {
     pub id: Uuid,
-    pub name: String,
+    pub display_name: String,
     pub vectors: Vec<UserVector>,
     pub is_active: Status,
     pub is_deleted: bool,

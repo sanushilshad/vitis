@@ -67,3 +67,7 @@ name = "vitis"
 [profile.release]
 opt-level = 3 # 3 for release and 0 for dev
 strip = "symbols"
+
+
+[profile.dev]
+opt-level = 0 

@@ -8,7 +8,10 @@ use crate::{
     configuration::{SecretConfig, UserConfig},
     email_client::SmtpEmailClient,
     errors::GenericError,
-    routes::setting::{schemas::SettingKey, utils::get_setting_value},
+    routes::{
+        business::schemas::BusinessAccount,
+        setting::{schemas::SettingKey, utils::get_setting_value},
+    },
     schemas::{DeleteType, GenericResponse, RequestMetaData, Status},
     whatsapp_client::{TemplateType, WhatsAppClient},
 };
@@ -336,7 +339,7 @@ pub async fn reactivate_user_req(
     reactivate_user_account(&pool, user_account.id, user_account.id)
         .await
         .map_err(|e| {
-            tracing::error!("Soft delete failed: {:?}", e);
+            tracing::error!("reactivating user failed: {:?}", e);
             GenericError::DatabaseError("Failed to reactivate deleted user".to_string(), e)
         })?;
     Ok(web::Json(GenericResponse::success(
@@ -375,7 +378,7 @@ pub async fn user_list_req(
     let data = get_minimal_user_list(&pool, req.query.as_deref(), req.limit, req.offset, None)
         .await
         .map_err(|e| {
-            tracing::error!("Soft delete failed: {:?}", e);
+            tracing::error!("User List failed: {:?}", e);
             GenericError::DatabaseError("Failed to fetch users".to_string(), e)
         })?;
 

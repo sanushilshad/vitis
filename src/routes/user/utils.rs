@@ -1052,3 +1052,37 @@ pub async fn send_email_otp(email_client:  web::Data<SmtpEmailClient>, user: &Us
         .await;
     Ok(())
 }
+
+
+
+#[tracing::instrument(name = "Get user Account models By business id", skip(pool))]
+async fn fetch_user_account_models_by_business_account(
+    pool: &PgPool,
+    business_id: Uuid,
+) -> Result<Vec<MinimalUserAccountModel>, anyhow::Error> {
+    let rows = sqlx::query_as!(
+        MinimalUserAccountModel,
+        r#"
+        SELECT 
+            ua.id, 
+            ua.mobile_no, 
+            ua.display_name
+        FROM business_user_relationship AS bur
+            INNER JOIN user_account ua ON bur.user_id = ua.id
+        WHERE bur.business_id = $1
+        "#,
+        business_id
+    )
+    .fetch_all(pool)
+    .await?;
+
+    Ok(rows)
+}
+
+
+#[tracing::instrument(name = "Get user account By business id", skip(pool))]
+pub async fn fetch_user_account_by_business_account(pool:&PgPool, business_id: Uuid) -> Result<Vec<MinimalUserAccount>, anyhow::Error>{
+    let user_models = fetch_user_account_models_by_business_account(pool, business_id).await?;
+    let user_data  = user_models.into_iter().map(|a|a.into_schema()).collect();
+    Ok(user_data)
+}

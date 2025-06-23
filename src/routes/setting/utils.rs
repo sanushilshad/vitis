@@ -102,8 +102,8 @@ async fn create_setting(
             SELECT * FROM UNNEST($1::uuid[], $2::uuid[], $3::uuid[], $4::uuid[], $5::text[], $6::uuid[], $7::timestamp[])
             ON CONFLICT (setting_id, user_id, business_id) DO UPDATE
             SET value = EXCLUDED.value,
-            updated_by = $8,
-            updated_on = $9;
+            updated_by = EXCLUDED.created_by,
+            updated_on =EXCLUDED.created_on
 
         "#,
         &bulk_data.id_list[..] as &[Uuid],
@@ -113,8 +113,6 @@ async fn create_setting(
         &bulk_data.value_list as &[String],
         &bulk_data.created_by_list as &[Uuid],
         &bulk_data.created_on_list as &[DateTime<Utc>],
-        &bulk_data.created_by_list.first() as &Option<&Uuid>,
-        &bulk_data.created_on_list.first() as &Option<&DateTime<Utc>>
     );
     pool.execute(query).await.map_err(|e| {
         tracing::error!("Failed to execute query: {:?}", e);

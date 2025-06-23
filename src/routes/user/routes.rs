@@ -37,10 +37,10 @@ pub fn user_routes(cfg: &mut web::ServiceConfig) {
             "/list",
             web::post()
                 .to(user_list_req)
-                .wrap(BusinessPermissionValidation {
+                .wrap(UserPermissionValidation {
                     permission_list: vec![PermissionType::ListUsers.to_string()],
                 })
-                .wrap(BusinessAccountValidation)
+                // .wrap(BusinessAccountValidation)
                 .wrap(RequireAuth {
                     allow_deleted_user: false,
                 }),

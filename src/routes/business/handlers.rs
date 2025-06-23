@@ -8,12 +8,12 @@ use crate::{
     errors::GenericError,
     routes::{
         user::{
-            schemas::{UserAccount, UserRoleType},
-            utils::get_role,
+            schemas::{MinimalUserAccount, UserAccount, UserRoleType},
+            utils::{fetch_user_account_by_business_account, get_role},
         },
         web_socket::{schemas::ProcessType, utils::send_notification},
     },
-    schemas::{GenericResponse, RequestMetaData},
+    schemas::{AllowedPermission, GenericResponse, PermissionType, RequestMetaData},
     websocket_client::{Server, WebSocketActionType},
 };
 
@@ -188,8 +188,12 @@ pub async fn business_permission_validation(
 pub async fn list_business_req(
     db_pool: web::Data<PgPool>,
     user_account: UserAccount,
+    permissions: AllowedPermission,
 ) -> Result<web::Json<GenericResponse<Vec<BasicBusinessAccount>>>, GenericError> {
-    let business_obj = if user_account.user_role != UserRoleType::Superadmin.to_string() {
+    let business_obj = if !permissions
+        .permission_list
+        .contains(&PermissionType::ListUserBusiness.to_string())
+    {
         get_basic_business_accounts_by_user_id(user_account.id, &db_pool).await?
     } else {
         get_basic_business_accounts(&db_pool)
@@ -221,6 +225,7 @@ pub async fn list_business_req(
         ("Authorization" = String, Header, description = "JWT token"),
         ("x-request-id" = String, Header, description = "Request id"),
         ("x-device-id" = String, Header, description = "Device id"),
+        ("x-business-id" = String, Header, description = "Business id"),
       )
 )]
 #[tracing::instrument(err, name = "user business association", skip(db_pool), fields())]
@@ -301,7 +306,7 @@ pub async fn user_business_association_req(
         Some(req.user_id),
         format!(
             "{} Business is associated to you account by {}",
-            business_account.name, user_account.display_name
+            business_account.display_name, user_account.display_name
         ),
     )
     .await
@@ -309,5 +314,46 @@ pub async fn user_business_association_req(
     Ok(web::Json(GenericResponse::success(
         "Sucessfully associated user with business account.",
         (),
+    )))
+}
+
+#[utoipa::path(
+    patch,
+    path = "/user/list",
+    tag = "Business Account",
+    description = "API for listing users by business id",
+    summary = "List User Accounts API by business id",
+
+    responses(
+        (status=200, description= "Successfully updated user.", body= GenericResponse<Vec<MinimalUserAccount>>),
+        (status=400, description= "Invalid Request body", body= GenericResponse<TupleUnit>),
+        (status=401, description= "Invalid Token", body= GenericResponse<TupleUnit>),
+	    (status=403, description= "Insufficient Previlege", body= GenericResponse<TupleUnit>),
+	    (status=410, description= "Data not found", body= GenericResponse<TupleUnit>),
+        (status=500, description= "Internal Server Error", body= GenericResponse<TupleUnit>)
+    ),
+    params(
+        ("x-request-id" = String, Header, description = "Request id"),
+        ("x-device-id" = String, Header, description = "Device id"),
+        ("Authorization" = String, Header, description = "JWT token"),
+        ("x-business-id" = String, Header, description = "Business id"),
+    )
+)]
+#[tracing::instrument(err, name = "List User Accounts By Business ID", skip(pool), fields())]
+pub async fn business_user_list_req(
+    pool: web::Data<PgPool>,
+    user_account: UserAccount,
+    business_account: BusinessAccount,
+) -> Result<web::Json<GenericResponse<Vec<MinimalUserAccount>>>, GenericError> {
+    let data = fetch_user_account_by_business_account(&pool, business_account.id)
+        .await
+        .map_err(|e| {
+            tracing::error!("User list: {:?}", e);
+            GenericError::DatabaseError("Failed to fetch users".to_string(), e)
+        })?;
+
+    Ok(web::Json(GenericResponse::success(
+        "Successfully fetched users.",
+        data,
     )))
 }

@@ -138,7 +138,6 @@ pub enum PermissionType {
     ListUsers,
     #[serde(rename = "create:global-setting")]
     CreateGlobalSetting,
-
     #[serde(rename = "create:business-setting")]
     CreateBusinessSetting,
     #[serde(rename = "create:business-setting:self")]
@@ -147,14 +146,18 @@ pub enum PermissionType {
     AssociateUserDepartment,
     #[serde(rename = "create:department")]
     CreateDepartment,
-
     #[serde(rename = "list:leave-request:self")]
     ListLeaveRequestSelf,
     #[serde(rename = "list:leave-request")]
     ListLeaveRequest,
-
     #[serde(rename = "create:user-business-setting")]
     CreateUserBusinessSetting,
+    #[serde(rename = "create:leave-type")]
+    CreateLeaveType,
+    #[serde(rename = "list:user-business")]
+    ListUserBusiness,
+    #[serde(rename = "list:user-business:self")]
+    ListUserBusinessSelf,
 }
 
 impl fmt::Display for PermissionType {
@@ -176,7 +179,11 @@ impl fmt::Display for PermissionType {
             PermissionType::ListLeaveRequestSelf => "list:leave-request:self",
             PermissionType::ListLeaveRequest => "list:leave-request",
             PermissionType::CreateUserBusinessSetting => "list:leave-request",
+            PermissionType::CreateLeaveType => "create:leave-type",
+            PermissionType::ListUserBusinessSelf => "list:user-business:self",
+            PermissionType::ListUserBusiness => "list:user-business",
         };
+
         write!(f, "{}", display_str)
     }
 }

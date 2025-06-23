@@ -158,15 +158,10 @@ impl SettingType {
 #[derive(Serialize, Debug)]
 pub enum SettingKey {
     EmailAppPassword,
-    TotalCommonLeaveCount,
-    TotalRestrictedLeaveCount,
-    TotalMedicalLeaveCount,
-    TotalCasualLeaveCount,
     FinancialYearStart,
     LeaveRequestTemplate,
     LeaveStatusUpdateTemplate,
     TimeZone,
-    UnpaidLeaveCount,
     EmailOTPTemplate,
 }
 
@@ -174,15 +169,10 @@ impl fmt::Display for SettingKey {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let display_str = match self {
             SettingKey::EmailAppPassword => "email_app_password",
-            SettingKey::TotalCommonLeaveCount => "total_common_leave_count",
-            SettingKey::TotalRestrictedLeaveCount => "total_restricted_leave_count",
-            SettingKey::TotalMedicalLeaveCount => "total_medical_leave_count",
-            SettingKey::TotalCasualLeaveCount => "total_casual_leave_count",
             SettingKey::FinancialYearStart => "financial_year_start",
             SettingKey::LeaveRequestTemplate => "leave_request_template",
             SettingKey::LeaveStatusUpdateTemplate => "leave_status_update_template",
             SettingKey::TimeZone => "time_zone",
-            SettingKey::UnpaidLeaveCount => "unpaid_leave_count",
             SettingKey::EmailOTPTemplate => "email_otp_template",
         };
         write!(f, "{}", display_str)
