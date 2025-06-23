@@ -1,6 +1,9 @@
 use crate::email::EmailObject;
 
-use super::schemas::{LeaveData, LeaveGroup, LeavePeriod, LeaveStatus, LeaveType, LeaveTypeData};
+use super::schemas::{
+    LeaveData, LeaveGroup, LeavePeriod, LeaveStatus, LeaveType, LeaveTypeData, UserLeave,
+};
+use bigdecimal::BigDecimal;
 use chrono::{DateTime, TimeZone, Utc};
 use chrono_tz::Tz;
 
@@ -81,6 +84,31 @@ impl LeaveGroupModel {
             label: self.label,
             start_date: self.start_date,
             end_date: self.end_date,
+        }
+    }
+}
+
+#[derive(Debug, FromRow)]
+pub struct UserLeaveModel {
+    pub id: Uuid,
+    pub allocated_count: BigDecimal,
+    pub used_count: BigDecimal,
+    pub business_id: Uuid,
+    pub user_id: Uuid,
+    pub leave_type_id: Uuid,
+    pub leave_group_id: Uuid,
+}
+
+impl UserLeaveModel {
+    pub fn into_schema(self) -> UserLeave {
+        UserLeave {
+            id: self.id,
+            allocated_count: self.allocated_count,
+            used_count: self.used_count,
+            business_id: self.business_id,
+            user_id: self.user_id,
+            leave_type_id: self.leave_type_id,
+            leave_group_id: self.leave_group_id,
         }
     }
 }

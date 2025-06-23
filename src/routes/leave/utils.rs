@@ -11,7 +11,7 @@ use crate::{
     routes::{
         business,
         leave::{
-            models::{LeaveGroupModel, LeaveTypeModel},
+            models::{LeaveGroupModel, LeaveTypeModel, UserLeaveModel},
             schemas::{LeavePeriod, LeaveType},
         },
         user::{schemas::MinimalUserAccount, utils::get_minimal_user_list},
@@ -24,9 +24,10 @@ use crate::{
 use super::{
     models::{LeaveDataModel, MinimalLeaveModel},
     schemas::{
-        BulkLeaveRequestInsert, BulkLeaveTypeInsert, CreateLeaveRequest, FetchLeaveQuery,
-        LeaveData, LeaveGroup, LeaveGroupCreationRequest, LeaveStatus, LeaveTypeCreationData,
-        LeaveTypeCreationRequest, LeaveTypeData,
+        BulkLeaveRequestInsert, BulkLeaveTypeInsert, BulkUserLeaveInsert, CreateLeaveRequest,
+        FetchLeaveQuery, LeaveData, LeaveGroup, LeaveGroupCreationRequest, LeaveStatus,
+        LeaveTypeCreationData, LeaveTypeCreationRequest, LeaveTypeData, UserLeave,
+        UserLeaveCreationData,
     },
 };
 use serde_json::Value;
@@ -95,25 +96,25 @@ use serde_json::Value;
 //     transaction: &mut Transaction<'_, Postgres>,
 //     data: BulkLeaveRequestInsert<'a>,
 // ) -> Result<bool, anyhow::Error> {
-//     let query = sqlx::query!(
-//         r#"
-//         INSERT INTO leave_request (id, sender_id, created_by, created_on, period,type, date, status, reason, email_message_id, cc, receiver_id)
-//         SELECT * FROM UNNEST($1::uuid[], $2::uuid[], $3::uuid[], $4::TIMESTAMP[],  $5::leave_period[], $6::leave_type[], $7::TIMESTAMP[], $8::leave_status[],
-//         $9::TEXT[], $10::TEXT[], $11::jsonb[], $12::uuid[]) ON CONFLICT DO NOTHING
-//         "#,
-//         &data.id[..] as &[Uuid],
-//         &data.sender_id[..] as &[Uuid],
-//         &data.created_by[..] as &[Uuid],
-//         &data.created_on[..] as &[DateTime<Utc>],
-//         &data.leave_period[..] as &[&LeavePeriod],
-//         &data.leave_type[..] as &[&LeaveType],
-//         &data.date[..] as &[DateTime<Utc>],
-//         &data.status[..] as &[LeaveStatus],
-//         &data.reason[..] as &[Option<&str>],
-//         &data.email_message_id[..] as &[Option<&str>],
-//         &data.cc[..] as &[Option<Value>],
-//         &data.receiver_id[..] as &[Uuid],
-//     );
+// let query = sqlx::query!(
+//     r#"
+//     INSERT INTO leave_request (id, sender_id, created_by, created_on, period,type, date, status, reason, email_message_id, cc, receiver_id)
+//     SELECT * FROM UNNEST($1::uuid[], $2::uuid[], $3::uuid[], $4::TIMESTAMP[],  $5::leave_period[], $6::leave_type[], $7::TIMESTAMP[], $8::leave_status[],
+//     $9::TEXT[], $10::TEXT[], $11::jsonb[], $12::uuid[]) ON CONFLICT DO NOTHING
+//     "#,
+//     &data.id[..] as &[Uuid],
+//     &data.sender_id[..] as &[Uuid],
+//     &data.created_by[..] as &[Uuid],
+//     &data.created_on[..] as &[DateTime<Utc>],
+//     &data.leave_period[..] as &[&LeavePeriod],
+//     &data.leave_type[..] as &[&LeaveType],
+//     &data.date[..] as &[DateTime<Utc>],
+//     &data.status[..] as &[LeaveStatus],
+//     &data.reason[..] as &[Option<&str>],
+//     &data.email_message_id[..] as &[Option<&str>],
+//     &data.cc[..] as &[Option<Value>],
+//     &data.receiver_id[..] as &[Uuid],
+// );
 //     let query_string = query.sql();
 //     println!("Generated SQL query for: {}", query_string);
 //     let result = transaction.execute(query).await.map_err(|e| {
@@ -945,5 +946,125 @@ pub async fn delete_leave_group(pool: &PgPool, id: Uuid) -> Result<(), anyhow::E
             anyhow!(e).context("A database failure occurred while deleting leave group")
         })?;
 
+    Ok(())
+}
+
+#[tracing::instrument(name = "Fetch user leave models", skip(pool))]
+async fn fetch_user_leave_models(
+    pool: &PgPool,
+    business_id: Uuid,
+    user_id: Uuid,
+    group_id: Uuid,
+) -> Result<Vec<UserLeaveModel>, anyhow::Error> {
+    let leave_group = sqlx::query_as!(
+        UserLeaveModel,
+        r#"
+        SELECT l_g.id, leave_type_id, leave_group_id, allocated_count, used_count, user_id, l_g.business_id
+        FROM user_leave_relationship as u_l inner join leave_group as l_g on u_l.leave_group_id = l_g.id
+        WHERE l_g.business_id = $1 AND user_id = $2 AND leave_group_id = $3
+        "#,
+        business_id,
+        user_id,
+        group_id,
+    )
+    .fetch_all(pool)
+    .await
+    .map_err(|e| {
+        tracing::error!("Failed to execute query: {:?}", e);
+        anyhow!(e).context("A database failure occurred while fetching  user leave")
+    })?;
+
+    Ok(leave_group)
+}
+
+pub async fn fetch_user_leave(
+    pool: &PgPool,
+    business_id: Uuid,
+    user_id: Uuid,
+    group_id: Uuid,
+) -> Result<Vec<UserLeave>, anyhow::Error> {
+    let data_models = fetch_user_leave_models(pool, business_id, user_id, group_id).await?;
+    let data = data_models.into_iter().map(|a| a.into_schema()).collect();
+    return Ok(data);
+}
+
+#[tracing::instrument(name = "delete payment", skip(pool))]
+pub async fn delete_user_leave(
+    pool: &PgPool,
+    business_id: Uuid,
+    user_leave_id: Uuid,
+) -> Result<(), anyhow::Error> {
+    sqlx::query("DELETE FROM leave_type WHERE id = $1 AND business_id = $2")
+        .bind(user_leave_id)
+        .bind(business_id)
+        .execute(pool)
+        .await
+        .context("Failed to delete leave type by ID")?;
+
+    Ok(())
+}
+
+#[tracing::instrument(name = "prepare bulk leave type data", skip())]
+pub fn prepare_bulk_user_leave_data<'a>(
+    leave_type_data: &'a Vec<UserLeaveCreationData>,
+    user_id: Uuid,
+    group_id: Uuid,
+) -> BulkUserLeaveInsert<'a> {
+    let current_utc = Utc::now();
+    let mut created_on_list = vec![];
+    let mut id_list = vec![];
+    let mut created_by_list = vec![];
+    let mut group_id_list = vec![];
+    let mut type_id_list = vec![];
+    let mut allocated_count_list = vec![];
+
+    for leave_data in leave_type_data.iter() {
+        created_on_list.push(current_utc);
+        created_by_list.push(user_id);
+        id_list.push(Uuid::new_v4());
+        group_id_list.push(group_id);
+        type_id_list.push(leave_data.type_id);
+        allocated_count_list.push(&leave_data.count);
+    }
+    BulkUserLeaveInsert {
+        id: id_list,
+        created_on: created_on_list,
+        created_by: created_by_list,
+        group_id: group_id_list,
+        type_id: type_id_list,
+        allocated_count: allocated_count_list,
+    }
+}
+
+pub async fn save_user_leave(
+    pool: &PgPool,
+    data: &Vec<UserLeaveCreationData>,
+    user_id: Uuid,
+    group_id: Uuid,
+) -> Result<(), anyhow::Error> {
+    if data.is_empty() {
+        return Ok(());
+    }
+    let data = prepare_bulk_user_leave_data(data, user_id, group_id);
+    let query = sqlx::query!(
+        r#"
+        INSERT INTO user_leave_relationship ( id, leave_type_id, leave_group_id, allocated_count, user_id, created_by, created_on)
+        SELECT * FROM UNNEST($1::uuid[], $2::uuid[], $3::uuid[], $4::decimal[],  $5::uuid[], $5::uuid[], $6::TIMESTAMP[])
+        ON CONFLICT (user_id, leave_group_id, leave_type_id) DO UPDATE
+        SET allocated_count = EXCLUDED.allocated_count,
+        updated_by = EXCLUDED.created_by,
+        updated_on = EXCLUDED.created_on
+        "#,
+        &data.id[..] as &[Uuid],
+        &data.type_id[..] as &[Uuid],
+        &data.group_id[..] as &[Uuid],
+        &data.allocated_count[..] as &[&BigDecimal],
+        &data.created_by[..] as &[Uuid],
+        &data.created_on[..] as &[DateTime<Utc>],
+    );
+    pool.execute(query).await.map_err(|e| {
+        tracing::error!("Failed to execute query: {:?}", e);
+        anyhow!(e).context("A database failure occurred while saving user leave")
+    })?;
     Ok(())
 }

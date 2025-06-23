@@ -8,8 +8,8 @@ use crate::{
 };
 
 use super::handlers::{
-    leave_group_create_req, leave_group_delete_req, leave_group_list_req, leave_type_create_req,
-    leave_type_delete_req, leave_type_list_req,
+    create_leave_user_association_req, leave_group_create_req, leave_group_delete_req,
+    leave_group_list_req, leave_type_create_req, leave_type_delete_req, leave_type_list_req,
 };
 
 pub fn leave_routes(cfg: &mut web::ServiceConfig) {
@@ -99,6 +99,24 @@ pub fn leave_routes(cfg: &mut web::ServiceConfig) {
         "/group/list",
         web::post()
             .to(leave_group_list_req)
+            .wrap(BusinessPermissionValidation {
+                permission_list: vec![PermissionType::CreateLeaveType.to_string()],
+            })
+            .wrap(BusinessAccountValidation),
+    );
+    cfg.route(
+        "/user/association/save",
+        web::post()
+            .to(create_leave_user_association_req)
+            .wrap(BusinessPermissionValidation {
+                permission_list: vec![PermissionType::CreateLeaveType.to_string()],
+            })
+            .wrap(BusinessAccountValidation),
+    );
+    cfg.route(
+        "/user/association/delete",
+        web::delete()
+            .to(leave_group_delete_req)
             .wrap(BusinessPermissionValidation {
                 permission_list: vec![PermissionType::CreateLeaveType.to_string()],
             })

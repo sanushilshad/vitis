@@ -1,8 +1,11 @@
 use std::fmt;
 
-use crate::{email::EmailObject, errors::GenericError, routes::setting::schemas::SettingKey};
+use crate::{
+    email::EmailObject, errors::GenericError, routes::setting::schemas::SettingKey, schemas::Status,
+};
 use actix_http::Payload;
 use actix_web::{FromRequest, HttpRequest, web};
+use bigdecimal::BigDecimal;
 use chrono::{DateTime, FixedOffset, NaiveDate, NaiveDateTime, Utc};
 use chrono_tz::Tz;
 use futures::future::LocalBoxFuture;
@@ -422,4 +425,89 @@ pub struct LeaveGroup {
     pub label: String,
     pub start_date: DateTime<Utc>,
     pub end_date: DateTime<Utc>,
+}
+#[derive(Deserialize, Debug, ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct UserLeaveCreationData {
+    pub type_id: Uuid,
+    #[schema(value_type = String)]
+    pub count: BigDecimal,
+    pub status: Status,
+}
+
+#[derive(Deserialize, Debug, ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct CreateLeaveUserAssociationRequest {
+    pub group_id: Uuid,
+    pub user_id: Uuid,
+    pub data: Vec<UserLeaveCreationData>,
+}
+
+impl FromRequest for CreateLeaveUserAssociationRequest {
+    type Error = GenericError;
+    type Future = LocalBoxFuture<'static, Result<Self, Self::Error>>;
+
+    fn from_request(req: &HttpRequest, payload: &mut Payload) -> Self::Future {
+        let fut = web::Json::<Self>::from_request(req, payload);
+
+        Box::pin(async move {
+            match fut.await {
+                Ok(json) => Ok(json.into_inner()),
+                Err(e) => Err(GenericError::ValidationError(e.to_string())),
+            }
+        })
+    }
+}
+
+#[derive(Deserialize, Debug, ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct ListLeaveUserAssociationRequest {
+    pub user_id: Option<Uuid>,
+    pub group_id: Uuid,
+}
+
+impl FromRequest for ListLeaveUserAssociationRequest {
+    type Error = GenericError;
+    type Future = LocalBoxFuture<'static, Result<Self, Self::Error>>;
+
+    fn from_request(req: &HttpRequest, payload: &mut Payload) -> Self::Future {
+        let fut = web::Json::<Self>::from_request(req, payload);
+
+        Box::pin(async move {
+            match fut.await {
+                Ok(json) => Ok(json.into_inner()),
+                Err(e) => Err(GenericError::ValidationError(e.to_string())),
+            }
+        })
+    }
+}
+
+#[derive(Deserialize, Debug, ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct UserLeave {
+    pub id: Uuid,
+    #[schema(value_type = String)]
+    pub allocated_count: BigDecimal,
+    #[schema(value_type = String)]
+    pub used_count: BigDecimal,
+    pub business_id: Uuid,
+    pub user_id: Uuid,
+    pub leave_type_id: Uuid,
+    pub leave_group_id: Uuid,
+}
+
+// #[derive(Deserialize, Debug, ToSchema)]
+// #[serde(rename_all = "camelCase")]
+// pub struct DeleteLeaveUserAssociationRequest {
+//     pub user_leave_id: Uuid,
+// }
+
+#[derive(Debug)]
+pub struct BulkUserLeaveInsert<'a> {
+    pub id: Vec<Uuid>,
+    pub group_id: Vec<Uuid>,
+    pub type_id: Vec<Uuid>,
+    pub allocated_count: Vec<&'a BigDecimal>,
+    pub created_on: Vec<DateTime<Utc>>,
+    pub created_by: Vec<Uuid>,
 }

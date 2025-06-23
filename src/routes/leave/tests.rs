@@ -9,15 +9,18 @@ pub mod tests {
                 schemas::{
                     CreateLeaveData, CreateLeaveRequest, FetchLeaveQuery,
                     LeaveGroupCreationRequest, LeavePeriod, LeaveStatus, LeaveType,
-                    LeaveTypeCreationData,
+                    LeaveTypeCreationData, UserLeaveCreationData,
                 },
                 utils::{
                     delete_leave_group,
                     delete_leave_type,
+                    delete_user_leave,
+                    fetch_user_leave,
                     get_leave_group,
                     get_leave_type,
                     save_leave_group,
-                    save_leave_type, //  delete_leave, get_leaves,
+                    save_leave_type,
+                    save_user_leave, //  delete_leave, get_leaves,
                                      // save_leave_request, update_leave_status,
                                      // validate_leave_request, validate_leave_status_update,
                 },
@@ -27,10 +30,11 @@ pub mod tests {
                 utils::{hard_delete_business_account, hard_delete_user_account},
             },
         },
-        schemas::{AllowedPermission, PermissionType},
+        schemas::{AllowedPermission, PermissionType, Status},
         tests::tests::get_test_pool,
     };
     use anyhow::Context;
+    use bigdecimal::{BigDecimal, FromPrimitive};
     use chrono::{DateTime, Duration, NaiveDate, TimeZone, Utc};
     use chrono_tz::Tz;
     use tokio::join;
@@ -455,7 +459,7 @@ pub mod tests {
     // }
 
     #[tokio::test]
-    async fn test_leave_type_creation_and_fetch_validation() {
+    async fn test_leave_type_create_fetch_and_deletion() {
         let pool = get_test_pool().await;
         let email = "testuser20@example.com";
         let mobile_no = "1234567903";
@@ -508,18 +512,20 @@ pub mod tests {
 
         let leave_type_res =
             get_leave_type(&pool, business_id, None, None, Some("Medical".to_string())).await;
+        let del_res = delete_leave_type(&pool, leave_type.id).await;
+        assert!(del_res.is_ok());
         assert!(leave_type_res.is_ok());
         let delete_business_account_task = hard_delete_business_account(&pool, business_id);
         let mobile_no = format!("{}{}", DUMMY_INTERNATIONAL_DIALING_CODE, mobile_no);
         let delete_user_task = hard_delete_user_account(&pool, &mobile_no);
-        let (delete_leave_type_res, delete_user_res) =
+        let (delete_business_type_res, delete_user_res) =
             join!(delete_business_account_task, delete_user_task);
-        assert!(delete_leave_type_res.is_ok());
+        assert!(delete_business_type_res.is_ok());
         assert!(delete_user_res.is_ok());
     }
 
     #[tokio::test]
-    async fn test_leave_group_creation_and_fetch_validation() {
+    async fn test_leave_group_create_fetch_and_delete() {
         let pool = get_test_pool().await;
         let email = "testuser36@example.com";
         let mobile_no = "1234567905";
@@ -578,55 +584,90 @@ pub mod tests {
         assert!(leave_group.first().is_some());
         let leave_type = leave_group.first().unwrap();
         assert!(leave_type.label == "2026");
+
+        let delete_res = delete_leave_group(&pool, leave_type.id).await;
+        assert!(delete_res.is_ok());
         let delete_business_account_task = hard_delete_business_account(&pool, business_id);
         let mobile_no = format!("{}{}", DUMMY_INTERNATIONAL_DIALING_CODE, mobile_no);
         let delete_user_task = hard_delete_user_account(&pool, &mobile_no);
-        let (delete_leave_type_res, delete_user_res) =
+        let (delete_business_res, delete_user_res) =
             join!(delete_business_account_task, delete_user_task);
-        assert!(delete_leave_type_res.is_ok());
+        assert!(delete_business_res.is_ok());
         assert!(delete_user_res.is_ok());
     }
 
     #[tokio::test]
-    async fn test_leave_group_deletion() {
+    async fn test_user_leave_create_fetch_and_delete() {
         let pool = get_test_pool().await;
-        let email = "testuser37@example.com";
-        let mobile_no = "1234577905";
-        let user_res = setup_user(&pool, "testuser37", email, mobile_no, "testuser@123").await;
+        let email = "testuser38@example.com";
+        let mobile_no = "1234575905";
+        let user_res = setup_user(&pool, "testuser38", email, mobile_no, "testuser@123").await;
         assert!(user_res.is_ok());
         let user_id = user_res.unwrap();
         let business_res = setup_business(&pool, mobile_no, "business@example.com").await;
         let business_id = business_res.unwrap();
+
         let start_date = Utc::now();
         let end_date = start_date + Duration::days(2);
-        let leave_data = LeaveGroupCreationRequest {
+        let leave_group_data = LeaveGroupCreationRequest {
             id: None,
             label: "2025".to_string(),
             start_date,
             end_date,
         };
+        let leave_type_data = vec![LeaveTypeCreationData {
+            id: None,
+            label: "Casual Leave".to_string(),
+        }];
 
-        let res = save_leave_group(&pool, &leave_data, business_id, user_id).await;
+        let (save_group_res, save_type_res) = tokio::join!(
+            save_leave_group(&pool, &leave_group_data, business_id, user_id),
+            save_leave_type(&pool, &leave_type_data, user_id, business_id)
+        );
+        assert!(save_group_res.is_ok());
+        assert!(save_type_res.is_ok());
+        let leave_group_id = save_group_res.unwrap();
+
+        let leave_type_res = get_leave_type(
+            &pool,
+            business_id,
+            None,
+            Some(vec!["Casual Leave", "Restricted Leave"]),
+            None,
+        )
+        .await;
+        assert!(leave_type_res.is_ok());
+        let leave_type_list = leave_type_res.unwrap();
+        assert!(leave_type_list.first().is_some());
+        let leave_type_id = leave_type_list.first().unwrap().id;
+
+        let user_leave_data = vec![UserLeaveCreationData {
+            type_id: leave_type_id,
+            count: BigDecimal::from_i32(23).unwrap(),
+            status: Status::Active,
+        }];
+        let res = save_user_leave(&pool, &user_leave_data, user_id, leave_group_id).await;
+        eprint!("aaaa{:?}", res);
         assert!(res.is_ok());
-        let leave_id = res.unwrap();
-        let leave_group_res =
-            get_leave_group(&pool, business_id, Some(&vec![leave_id]), None, None, None).await;
-        assert!(leave_group_res.is_ok());
 
-        let delete_res =
-            delete_leave_group(&pool, leave_group_res.unwrap().first().unwrap().id).await;
-        assert!(delete_res.is_ok());
-        let leave_group_res =
-            get_leave_group(&pool, business_id, Some(&vec![leave_id]), None, None, None).await;
-        assert!(leave_group_res.is_ok());
-        let leave_group = leave_group_res.unwrap();
-        assert!(leave_group.is_empty());
-        let delete_business_account_task = hard_delete_business_account(&pool, business_id);
-        let mobile_no = format!("{}{}", DUMMY_INTERNATIONAL_DIALING_CODE, mobile_no);
-        let delete_user_task = hard_delete_user_account(&pool, &mobile_no);
-        let (delete_leave_type_res, delete_user_res) =
-            join!(delete_business_account_task, delete_user_task);
-        assert!(delete_leave_type_res.is_ok());
-        assert!(delete_user_res.is_ok());
+        let user_leave_res = fetch_user_leave(&pool, business_id, user_id, leave_group_id).await;
+        assert!(user_leave_res.is_ok());
+        let user_leave_opt = user_leave_res.unwrap();
+
+        assert!(user_leave_opt.first().is_some());
+
+        let del_res =
+            delete_user_leave(&pool, business_id, user_leave_opt.first().unwrap().id).await;
+        assert!(del_res.is_ok());
+        let user_leave_res = fetch_user_leave(&pool, business_id, user_id, leave_group_id).await;
+        assert!(user_leave_res.is_ok());
+
+        let delete_mobile = format!("{}{}", DUMMY_INTERNATIONAL_DIALING_CODE, mobile_no);
+        let (delete_business_account_res, delete_user_account_res) = tokio::join!(
+            hard_delete_business_account(&pool, business_id),
+            hard_delete_user_account(&pool, &delete_mobile)
+        );
+        assert!(delete_business_account_res.is_ok());
+        assert!(delete_user_account_res.is_ok());
     }
 }

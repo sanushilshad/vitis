@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use crate::pulsar_client::{PulsarClient, PulsarTopic, SchedulerMessageData};
 use crate::routes::business::schemas::BusinessAccount;
 use crate::routes::web_socket::schemas::ProcessType;
@@ -33,8 +35,8 @@ use tokio::join;
 use utoipa::TupleUnit;
 use uuid::Uuid;
 
-use super::schemas::{LeaveGroup, LeaveGroupCreationRequest, LeaveStatus, LeaveTypeCreationRequest, LeaveTypeData, LeaveTypeFetchRequest};
-use super::utils::{delete_leave_group, delete_leave_type, get_leave_group, get_leave_type, leave_group_create_validation, leave_type_create_validation, save_leave_group, save_leave_type};
+use super::schemas::{CreateLeaveUserAssociationRequest, LeaveGroup, LeaveGroupCreationRequest, LeaveStatus, LeaveTypeCreationRequest, LeaveTypeData, LeaveTypeFetchRequest, ListLeaveUserAssociationRequest, UserLeave};
+use super::utils::{delete_leave_group, delete_leave_type, delete_user_leave, fetch_user_leave, get_leave_group, get_leave_type, leave_group_create_validation, leave_type_create_validation, save_leave_group, save_leave_type, save_user_leave};
 use super::{
     schemas::{
         CreateLeaveRequest, FetchLeaveQuery, FetchLeaveRequest, FetchLeaveType, LeaveData,
@@ -97,12 +99,12 @@ use super::{
 //         SettingKey::FinancialYearStart.to_string(),
 //         SettingKey::LeaveRequestTemplate.to_string(),
 //     ];
-//     let (config_res, reciever_account_res) = join!(
-//         get_setting_value(&pool, &setting_keys, None, Some(user.id), true),
-//         get_user(vec![body.to.get()], &pool),
-//     );
-//     // .map_err(|e| GenericError::DatabaseError(e.to_string(), e))?;
-//     let configs = config_res.map_err(|e| GenericError::DatabaseError(e.to_string(), e))?;
+    // let (config_res, reciever_account_res) = join!(
+    //     get_setting_value(&pool, &setting_keys, None, Some(user.id), true),
+    //     get_user(vec![body.to.get()], &pool),
+    // );
+    // // .map_err(|e| GenericError::DatabaseError(e.to_string(), e))?;
+    // let configs = config_res.map_err(|e| GenericError::DatabaseError(e.to_string(), e))?;
 
 //     let email_password = configs
 //         .get_setting(&SettingKey::EmailAppPassword.to_string())
@@ -838,5 +840,175 @@ pub async fn leave_group_list_req(
     Ok(web::Json(GenericResponse::success(
         "Sucessfully fetched leave groups",
         leave_group_list,
+    )))
+}
+
+
+#[utoipa::path(
+    delete,
+    description = "API for associating user to leave",
+    tag = "Leave",
+    summary = "Leave User Association API",
+    path = "/leave/user/association/save",
+    responses(
+        (status=200, description= "project Account created successfully", body= GenericResponse<TupleUnit>),
+        (status=400, description= "Invalid Request body", body= GenericResponse<TupleUnit>),
+        (status=401, description= "Invalid Token", body= GenericResponse<TupleUnit>),
+	    (status=403, description= "Insufficient Previlege", body= GenericResponse<TupleUnit>),
+	    (status=410, description= "Data not found", body= GenericResponse<TupleUnit>),
+        (status=500, description= "Internal Server Error", body= GenericResponse<TupleUnit>)
+    ),
+    params(
+        ("Authorization" = String, Header, description = "JWT token"),
+        ("x-request-id" = String, Header, description = "Request id"),
+        ("x-device-id" = String, Header, description = "Device id"),
+        ("x-business-id" = String, Header, description = "id of business_account"),
+      )
+)]
+#[tracing::instrument(err, name = "User Leave Association request", skip(pool), fields())]
+pub async fn create_leave_user_association_req(
+    pool: web::Data<PgPool>,
+    data: CreateLeaveUserAssociationRequest,
+
+    user: UserAccount,
+    business_account: BusinessAccount
+) -> Result<web::Json<GenericResponse<()>>, GenericError> {
+    let group_id_list = vec![data.group_id];
+    let leave_type_set: HashSet<Uuid> = data.data.iter().map(|x| x.type_id).collect();
+    let leave_type_list: Vec<Uuid> = leave_type_set.iter().map(|x| *x).collect();
+    let (leave_group_res, leave_type_res) = join!(
+        get_leave_group(&pool, business_account.id, Some(&group_id_list), None, None, None),
+        get_leave_type(&pool, business_account.id, Some(leave_type_list.to_vec()), None, None),
+    );
+    let leave_group_list = leave_group_res
+    .map_err(|e| GenericError::DatabaseError(e.to_string(), e))?;
+   let leave_group = leave_group_list.first().ok_or(GenericError::DataNotFound("Leave group not found.".to_string()))?;
+    let leave_type = leave_type_res.map_err(|e| GenericError::DatabaseError(e.to_string(), e))?;
+    let allowed_leave_type_set: HashSet<Uuid> = leave_type.iter().map(|x| x.id).collect();
+    if !allowed_leave_type_set.is_superset(&leave_type_set) {
+        return Err(GenericError::DataNotFound(
+            "Leave type/s not found for given business".to_string(),
+        ));
+    }
+    save_user_leave(
+        &pool,
+        &data.data,
+        user.id,
+        leave_group.id,
+    )
+        .await
+        .map_err(|e| {
+            GenericError::DatabaseError(
+                "Something went wrong while saving user leave association".to_string(),
+                e,
+            )
+        })?;
+
+    Ok(web::Json(GenericResponse::success(
+        "Sucessfully associated user to leave",
+        (),
+    )))
+}
+
+
+
+
+
+#[utoipa::path(
+    delete,
+    description = "API for listing associating user to leave",
+    tag = "Leave",
+    summary = "List Leave User Association API",
+    path = "/leave/user/association/list",
+    responses(
+        (status=200, description= "project Account created successfully", body= GenericResponse<Vec<UserLeave>>),
+        (status=400, description= "Invalid Request body", body= GenericResponse<TupleUnit>),
+        (status=401, description= "Invalid Token", body= GenericResponse<TupleUnit>),
+	    (status=403, description= "Insufficient Previlege", body= GenericResponse<TupleUnit>),
+	    (status=410, description= "Data not found", body= GenericResponse<TupleUnit>),
+        (status=500, description= "Internal Server Error", body= GenericResponse<TupleUnit>)
+    ),
+    params(
+        ("Authorization" = String, Header, description = "JWT token"),
+        ("x-request-id" = String, Header, description = "Request id"),
+        ("x-device-id" = String, Header, description = "Device id"),
+        ("x-business-id" = String, Header, description = "id of business_account"),
+      )
+)]
+#[tracing::instrument(err, name = "List User Leave Association request", skip(pool), fields())]
+pub async fn list_leave_user_association_req(
+    req: ListLeaveUserAssociationRequest,
+    pool: web::Data<PgPool>,
+    user: UserAccount,
+    business_account: BusinessAccount,
+    permissions: AllowedPermission,
+) -> Result<web::Json<GenericResponse<Vec<UserLeave>>>, GenericError> {
+    let user_id = if !permissions
+        .permission_list
+        .contains(&PermissionType::ListUserLeave.to_string())
+    {
+        req.user_id.unwrap_or(user.id)
+    } else {
+        user.id
+    };
+    let data  = fetch_user_leave(&pool, user_id, business_account.id, req.group_id)
+        .await
+        .map_err(|e| {
+            GenericError::DatabaseError(
+                "Something went wrong while fetching user leave association".to_string(),
+                e,
+            )
+        })?;
+    Ok(web::Json(GenericResponse::success(
+        "Sucessfully fetched user leaves",
+        data,
+    )))
+}
+
+
+
+
+#[utoipa::path(
+    delete,
+    description = "API for delete associated user to leave",
+    tag = "Leave",
+    summary = "Delete Leave User Association API",
+    path = "/leave/user/association/delete",
+    responses(
+        (status=200, description= "project Account created successfully", body= GenericResponse<TupleUnit>),
+        (status=400, description= "Invalid Request body", body= GenericResponse<TupleUnit>),
+        (status=401, description= "Invalid Token", body= GenericResponse<TupleUnit>),
+	    (status=403, description= "Insufficient Previlege", body= GenericResponse<TupleUnit>),
+	    (status=410, description= "Data not found", body= GenericResponse<TupleUnit>),
+        (status=500, description= "Internal Server Error", body= GenericResponse<TupleUnit>)
+    ),
+    params(
+        ("Authorization" = String, Header, description = "JWT token"),
+        ("x-request-id" = String, Header, description = "Request id"),
+        ("x-device-id" = String, Header, description = "Device id"),
+        ("x-business-id" = String, Header, description = "id of business_account"),
+        ("id" = String, Path, description = "Leave User ID"),
+      )
+)]
+#[tracing::instrument(err, name = "Delete User Leave Association request", skip(pool), fields())]
+pub async fn delete_leave_user_association_req(
+    path: web::Path<Uuid>,
+    pool: web::Data<PgPool>,
+    user: UserAccount,
+    business_account: BusinessAccount,
+    permissions: AllowedPermission,
+) -> Result<web::Json<GenericResponse<()>>, GenericError> {
+    let leave_type_id = path.into_inner();
+    delete_user_leave(&pool, leave_type_id, business_account.id)
+        .await
+        .map_err(|e| {
+            GenericError::DatabaseError(
+                "Something went wrong while deleting user leaves".to_string(),
+                e,
+            )
+        })?;
+    Ok(web::Json(GenericResponse::success(
+        "Sucessfully deleted user leaves",
+        (),
     )))
 }

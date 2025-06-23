@@ -53,8 +53,8 @@ CREATE TABLE IF NOT EXISTS user_leave_relationship(
     user_id uuid NOT NULL,
     leave_group_id uuid NOT NULL,
     leave_type_id uuid NOT NULL,
-    used_count DECIMAL(20, 1) NOT NULL,
-    allocated_count DECIMAL(20, 1) NOT NULL,
+    used_count DECIMAL(20, 1) NOT NULL DEFAULT 0.0,
+    allocated_count DECIMAL(20, 1) NOT NULL DEFAULT 0.0,
     is_active status DEFAULT 'active'::status NOT NULL,
     created_on TIMESTAMPTZ NOT NULL,
     created_by uuid NOT NULL,
@@ -65,7 +65,7 @@ CREATE TABLE IF NOT EXISTS user_leave_relationship(
 ALTER TABLE user_leave_relationship ADD CONSTRAINT fk_user_id FOREIGN KEY ("user_id") REFERENCES user_account ("id") ON DELETE CASCADE;
 ALTER TABLE user_leave_relationship ADD CONSTRAINT fk_leave_type_id FOREIGN KEY (leave_type_id)  REFERENCES leave_type(id) ON DELETE CASCADE;
 ALTER TABLE user_leave_relationship ADD CONSTRAINT fk_leave_group_id FOREIGN KEY (leave_group_id)  REFERENCES leave_group(id) ON DELETE CASCADE;
-ALTER TABLE user_leave_relationship ADD CONSTRAINT leave_uq UNIQUE(leave_group_id, leave_type_id, user_id);
+ALTER TABLE user_leave_relationship ADD CONSTRAINT user_leave_uq UNIQUE(user_id, leave_group_id, leave_type_id);
 
 
 CREATE TABLE IF NOT EXISTS leave_request (
