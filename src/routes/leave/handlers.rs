@@ -28,6 +28,7 @@ use actix_web::web;
 use anyhow::Context;
 use chrono::{DateTime, Utc};
 
+use chrono_tz::Tz;
 use secrecy::SecretString;
 use sqlx::PgPool;
 use tera::{Context as TeraContext, Tera};
@@ -36,7 +37,7 @@ use utoipa::TupleUnit;
 use uuid::Uuid;
 
 use super::schemas::{CreateLeaveUserAssociationRequest, LeaveGroup, LeaveGroupCreationRequest, LeaveStatus, LeaveTypeCreationRequest, LeaveTypeData, LeaveTypeFetchRequest, ListLeaveUserAssociationRequest, UserLeave};
-use super::utils::{delete_leave_group, delete_leave_type, delete_user_leave, fetch_user_leaves, get_leave_group, get_leave_type, leave_group_create_validation, leave_type_create_validation, save_leave_group, save_leave_request, save_leave_type, save_user_leave, validate_leave_request_creation};
+use super::utils::{delete_leave, delete_leave_group, delete_leave_type, delete_user_leave, fetch_user_leaves, get_leave_group, get_leave_type, get_leaves, leave_group_create_validation, leave_type_create_validation, save_leave_group, save_leave_request, save_leave_type, save_user_leave, validate_leave_request_creation};
 use super::{
     schemas::{
         CreateLeaveRequest, FetchLeaveQuery, FetchLeaveRequest, FetchLeaveType, LeaveData,
@@ -48,194 +49,6 @@ use super::{
     },
 };
 
-#[utoipa::path(
-    post,
-    description = "API for making a leave request",
-    tag = "Leave",
-    summary = "Leave Request Creation API",
-    path = "/leave/request/create",
-    request_body(content = CreateLeaveRequest, description = "Request Body"),
-    responses(
-        (status=200, description= "project Account created successfully", body= GenericResponse<TupleUnit>),
-        (status=400, description= "Invalid Request body", body= GenericResponse<TupleUnit>),
-        (status=401, description= "Invalid Token", body= GenericResponse<TupleUnit>),
-	    (status=403, description= "Insufficient Previlege", body= GenericResponse<TupleUnit>),
-	    (status=410, description= "Data not found", body= GenericResponse<TupleUnit>),
-        (status=500, description= "Internal Server Error", body= GenericResponse<TupleUnit>)
-    ),
-    params(
-        ("Authorization" = String, Header, description = "JWT token"),
-        ("x-request-id" = String, Header, description = "Request id"),
-        ("x-device-id" = String, Header, description = "Device id"),
-      )
-)]
-#[tracing::instrument(err, name = "Leave Request Creation API", skip(pool, body), fields())]
-pub async fn create_leave_req(
-    body: CreateLeaveRequest,
-    pool: web::Data<PgPool>,
-    user: UserAccount,
-    business: BusinessAccount,
-    mail_config: web::Data<EmailClientConfig>,
-    permissions: AllowedPermission,
-    websocket_srv: web::Data<Addr<Server>>,
-) -> Result<web::Json<GenericResponse<()>>, GenericError> {
-    if body.user_id.is_some()
-        && !permissions
-            .permission_list
-            .contains(&PermissionType::CreateLeaveRequest.to_string())
-    {
-        return Err(GenericError::InsufficientPrevilegeError(
-            "You don't have sufficient previlege to create leave request for other users"
-                .to_string(),
-        ));
-    }
-    let user_id = body.user_id.unwrap_or(user.id);
-    if !body.send_mail && !user.is_vector_verified(&VectorType::Email) {
-        return Err(GenericError::InsufficientPrevilegeError(
-            "Please Verify your email, before creating a leave request".to_string(),
-        ));
-    }
-    let setting_keys = vec![
-        SettingKey::EmailAppPassword.to_string(),
-        SettingKey::LeaveRequestTemplate.to_string(),
-    ];
-    let (config_res, reciever_account_res,  user_leave_res) = join!(
-        get_setting_value(&pool, &setting_keys, None, Some(user.id), true),
-        get_user(vec![body.to.get()], &pool),
-        // get_leave_type(&pool, business.id, Some(vec![body.r#type]), None, None),
-        // get_leave_group(&pool, business.id, None, None, Some(Utc::now()), Some(Utc::now())),
-        fetch_user_leaves(
-            &pool,
-            business.id,
-            user_id,
-            body.group_id,
-        ),
-
-    );
-    let user_leave_list = user_leave_res.map_err(|e| GenericError::DatabaseError(e.to_string(), e))?;
-    let user_leave = user_leave_list.first()
-        .ok_or_else(|| {
-            GenericError::DataNotFound(format!(
-                "No Leave is added for the user for given group and type is not set fot user"
-            ))
-        })?;
-    // .map_err(|e| GenericError::DatabaseError(e.to_string(), e))?;
-    let configs = config_res.map_err(|e| GenericError::DatabaseError(e.to_string(), e))?;
-
-
-
-
-    validate_leave_request_creation(
-        &pool,
-        &body,
-        user_leave,
-    )
-    .await
-    .map_err(|e| GenericError::ValidationError(e.to_string()))?;  
-        let email_password = configs
-        .get_setting(&SettingKey::EmailAppPassword.to_string())
-        .ok_or_else(|| {
-            GenericError::DataNotFound(format!("Please set the {}", SettingKey::EmailAppPassword))
-        })?;
-   
-    let personal_email_client = SmtpEmailClient::new_personal(
-            &user.email,
-            SecretString::from(email_password.as_ref()),
-            &mail_config.personal.base_url,
-        )
-        .unwrap();
-
-    let message_id = if body.send_mail{Some(personal_email_client.generate_message_id(&mail_config.personal.message_id_suffix))} else{ None};   
-
-
-
-    let reciever_account = reciever_account_res
-        .map_err(|e| GenericError::DatabaseError(e.to_string(), e))?
-        .ok_or(GenericError::DataNotFound("User not found.".to_string()))?;
-
-    let mut transaction = pool
-        .begin()
-        .await
-        .context("Failed to acquire a Postgres connection from the pool")?;
-    if save_leave_request(
-        &mut transaction,
-        &body,
-        user_leave.id,
-        user.id,
-        reciever_account.id,
-        message_id.as_deref(),
-    )
-    .await
-    .map_err(|e| GenericError::DatabaseError(e.to_string(), e))?
-    {
-
-         if body.send_mail{
-            let html_template: String = configs
-                .get_setting(&SettingKey::LeaveRequestTemplate.to_string())
-                .ok_or_else(|| {
-                    GenericError::DataNotFound(format!(
-                        "Please set the {}",
-                        SettingKey::LeaveRequestTemplate
-                    ))
-                })?;
-            let receiver = to_title_case(&reciever_account.display_name);
-            let sender = to_title_case(&user.display_name);
-            let reason = body.reason.unwrap_or("NA".to_string());
-            let context_data = LeaveRequestEmailContext::new(
-                &sender,
-                body.leave_data.iter().map(|a| a.date.to_string()).collect(),
-                &reason,
-                &receiver,
-                &user_leave.leave_type.label,
-            );
-            let context = TeraContext::from_serialize(&context_data).map_err(|e: tera::Error| {
-                tracing::error!("{}", e);
-                GenericError::UnexpectedCustomError(
-                    "Something went wrong while rendering the email html data".to_string(),
-                )
-            })?;
-            let rendered_string = Tera::one_off(&html_template, &context, true).map_err(|e| {
-                tracing::error!("Error while rendering html {} error: {}", html_template, e);
-                GenericError::UnexpectedCustomError(
-                    "Something went wrong while rendering the email html data".to_string(),
-                )
-            })?;
-            personal_email_client
-            .send_html_email(
-                &body.to,
-                &body.cc,
-                &format!("Request for {} leave",  &user_leave.leave_type.label),
-                rendered_string,
-                message_id,
-                None,
-            )
-            .await
-            .map_err(|e| GenericError::UnexpectedCustomError(e.to_string()))?;
-         }
-
-        let _ = send_notification(
-            &pool,
-            &websocket_srv,
-            WebSocketActionType::LeaveRequest,
-            ProcessType::Deferred,
-            Some(reciever_account.id),
-            format!("Leave Request send by {}", user.display_name),
-            Some(business.id)
-        )
-        .await;
-        // .map_err(|e| GenericError::UnexpectedCustomError(e.to_string()))?;
-
-    }
-    transaction
-        .commit()
-        .await
-        .context("Failed to commit SQL transaction to store a new user account.")?;
-
-    Ok(web::Json(GenericResponse::success(
-        "Sucessfully created leave request",
-        (),
-    )))
-}
 
 // #[utoipa::path(
 //     patch,
@@ -406,145 +219,86 @@ pub async fn create_leave_req(
 //     )))
 // }
 
-// #[utoipa::path(
-//     delete,
-//     description = "API for making a deleting leave request",
-//     tag = "Leave",
-//     summary = "Leave Request Deletion API",
-//     path = "/leave/delete",
-//     responses(
-//         (status=200, description= "project Account created successfully", body= GenericResponse<TupleUnit>),
-//         (status=400, description= "Invalid Request body", body= GenericResponse<TupleUnit>),
-//         (status=401, description= "Invalid Token", body= GenericResponse<TupleUnit>),
-// 	    (status=403, description= "Insufficient Previlege", body= GenericResponse<TupleUnit>),
-// 	    (status=410, description= "Data not found", body= GenericResponse<TupleUnit>),
-//         (status=500, description= "Internal Server Error", body= GenericResponse<TupleUnit>)
-//     ),
-//     params(
-//         ("Authorization" = String, Header, description = "JWT token"),
-//         ("x-request-id" = String, Header, description = "Request id"),
-//         ("x-device-id" = String, Header, description = "Device id"),
-//         ("id" = String, Path, description = "Leave ID"),
-//       )
-// )]
-// #[tracing::instrument(err, name = "Leave Request Deletion Request", skip(pool), fields())]
-// pub async fn leave_request_deletion_req(
-//     path: web::Path<Uuid>,
-//     pool: web::Data<PgPool>,
-//     user: UserAccount,
-//     mail_config: web::Data<EmailClientConfig>,
-//     // permissions: AllowedPermission,
-// ) -> Result<web::Json<GenericResponse<()>>, GenericError> {
-//     let leave_id = path.into_inner();
 
-//     let filter_query = FetchLeaveQuery::builder().with_leave_id(Some(leave_id));
-//     let leave = get_leaves(&pool, &filter_query)
-//         .await
-//         .map_err(|e| {
-//             GenericError::DatabaseError(
-//                 "Something went wrong while fetching leave data".to_string(),
-//                 e,
-//             )
-//         })?
-//         .into_iter()
-//         .next()
-//         .ok_or_else(|| GenericError::DataNotFound("Invalid Leave ID".to_string()))?;
+#[utoipa::path(
+    post,
+    description = "API for making listing leave request",
+    tag = "Leave",
+    summary = "Leave Request Fetch API",
+    path = "/leave/list",
+    request_body(content = FetchLeaveRequest, description = "Request Body"),
+    responses(
+        (status=200, description= "project Account created successfully", body= GenericResponse<Vec<LeaveData>>),
+        (status=400, description= "Invalid Request body", body= GenericResponse<TupleUnit>),
+        (status=401, description= "Invalid Token", body= GenericResponse<TupleUnit>),
+	    (status=403, description= "Insufficient Previlege", body= GenericResponse<TupleUnit>),
+	    (status=410, description= "Data not found", body= GenericResponse<TupleUnit>),
+        (status=500, description= "Internal Server Error", body= GenericResponse<TupleUnit>)
+    ),
+    params(
+        ("Authorization" = String, Header, description = "JWT token"),
+        ("x-request-id" = String, Header, description = "Request id"),
+        ("x-device-id" = String, Header, description = "Device id"),
+        // ("id" = String, Path, description = "Leave ID"),
+      )
+)]
+#[tracing::instrument(err, name = "Leave Request listing request", skip(pool), fields())]
+pub async fn leave_request_fetch_req(
+    pool: web::Data<PgPool>,
+    req: FetchLeaveRequest,
+    user: UserAccount,
+    mail_config: web::Data<EmailClientConfig>,
+    permissions: AllowedPermission,
+) -> Result<web::Json<GenericResponse<Vec<LeaveData>>>, GenericError> {
+    let setting_key_list = vec![SettingKey::TimeZone.to_string()];
+    let setting_list = get_setting_value(&pool, &setting_key_list, None, Some(user.id), false)
+        .await
+        .map_err(|e| GenericError::DatabaseError(e.to_string(), e))?;
+    let timezone = setting_list
+        .get_setting(&SettingKey::TimeZone.to_string())
+        .ok_or_else(|| {
+            GenericError::DataNotFound(format!("Please set the {}", SettingKey::TimeZone))
+        })?;
+    let sender_id = if req.user_id.is_some()
+        && !permissions
+            .permission_list
+            .contains(&PermissionType::CreateLeaveRequest.to_string())
+    {
+        req.user_id
+    } else if req.action_type == FetchLeaveType::Sender {
+        Some(user.id)
+    } else {
+        None
+    };
 
-//     if leave.sender_id != user.id {
-//         return Err(GenericError::InsufficientPrevilegeError(
-//             "You don't have previlege to delete other user's leaves".to_string(),
-//         ));
-//     };
-//     delete_leave(&pool, leave_id, user.id).await.map_err(|_| {
-//         GenericError::UnexpectedCustomError(
-//             "You don't have previlege to delete other user's leaves".to_string(),
-//         )
-//     })?;
-//     Ok(web::Json(GenericResponse::success(
-//         "Sucessfully deleted leave request",
-//         (),
-//     )))
-// }
-
-// #[utoipa::path(
-//     post,
-//     description = "API for making listing leave request",
-//     tag = "Leave",
-//     summary = "Leave Request Fetch API",
-//     path = "/leave/list",
-//     request_body(content = FetchLeaveRequest, description = "Request Body"),
-//     responses(
-//         (status=200, description= "project Account created successfully", body= GenericResponse<Vec<LeaveData>>),
-//         (status=400, description= "Invalid Request body", body= GenericResponse<TupleUnit>),
-//         (status=401, description= "Invalid Token", body= GenericResponse<TupleUnit>),
-// 	    (status=403, description= "Insufficient Previlege", body= GenericResponse<TupleUnit>),
-// 	    (status=410, description= "Data not found", body= GenericResponse<TupleUnit>),
-//         (status=500, description= "Internal Server Error", body= GenericResponse<TupleUnit>)
-//     ),
-//     params(
-//         ("Authorization" = String, Header, description = "JWT token"),
-//         ("x-request-id" = String, Header, description = "Request id"),
-//         ("x-device-id" = String, Header, description = "Device id"),
-//         // ("id" = String, Path, description = "Leave ID"),
-//       )
-// )]
-// #[tracing::instrument(err, name = "Leave Request listing request", skip(pool), fields())]
-// pub async fn leave_request_fetch_req(
-//     pool: web::Data<PgPool>,
-//     req: FetchLeaveRequest,
-//     user: UserAccount,
-//     mail_config: web::Data<EmailClientConfig>,
-//     permissions: AllowedPermission,
-// ) -> Result<web::Json<GenericResponse<Vec<LeaveData>>>, GenericError> {
-//     let setting_key_list = vec![SettingKey::TimeZone.to_string()];
-//     let setting_list = get_setting_value(&pool, &setting_key_list, None, Some(user.id), false)
-//         .await
-//         .map_err(|e| GenericError::DatabaseError(e.to_string(), e))?;
-//     let timezone = setting_list
-//         .get_setting(&SettingKey::TimeZone.to_string())
-//         .ok_or_else(|| {
-//             GenericError::DataNotFound(format!("Please set the {}", SettingKey::TimeZone))
-//         })?;
-//     let sender_id = if req.user_id.is_some()
-//         && !permissions
-//             .permission_list
-//             .contains(&PermissionType::CreateLeaveRequest.to_string())
-//     {
-//         req.user_id
-//     } else if req.action_type == FetchLeaveType::Sender {
-//         Some(user.id)
-//     } else {
-//         None
-//     };
-
-//     let receiver_id = if req.action_type == FetchLeaveType::Receiver {
-//         Some(user.id)
-//     } else {
-//         None
-//     };
-//     let tz: Tz = timezone
-//         .parse()
-//         .map_err(|_| GenericError::DataNotFound("please set the timezone".to_string()))?;
-//     let filter_query = FetchLeaveQuery::builder()
-//         .with_leave_id(req.id)
-//         .with_sender_id(sender_id)
-//         .with_recevier_id(receiver_id)
-//         .with_tz(Some(&tz))
-//         .with_start_date(req.start_date.as_ref())
-//         .with_end_date(req.end_date.as_ref())
-//         .with_limit(Some(req.limit))
-//         .with_offset(Some(req.offset));
-//     let leave = get_leaves(&pool, &filter_query).await.map_err(|e| {
-//         GenericError::DatabaseError(
-//             "Something went wrong while fetching leave data".to_string(),
-//             e,
-//         )
-//     })?;
-//     Ok(web::Json(GenericResponse::success(
-//         "Sucessfully fetched leave request",
-//         leave,
-//     )))
-// }
+    let receiver_id = if req.action_type == FetchLeaveType::Receiver {
+        Some(user.id)
+    } else {
+        None
+    };
+    let tz: Tz = timezone
+        .parse()
+        .map_err(|_| GenericError::DataNotFound("please set the timezone".to_string()))?;
+    let filter_query = FetchLeaveQuery::builder()
+        .with_leave_id(req.id)
+        .with_sender_id(sender_id)
+        .with_recevier_id(receiver_id)
+        .with_tz(Some(&tz))
+        .with_start_date(req.start_date.as_ref())
+        .with_end_date(req.end_date.as_ref())
+        .with_limit(Some(req.limit))
+        .with_offset(Some(req.offset));
+    let leave = get_leaves(&pool, &filter_query).await.map_err(|e| {
+        GenericError::DatabaseError(
+            "Something went wrong while fetching leave data".to_string(),
+            e,
+        )
+    })?;
+    Ok(web::Json(GenericResponse::success(
+        "Sucessfully fetched leave request",
+        leave,
+    )))
+}
 
 #[utoipa::path(
     post,
@@ -1020,6 +774,264 @@ pub async fn delete_leave_user_association_req(
         })?;
     Ok(web::Json(GenericResponse::success(
         "Sucessfully deleted user leaves",
+        (),
+    )))
+}
+
+
+
+
+#[utoipa::path(
+    post,
+    description = "API for making a leave request",
+    tag = "Leave",
+    summary = "Leave Request Creation API",
+    path = "/leave/request/create",
+    request_body(content = CreateLeaveRequest, description = "Request Body"),
+    responses(
+        (status=200, description= "project Account created successfully", body= GenericResponse<TupleUnit>),
+        (status=400, description= "Invalid Request body", body= GenericResponse<TupleUnit>),
+        (status=401, description= "Invalid Token", body= GenericResponse<TupleUnit>),
+	    (status=403, description= "Insufficient Previlege", body= GenericResponse<TupleUnit>),
+	    (status=410, description= "Data not found", body= GenericResponse<TupleUnit>),
+        (status=500, description= "Internal Server Error", body= GenericResponse<TupleUnit>)
+    ),
+    params(
+        ("Authorization" = String, Header, description = "JWT token"),
+        ("x-request-id" = String, Header, description = "Request id"),
+        ("x-device-id" = String, Header, description = "Device id"),
+      )
+)]
+#[tracing::instrument(err, name = "Leave Request Creation API", skip(pool, body), fields())]
+pub async fn create_leave_req(
+    body: CreateLeaveRequest,
+    pool: web::Data<PgPool>,
+    user: UserAccount,
+    business: BusinessAccount,
+    mail_config: web::Data<EmailClientConfig>,
+    permissions: AllowedPermission,
+    websocket_srv: web::Data<Addr<Server>>,
+) -> Result<web::Json<GenericResponse<()>>, GenericError> {
+    if body.user_id.is_some()
+        && !permissions
+            .permission_list
+            .contains(&PermissionType::CreateLeaveRequest.to_string())
+    {
+        return Err(GenericError::InsufficientPrevilegeError(
+            "You don't have sufficient previlege to create leave request for other users"
+                .to_string(),
+        ));
+    }
+    let user_id = body.user_id.unwrap_or(user.id);
+    if !body.send_mail && !user.is_vector_verified(&VectorType::Email) {
+        return Err(GenericError::InsufficientPrevilegeError(
+            "Please Verify your email, before creating a leave request".to_string(),
+        ));
+    }
+    let setting_keys = vec![
+        SettingKey::EmailAppPassword.to_string(),
+        SettingKey::LeaveRequestTemplate.to_string(),
+    ];
+    let (config_res, reciever_account_res,  user_leave_res) = join!(
+        get_setting_value(&pool, &setting_keys, None, Some(user.id), true),
+        get_user(vec![body.to.get()], &pool),
+        // get_leave_type(&pool, business.id, Some(vec![body.r#type]), None, None),
+        // get_leave_group(&pool, business.id, None, None, Some(Utc::now()), Some(Utc::now())),
+        fetch_user_leaves(
+            &pool,
+            business.id,
+            user_id,
+            body.group_id,
+        ),
+
+    );
+    let user_leave_list = user_leave_res.map_err(|e| GenericError::DatabaseError(e.to_string(), e))?;
+    let user_leave = user_leave_list.first()
+        .ok_or_else(|| {
+            GenericError::DataNotFound(format!(
+                "No Leave is added for the user for given group and type is not set fot user"
+            ))
+        })?;
+    // .map_err(|e| GenericError::DatabaseError(e.to_string(), e))?;
+    let configs = config_res.map_err(|e| GenericError::DatabaseError(e.to_string(), e))?;
+
+
+
+
+    validate_leave_request_creation(
+        &pool,
+        &body,
+        user_leave,
+    )
+    .await
+    .map_err(|e| GenericError::ValidationError(e.to_string()))?;  
+        let email_password = configs
+        .get_setting(&SettingKey::EmailAppPassword.to_string())
+        .ok_or_else(|| {
+            GenericError::DataNotFound(format!("Please set the {}", SettingKey::EmailAppPassword))
+        })?;
+   
+    let personal_email_client = SmtpEmailClient::new_personal(
+            &user.email,
+            SecretString::from(email_password.as_ref()),
+            &mail_config.personal.base_url,
+        )
+        .unwrap();
+
+    let message_id = if body.send_mail{Some(personal_email_client.generate_message_id(&mail_config.personal.message_id_suffix))} else{ None};   
+
+
+
+    let reciever_account = reciever_account_res
+        .map_err(|e| GenericError::DatabaseError(e.to_string(), e))?
+        .ok_or(GenericError::DataNotFound("User not found.".to_string()))?;
+
+    let mut transaction = pool
+        .begin()
+        .await
+        .context("Failed to acquire a Postgres connection from the pool")?;
+    if save_leave_request(
+        &mut transaction,
+        &body,
+        user_leave.id,
+        user.id,
+        reciever_account.id,
+        message_id.as_deref(),
+    )
+    .await
+    .map_err(|e| GenericError::DatabaseError(e.to_string(), e))?
+    {
+
+         if body.send_mail{
+            let html_template: String = configs
+                .get_setting(&SettingKey::LeaveRequestTemplate.to_string())
+                .ok_or_else(|| {
+                    GenericError::DataNotFound(format!(
+                        "Please set the {}",
+                        SettingKey::LeaveRequestTemplate
+                    ))
+                })?;
+            let receiver = to_title_case(&reciever_account.display_name);
+            let sender = to_title_case(&user.display_name);
+            let reason = body.reason.unwrap_or("NA".to_string());
+            let context_data = LeaveRequestEmailContext::new(
+                &sender,
+                body.leave_data.iter().map(|a| a.date.to_string()).collect(),
+                &reason,
+                &receiver,
+                &user_leave.leave_type.label,
+            );
+            let context = TeraContext::from_serialize(&context_data).map_err(|e: tera::Error| {
+                tracing::error!("{}", e);
+                GenericError::UnexpectedCustomError(
+                    "Something went wrong while rendering the email html data".to_string(),
+                )
+            })?;
+            let rendered_string = Tera::one_off(&html_template, &context, true).map_err(|e| {
+                tracing::error!("Error while rendering html {} error: {}", html_template, e);
+                GenericError::UnexpectedCustomError(
+                    "Something went wrong while rendering the email html data".to_string(),
+                )
+            })?;
+            personal_email_client
+            .send_html_email(
+                &body.to,
+                &body.cc,
+                &format!("Request for {} leave",  &user_leave.leave_type.label),
+                rendered_string,
+                message_id,
+                None,
+            )
+            .await
+            .map_err(|e| GenericError::UnexpectedCustomError(e.to_string()))?;
+         }
+
+        let _ = send_notification(
+            &pool,
+            &websocket_srv,
+            WebSocketActionType::LeaveRequest,
+            ProcessType::Deferred,
+            Some(reciever_account.id),
+            format!("Leave Request send by {}", user.display_name),
+            Some(business.id)
+        )
+        .await;
+        // .map_err(|e| GenericError::UnexpectedCustomError(e.to_string()))?;
+
+    }
+    transaction
+        .commit()
+        .await
+        .context("Failed to commit SQL transaction to store a new user account.")?;
+
+    Ok(web::Json(GenericResponse::success(
+        "Sucessfully created leave request",
+        (),
+    )))
+}
+
+
+#[utoipa::path(
+    delete,
+    description = "API for making a deleting leave request",
+    tag = "Leave",
+    summary = "Leave Request Deletion API",
+    path = "/leave/request/delete",
+    responses(
+        (status=200, description= "project Account created successfully", body= GenericResponse<TupleUnit>),
+        (status=400, description= "Invalid Request body", body= GenericResponse<TupleUnit>),
+        (status=401, description= "Invalid Token", body= GenericResponse<TupleUnit>),
+	    (status=403, description= "Insufficient Previlege", body= GenericResponse<TupleUnit>),
+	    (status=410, description= "Data not found", body= GenericResponse<TupleUnit>),
+        (status=500, description= "Internal Server Error", body= GenericResponse<TupleUnit>)
+    ),
+    params(
+        ("Authorization" = String, Header, description = "JWT token"),
+        ("x-request-id" = String, Header, description = "Request id"),
+        ("x-device-id" = String, Header, description = "Device id"),
+        ("id" = String, Path, description = "Leave ID"),
+      )
+)]
+#[tracing::instrument(err, name = "Leave Request Deletion Request", skip(pool), fields())]
+pub async fn leave_request_deletion_req(
+    path: web::Path<Uuid>,
+    pool: web::Data<PgPool>,
+    user: UserAccount,
+    mail_config: web::Data<EmailClientConfig>,
+    // permissions: AllowedPermission,
+) -> Result<web::Json<GenericResponse<()>>, GenericError> {
+    let leave_id = path.into_inner();
+
+    let filter_query = FetchLeaveQuery::builder().with_leave_id(Some(leave_id));
+    let leave = get_leaves(&pool, &filter_query)
+        .await
+        .map_err(|e| {
+            GenericError::DatabaseError(
+                "Something went wrong while fetching leave data".to_string(),
+                e,
+            )
+        })?
+        .into_iter()
+        .next()
+        .ok_or_else(|| GenericError::DataNotFound("Invalid Leave ID".to_string()))?;
+
+    if leave.user_id != user.id {
+        return Err(GenericError::InsufficientPrevilegeError(
+            "You don't have previlege to delete other user's leaves".to_string(),
+        ));
+    };
+    if leave.status == LeaveStatus::Approved {
+        return Err(GenericError::ValidationError(
+            "The leave is already approved, pls reject the leave request before deletion".to_string(),
+        ));
+    }
+    delete_leave(&pool, leave_id, user.id).await.map_err(|_| {
+        GenericError::UnexpectedCustomError(
+            "something went wrong while deleting leave".to_string(),
+        )
+    })?;
+    Ok(web::Json(GenericResponse::success(
+        "Sucessfully deleted leave request",
         (),
     )))
 }

@@ -165,10 +165,11 @@ pub struct LeaveData {
     pub date: DateTime<Utc>,
     pub reason: Option<String>,
     pub status: LeaveStatus,
-    pub sender_id: Uuid,
+    pub user_id: Uuid,
     pub email_message_id: Option<String>,
     pub cc: Option<Vec<EmailObject>>,
     pub created_on: Option<DateTime<FixedOffset>>,
+    pub leave_type: String,
 }
 
 #[derive(Serialize)]

@@ -164,10 +164,31 @@ pub async fn fetch_leave_models<'a>(
 ) -> Result<Vec<LeaveDataModel>, anyhow::Error> {
     let mut query_builder = QueryBuilder::new(
         r#"
-        SELECT id, sender_id, created_on, type, period, date, status, email_message_id, cc, reason FROM leave WHERE is_deleted=false "#,
+        SELECT 
+            l_r.id, 
+            l_r.period, 
+            l_r.date, 
+            l_r.reason, 
+            l_r.status,  
+            l_r.email_message_id, 
+            l_r.cc, 
+            l_r.reason,
+            l_r.created_on,
+            lt.label AS leave_type,
+            ulr.user_id
+        FROM 
+            leave_request AS l_r
+        LEFT JOIN 
+            user_leave_relationship AS ulr 
+            ON l_r.user_leave_id = ulr.id
+        LEFT JOIN 
+            leave_type AS lt 
+            ON ulr.leave_type_id = lt.id
+        WHERE 
+            l_r.is_deleted = false"#,
     );
     if let Some(user_id) = query.sender_id {
-        query_builder.push(" AND sender_id =");
+        query_builder.push(" AND ulr.user_id =");
         query_builder.push_bind(user_id);
     }
     if let Some(receiver_id) = query.receiver_id {
@@ -184,7 +205,7 @@ pub async fn fetch_leave_models<'a>(
     }
 
     if let Some(leave_id) = query.leave_id {
-        query_builder.push(" AND id =");
+        query_builder.push(" AND l_r.id =");
         query_builder.push_bind(leave_id);
     }
 
@@ -199,7 +220,7 @@ pub async fn fetch_leave_models<'a>(
             // Convert to UTC
             let utc_start = localized.with_timezone(&Utc);
 
-            query_builder.push(" AND created_on >= ");
+            query_builder.push(" AND l_r.created_on >= ");
             query_builder.push_bind(utc_start);
         };
     }
@@ -211,7 +232,7 @@ pub async fn fetch_leave_models<'a>(
                 .single()
                 .ok_or_else(|| anyhow!("Ambiguous or invalid local datetime for end_date"))?;
             let utc_end = localized.with_timezone(&Utc);
-            query_builder.push(" AND created_on <= ");
+            query_builder.push(" AND l_r.created_on <= ");
             query_builder.push_bind(utc_end);
         };
     }
@@ -235,43 +256,43 @@ pub async fn fetch_leave_models<'a>(
     Ok(leaves)
 }
 
-// pub async fn get_leaves<'a>(
+pub async fn get_leaves<'a>(
+    pool: &PgPool,
+    query: &'a FetchLeaveQuery<'a>,
+) -> Result<Vec<LeaveData>, anyhow::Error> {
+    let models = fetch_leave_models(pool, query).await?;
+
+    let data: Vec<LeaveData> = models
+        .into_iter()
+        .map(|a| a.into_schema(query.tz))
+        .collect();
+    Ok(data)
+}
+
+// pub async fn _leave_exists(
 //     pool: &PgPool,
-//     query: &'a FetchLeaveQuery<'a>,
-// ) -> Result<Vec<LeaveData>, anyhow::Error> {
-//     let models = fetch_leave_models(pool, query).await?;
+//     date: DateTime<Utc>,
+//     period: LeavePeriod,
+//     user_id: Uuid,
+// ) -> Result<bool, anyhow::Error> {
+//     let exists = sqlx::query_scalar!(
+//         r#"
+//         SELECT EXISTS (
+//             SELECT 1 FROM leave
+//             WHERE sender_id = $1
+//               AND date = $2
+//               AND period = $3
+//         )
+//         "#,
+//         user_id,
+//         date,
+//         period as LeavePeriod // Explicit cast if needed
+//     )
+//     .fetch_one(pool)
+//     .await?;
 
-//     let data: Vec<LeaveData> = models
-//         .into_iter()
-//         .map(|a| a.into_schema(query.tz))
-//         .collect();
-//     Ok(data)
+//     Ok(exists.unwrap_or(false)) // just in case DB returns NULL (unlikely here)
 // }
-
-// // pub async fn _leave_exists(
-// //     pool: &PgPool,
-// //     date: DateTime<Utc>,
-// //     period: LeavePeriod,
-// //     user_id: Uuid,
-// // ) -> Result<bool, anyhow::Error> {
-// //     let exists = sqlx::query_scalar!(
-// //         r#"
-// //         SELECT EXISTS (
-// //             SELECT 1 FROM leave
-// //             WHERE sender_id = $1
-// //               AND date = $2
-// //               AND period = $3
-// //         )
-// //         "#,
-// //         user_id,
-// //         date,
-// //         period as LeavePeriod // Explicit cast if needed
-// //     )
-// //     .fetch_one(pool)
-// //     .await?;
-
-// //     Ok(exists.unwrap_or(false)) // just in case DB returns NULL (unlikely here)
-// // }
 
 // pub async fn get_leave_count(
 //     pool: &PgPool,
@@ -443,32 +464,32 @@ pub async fn validate_leave_request_creation(
 // //     Ok(())
 // // }
 
-// #[tracing::instrument(name = "reactivate user account", skip(pool))]
-// pub async fn delete_leave(
-//     pool: &PgPool,
-//     leave_id: Uuid,
-//     deleted_by: Uuid,
-// ) -> Result<(), anyhow::Error> {
-//     let _ = sqlx::query!(
-//         r#"
-//         UPDATE leave
-//         SET is_deleted = true,
-//         deleted_on = $2,
-//         deleted_by = $3
-//         WHERE id = $1
-//         "#,
-//         leave_id,
-//         Utc::now(),
-//         deleted_by
-//     )
-//     .execute(pool)
-//     .await
-//     .map_err(|e| {
-//         tracing::error!("Failed to execute query: {:?}", e);
-//         anyhow::Error::new(e).context("A database failure occurred while deleting leave")
-//     })?;
-//     Ok(())
-// }
+#[tracing::instrument(name = "reactivate user account", skip(pool))]
+pub async fn delete_leave(
+    pool: &PgPool,
+    leave_id: Uuid,
+    deleted_by: Uuid,
+) -> Result<(), anyhow::Error> {
+    let _ = sqlx::query!(
+        r#"
+        UPDATE leave_request
+        SET is_deleted = true,
+        deleted_on = $2,
+        deleted_by = $3
+        WHERE id = $1
+        "#,
+        leave_id,
+        Utc::now(),
+        deleted_by
+    )
+    .execute(pool)
+    .await
+    .map_err(|e| {
+        tracing::error!("Failed to execute query: {:?}", e);
+        anyhow::Error::new(e).context("A database failure occurred while deleting leave")
+    })?;
+    Ok(())
+}
 
 // async fn get_approved_leaves_by_lock(
 //     transaction: &mut Transaction<'_, Postgres>,

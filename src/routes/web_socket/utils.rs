@@ -4,7 +4,6 @@ use crate::websocket_client::Server;
 use crate::websocket_client::{MessageToClient, SessionExists, WebSocketActionType, WebSocketData};
 use actix::Addr;
 use anyhow::anyhow;
-use serde_json::Value;
 use sqlx::PgPool;
 use uuid::Uuid;
 
