@@ -1,7 +1,8 @@
 use crate::email::EmailObject;
 
 use super::schemas::{
-    LeaveData, LeaveGroup, LeavePeriod, LeaveStatus, LeaveType, LeaveTypeData, UserLeave,
+    LeaveData, LeaveGroup, LeavePeriod, LeaveStatus, LeaveTypeData, UserLeave, UserLeaveGroup,
+    UserLeaveType,
 };
 use bigdecimal::BigDecimal;
 use chrono::{DateTime, TimeZone, Utc};
@@ -12,7 +13,6 @@ use uuid::Uuid;
 
 #[derive(Debug, FromRow)]
 pub struct LeaveDataModel {
-    pub r#type: LeaveType,
     pub period: LeavePeriod,
     pub date: DateTime<Utc>,
     pub reason: Option<String>,
@@ -32,7 +32,6 @@ impl LeaveDataModel {
         });
 
         LeaveData {
-            r#type: self.r#type,
             period: self.period,
             date: self.date,
             reason: self.reason,
@@ -49,7 +48,6 @@ impl LeaveDataModel {
 #[derive(Debug, FromRow)]
 pub struct MinimalLeaveModel {
     pub id: Uuid,
-    pub r#type: LeaveType,
     pub period: LeavePeriod,
     pub sender_id: Uuid,
 }
@@ -97,6 +95,8 @@ pub struct UserLeaveModel {
     pub user_id: Uuid,
     pub leave_type_id: Uuid,
     pub leave_group_id: Uuid,
+    pub leave_group_label: String,
+    pub leave_type_label: String,
 }
 
 impl UserLeaveModel {
@@ -107,8 +107,14 @@ impl UserLeaveModel {
             used_count: self.used_count,
             business_id: self.business_id,
             user_id: self.user_id,
-            leave_type_id: self.leave_type_id,
-            leave_group_id: self.leave_group_id,
+            leave_type: UserLeaveType {
+                id: self.leave_type_id,
+                label: self.leave_type_label,
+            },
+            leave_group: UserLeaveGroup {
+                id: self.leave_group_id,
+                label: self.leave_group_label,
+            },
         }
     }
 }

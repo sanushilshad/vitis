@@ -308,6 +308,7 @@ pub async fn user_business_association_req(
             "{} Business is associated to you account by {}",
             business_account.display_name, user_account.display_name
         ),
+        Some(business_account.id),
     )
     .await
     .map_err(|e| GenericError::UnexpectedCustomError(e.to_string()))?;

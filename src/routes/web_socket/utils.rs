@@ -1,12 +1,12 @@
+use super::schemas::ProcessType;
 use crate::utils::save_notification_to_database;
 use crate::websocket_client::Server;
 use crate::websocket_client::{MessageToClient, SessionExists, WebSocketActionType, WebSocketData};
 use actix::Addr;
 use anyhow::anyhow;
+use serde_json::Value;
 use sqlx::PgPool;
 use uuid::Uuid;
-
-use super::schemas::ProcessType;
 
 pub async fn send_notification(
     pool: &PgPool,
@@ -15,10 +15,15 @@ pub async fn send_notification(
     process_type: ProcessType,
     user_id: Option<Uuid>,
     message: String,
+    business_id: Option<Uuid>,
 ) -> Result<(), anyhow::Error> {
     let msg: MessageToClient = MessageToClient::new(
         action_type,
-        serde_json::to_value(WebSocketData { message }).unwrap(),
+        serde_json::to_value(WebSocketData {
+            message,
+            business_id: business_id,
+        })
+        .unwrap(),
         user_id,
         None,
         None,

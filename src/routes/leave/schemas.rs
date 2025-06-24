@@ -13,29 +13,6 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use utoipa::ToSchema;
 use uuid::Uuid;
-#[derive(Serialize, Deserialize, Debug, ToSchema, sqlx::Type, Eq, Hash, PartialEq)]
-#[sqlx(type_name = "leave_type", rename_all = "snake_case")]
-#[serde(rename_all = "snake_case")]
-pub enum LeaveType {
-    Medical,
-    Casual,
-    Restricted,
-    Common, // Global
-    Unpaid,
-}
-
-impl fmt::Display for LeaveType {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let display_str = match self {
-            LeaveType::Medical => "medical",
-            LeaveType::Casual => "casual",
-            LeaveType::Restricted => "restricted",
-            LeaveType::Common => "common",
-            LeaveType::Unpaid => "unpaid",
-        };
-        write!(f, "{}", display_str)
-    }
-}
 
 // impl LeaveType {
 //     pub fn get_setting_key(&self) -> SettingKey {
@@ -90,9 +67,11 @@ pub struct CreateLeaveRequest {
     pub to: EmailObject,
     pub cc: Option<Vec<EmailObject>>,
     pub reason: Option<String>,
-    pub r#type: LeaveType,
+    pub type_id: Uuid,
+    pub group_id: Uuid,
     pub user_id: Option<Uuid>,
     pub leave_data: Vec<CreateLeaveData>,
+    pub send_mail: bool,
 }
 
 impl FromRequest for CreateLeaveRequest {
@@ -118,7 +97,7 @@ pub struct BulkLeaveRequestInsert<'a> {
     pub receiver_id: Vec<Uuid>,
     pub created_on: Vec<DateTime<Utc>>,
     pub created_by: Vec<Uuid>,
-    pub leave_type: Vec<&'a LeaveType>,
+    pub user_leave_id: Vec<Uuid>,
     pub leave_period: Vec<&'a LeavePeriod>,
     pub date: Vec<DateTime<Utc>>,
     pub status: Vec<LeaveStatus>,
@@ -133,7 +112,7 @@ pub struct LeaveRequestEmailContext<'a> {
     dates: Vec<String>,
     reason: &'a str,
     receiver: &'a str,
-    r#type: &'a LeaveType,
+    r#type: &'a str,
 }
 
 impl<'a> LeaveRequestEmailContext<'a> {
@@ -142,7 +121,7 @@ impl<'a> LeaveRequestEmailContext<'a> {
         dates: Vec<String>,
         reason: &'a str,
         receiver: &'a str,
-        r#type: &'a LeaveType,
+        r#type: &'a str,
     ) -> Self {
         Self {
             sender,
@@ -181,7 +160,7 @@ impl FromRequest for UpdateLeaveStatusRequest {
 #[serde(rename_all = "camelCase")]
 pub struct LeaveData {
     pub id: Uuid,
-    pub r#type: LeaveType,
+    // pub r#type: LeaveType,
     pub period: LeavePeriod,
     pub date: DateTime<Utc>,
     pub reason: Option<String>,
@@ -482,7 +461,21 @@ impl FromRequest for ListLeaveUserAssociationRequest {
     }
 }
 
-#[derive(Deserialize, Debug, ToSchema)]
+#[derive(Serialize, Debug, ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct UserLeaveGroup {
+    pub id: Uuid,
+    pub label: String,
+}
+
+#[derive(Serialize, Debug, ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct UserLeaveType {
+    pub id: Uuid,
+    pub label: String,
+}
+
+#[derive(Serialize, Debug, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct UserLeave {
     pub id: Uuid,
@@ -492,8 +485,8 @@ pub struct UserLeave {
     pub used_count: BigDecimal,
     pub business_id: Uuid,
     pub user_id: Uuid,
-    pub leave_type_id: Uuid,
-    pub leave_group_id: Uuid,
+    pub leave_type: UserLeaveType,
+    pub leave_group: UserLeaveGroup,
 }
 
 // #[derive(Deserialize, Debug, ToSchema)]

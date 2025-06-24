@@ -8,24 +8,26 @@ pub mod tests {
             leave::{
                 schemas::{
                     CreateLeaveData, CreateLeaveRequest, FetchLeaveQuery,
-                    LeaveGroupCreationRequest, LeavePeriod, LeaveStatus, LeaveType,
-                    LeaveTypeCreationData, UserLeaveCreationData,
+                    LeaveGroupCreationRequest, LeavePeriod, LeaveStatus, LeaveTypeCreationData,
+                    UserLeaveCreationData,
                 },
                 utils::{
                     delete_leave_group,
                     delete_leave_type,
                     delete_user_leave,
-                    fetch_user_leave,
+                    fetch_user_leaves,
                     get_leave_group,
                     get_leave_type,
                     save_leave_group,
                     save_leave_type,
-                    save_user_leave, //  delete_leave, get_leaves,
-                                     // save_leave_request, update_leave_status,
-                                     // validate_leave_request, validate_leave_status_update,
+                    save_user_leave,
+                    validate_leave_request_creation, //  delete_leave, get_leaves,
+                                                     // save_leave_request, update_leave_status,
+                                                     // validate_leave_request, validate_leave_status_update,
                 },
             },
             user::{
+                self,
                 tests::tests::setup_user,
                 utils::{hard_delete_business_account, hard_delete_user_account},
             },
@@ -39,92 +41,6 @@ pub mod tests {
     use chrono_tz::Tz;
     use tokio::join;
     use uuid::Uuid;
-
-    // #[tokio::test]
-    // async fn test_leave_request_creation_validation() {
-    //     let pool = get_test_pool().await;
-    //     let email = "testuser17@example.com";
-    //     let mobile_no = "1234567900";
-    //     let user_res = setup_user(&pool, "testuser17", email, mobile_no, "testuser@123").await;
-    //     assert!(user_res.is_ok());
-    //     let user_id = user_res.unwrap();
-    //     let leave_data = vec![
-    //         CreateLeaveData {
-    //             period: LeavePeriod::FullDay,
-    //             date: NaiveDate::from_ymd_opt(2025, 7, 3).expect("invalid date"),
-    //         },
-    //         CreateLeaveData {
-    //             period: LeavePeriod::FullDay,
-    //             date: NaiveDate::from_ymd_opt(2025, 7, 3).expect("invalid date"),
-    //         },
-    //     ];
-    //     let mut leave_request = CreateLeaveRequest {
-    //         to: EmailObject::new(email.to_string()),
-    //         cc: None,
-    //         reason: None,
-    //         r#type: LeaveType::Casual,
-    //         user_id: Some(user_id),
-    //         leave_data,
-    //     };
-
-    //     let financial_year_start = Utc.with_ymd_and_hms(2025, 1, 1, 0, 0, 0).unwrap();
-
-    //     let leave_request_validation =
-    //         validate_leave_request(&pool, financial_year_start, &leave_request, user_id, 9).await;
-    //     assert!(leave_request_validation.is_err());
-
-    //     let leave_data = vec![
-    //         CreateLeaveData {
-    //             period: LeavePeriod::HalfDay,
-    //             date: NaiveDate::from_ymd_opt(2025, 7, 3).expect("invalid date"),
-    //         },
-    //         CreateLeaveData {
-    //             period: LeavePeriod::FullDay,
-    //             date: NaiveDate::from_ymd_opt(2025, 7, 3).expect("invalid date"),
-    //         },
-    //     ];
-    //     leave_request.leave_data = leave_data;
-    //     let leave_request_validation =
-    //         validate_leave_request(&pool, financial_year_start, &leave_request, user_id, 9).await;
-    //     assert!(leave_request_validation.is_err());
-
-    //     let leave_data = vec![
-    //         CreateLeaveData {
-    //             period: LeavePeriod::HalfDay,
-    //             date: NaiveDate::from_ymd_opt(2025, 7, 3).expect("invalid date"),
-    //         },
-    //         CreateLeaveData {
-    //             period: LeavePeriod::HalfDay,
-    //             date: NaiveDate::from_ymd_opt(2025, 7, 3).expect("invalid date"),
-    //         },
-    //     ];
-    //     leave_request.leave_data = leave_data;
-    //     let leave_request_validation =
-    //         validate_leave_request(&pool, financial_year_start, &leave_request, user_id, 9).await;
-    //     assert!(leave_request_validation.is_ok());
-
-    //     let leave_data = vec![
-    //         CreateLeaveData {
-    //             period: LeavePeriod::FullDay,
-    //             date: NaiveDate::from_ymd_opt(2025, 7, 3).expect("invalid date"),
-    //         },
-    //         CreateLeaveData {
-    //             period: LeavePeriod::FullDay,
-    //             date: NaiveDate::from_ymd_opt(2025, 7, 3).expect("invalid date"),
-    //         },
-    //     ];
-    //     leave_request.leave_data = leave_data;
-    //     let leave_request_validation =
-    //         validate_leave_request(&pool, financial_year_start, &leave_request, user_id, 1).await;
-    //     assert!(leave_request_validation.is_err());
-
-    //     let delete_res = hard_delete_user_account(
-    //         &pool,
-    //         &format!("{}{}", DUMMY_INTERNATIONAL_DIALING_CODE, mobile_no),
-    //     )
-    //     .await;
-    //     assert!(delete_res.is_ok());
-    // }
 
     // #[tokio::test]
     // async fn test_save_leave_request() {
@@ -650,7 +566,7 @@ pub mod tests {
         eprint!("aaaa{:?}", res);
         assert!(res.is_ok());
 
-        let user_leave_res = fetch_user_leave(&pool, business_id, user_id, leave_group_id).await;
+        let user_leave_res = fetch_user_leaves(&pool, business_id, user_id, leave_group_id).await;
         assert!(user_leave_res.is_ok());
         let user_leave_opt = user_leave_res.unwrap();
 
@@ -659,8 +575,149 @@ pub mod tests {
         let del_res =
             delete_user_leave(&pool, business_id, user_leave_opt.first().unwrap().id).await;
         assert!(del_res.is_ok());
-        let user_leave_res = fetch_user_leave(&pool, business_id, user_id, leave_group_id).await;
+        let user_leave_res = fetch_user_leaves(&pool, business_id, user_id, leave_group_id).await;
         assert!(user_leave_res.is_ok());
+
+        let delete_mobile = format!("{}{}", DUMMY_INTERNATIONAL_DIALING_CODE, mobile_no);
+        let (delete_business_account_res, delete_user_account_res) = tokio::join!(
+            hard_delete_business_account(&pool, business_id),
+            hard_delete_user_account(&pool, &delete_mobile)
+        );
+        assert!(delete_business_account_res.is_ok());
+        assert!(delete_user_account_res.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_leave_request_creation_validation() {
+        let pool = get_test_pool().await;
+        let email = "testuser17@example.com";
+        let mobile_no = "1234567900";
+        let user_res = setup_user(&pool, "testuser17", email, mobile_no, "testuser@123").await;
+        assert!(user_res.is_ok());
+        let user_id = user_res.unwrap();
+        let business_res = setup_business(&pool, mobile_no, "business@example.com").await;
+        let business_id = business_res.unwrap();
+
+        let start_date = Utc::now();
+        let end_date = start_date + Duration::days(2);
+        let leave_group_data = LeaveGroupCreationRequest {
+            id: None,
+            label: "2025".to_string(),
+            start_date,
+            end_date,
+        };
+        let leave_type_data = vec![LeaveTypeCreationData {
+            id: None,
+            label: "Casual Leave".to_string(),
+        }];
+
+        let (save_group_res, save_type_res) = tokio::join!(
+            save_leave_group(&pool, &leave_group_data, business_id, user_id),
+            save_leave_type(&pool, &leave_type_data, user_id, business_id)
+        );
+        assert!(save_group_res.is_ok());
+        assert!(save_type_res.is_ok());
+        let leave_group_id = save_group_res.unwrap();
+
+        let leave_type_res = get_leave_type(
+            &pool,
+            business_id,
+            None,
+            Some(vec!["Casual Leave", "Restricted Leave"]),
+            None,
+        )
+        .await;
+        assert!(leave_type_res.is_ok());
+        let leave_type_list = leave_type_res.unwrap();
+        assert!(leave_type_list.first().is_some());
+        let leave_type_id = leave_type_list.first().unwrap().id;
+
+        let user_leave_data = vec![UserLeaveCreationData {
+            type_id: leave_type_id,
+            count: BigDecimal::from_i32(5).unwrap(),
+            status: Status::Active,
+        }];
+        let res = save_user_leave(&pool, &user_leave_data, user_id, leave_group_id).await;
+
+        assert!(res.is_ok());
+
+        let user_leave_res = fetch_user_leaves(&pool, business_id, user_id, leave_group_id).await;
+        assert!(user_leave_res.is_ok());
+        let user_leave_opt = user_leave_res.unwrap();
+
+        assert!(user_leave_opt.first().is_some());
+        let user_leave = user_leave_opt.first().unwrap();
+
+        let leave_data = vec![
+            CreateLeaveData {
+                period: LeavePeriod::FullDay,
+                date: NaiveDate::from_ymd_opt(2025, 7, 3).expect("invalid date"),
+            },
+            CreateLeaveData {
+                period: LeavePeriod::FullDay,
+                date: NaiveDate::from_ymd_opt(2025, 7, 3).expect("invalid date"),
+            },
+        ];
+        let mut leave_request = CreateLeaveRequest {
+            to: EmailObject::new(email.to_string()),
+            cc: None,
+            reason: None,
+            user_id: Some(user_id),
+            leave_data,
+            type_id: leave_type_id,
+            group_id: leave_group_id,
+            send_mail: false,
+        };
+
+        let leave_request_validation =
+            validate_leave_request_creation(&pool, &leave_request, user_leave).await;
+        assert!(leave_request_validation.is_err());
+
+        let leave_data = vec![
+            CreateLeaveData {
+                period: LeavePeriod::HalfDay,
+                date: NaiveDate::from_ymd_opt(2025, 7, 3).expect("invalid date"),
+            },
+            CreateLeaveData {
+                period: LeavePeriod::FullDay,
+                date: NaiveDate::from_ymd_opt(2025, 7, 3).expect("invalid date"),
+            },
+        ];
+        leave_request.leave_data = leave_data;
+        let leave_request_validation =
+            validate_leave_request_creation(&pool, &leave_request, &user_leave).await;
+        assert!(leave_request_validation.is_err());
+
+        let leave_data = vec![
+            CreateLeaveData {
+                period: LeavePeriod::HalfDay,
+                date: NaiveDate::from_ymd_opt(2025, 7, 3).expect("invalid date"),
+            },
+            CreateLeaveData {
+                period: LeavePeriod::HalfDay,
+                date: NaiveDate::from_ymd_opt(2025, 7, 3).expect("invalid date"),
+            },
+        ];
+        leave_request.leave_data = leave_data;
+        let leave_request_validation =
+            validate_leave_request_creation(&pool, &leave_request, &user_leave).await;
+
+        assert!(leave_request_validation.is_ok());
+
+        let leave_data = vec![
+            CreateLeaveData {
+                period: LeavePeriod::FullDay,
+                date: NaiveDate::from_ymd_opt(2025, 7, 3).expect("invalid date"),
+            },
+            CreateLeaveData {
+                period: LeavePeriod::FullDay,
+                date: NaiveDate::from_ymd_opt(2025, 7, 3).expect("invalid date"),
+            },
+        ];
+        leave_request.leave_data = leave_data;
+        let leave_request_validation =
+            validate_leave_request_creation(&pool, &leave_request, &user_leave).await;
+        assert!(leave_request_validation.is_err());
 
         let delete_mobile = format!("{}{}", DUMMY_INTERNATIONAL_DIALING_CODE, mobile_no);
         let (delete_business_account_res, delete_user_account_res) = tokio::join!(

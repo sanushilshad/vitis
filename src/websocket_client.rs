@@ -27,6 +27,7 @@ pub enum WebSocketActionType {
 #[derive(Debug, Serialize, ToSchema)]
 pub struct WebSocketData {
     // pub action_type: WebSocketActionType,
+    pub business_id: Option<Uuid>,
     pub message: String,
 }
 

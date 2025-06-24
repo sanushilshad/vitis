@@ -8,22 +8,23 @@ use crate::{
 };
 
 use super::handlers::{
-    create_leave_user_association_req, leave_group_create_req, leave_group_delete_req,
-    leave_group_list_req, leave_type_create_req, leave_type_delete_req, leave_type_list_req,
+    create_leave_req, create_leave_user_association_req, delete_leave_user_association_req,
+    leave_group_create_req, leave_group_delete_req, leave_group_list_req, leave_type_create_req,
+    leave_type_delete_req, leave_type_list_req, list_leave_user_association_req,
 };
 
 pub fn leave_routes(cfg: &mut web::ServiceConfig) {
-    // cfg.route(
-    //     "/create",
-    //     web::post()
-    //         .to(create_leave_req)
-    //         .wrap(UserPermissionValidation {
-    //             permission_list: vec![
-    //                 PermissionType::CreateLeaveRequestSelf.to_string(),
-    //                 PermissionType::CreateLeaveRequest.to_string(),
-    //             ],
-    //         }),
-    // );
+    cfg.route(
+        "/request/create",
+        web::post()
+            .to(create_leave_req)
+            .wrap(BusinessPermissionValidation {
+                permission_list: vec![
+                    PermissionType::CreateLeaveRequestSelf.to_string(),
+                    PermissionType::CreateLeaveRequest.to_string(),
+                ],
+            }),
+    );
     // cfg.route(
     //     "/status/update",
     //     web::patch()
@@ -54,8 +55,7 @@ pub fn leave_routes(cfg: &mut web::ServiceConfig) {
             .to(leave_type_create_req)
             .wrap(BusinessPermissionValidation {
                 permission_list: vec![PermissionType::CreateLeaveType.to_string()],
-            })
-            .wrap(BusinessAccountValidation),
+            }),
     );
     cfg.route(
         "/type/delete/{id}",
@@ -63,8 +63,7 @@ pub fn leave_routes(cfg: &mut web::ServiceConfig) {
             .to(leave_type_delete_req)
             .wrap(BusinessPermissionValidation {
                 permission_list: vec![PermissionType::CreateLeaveType.to_string()],
-            })
-            .wrap(BusinessAccountValidation),
+            }),
     );
     cfg.route(
         "/type/list",
@@ -72,8 +71,7 @@ pub fn leave_routes(cfg: &mut web::ServiceConfig) {
             .to(leave_type_list_req)
             .wrap(BusinessPermissionValidation {
                 permission_list: vec![PermissionType::CreateLeaveType.to_string()],
-            })
-            .wrap(BusinessAccountValidation),
+            }),
     );
 
     cfg.route(
@@ -82,8 +80,7 @@ pub fn leave_routes(cfg: &mut web::ServiceConfig) {
             .to(leave_group_create_req)
             .wrap(BusinessPermissionValidation {
                 permission_list: vec![PermissionType::CreateLeaveType.to_string()],
-            })
-            .wrap(BusinessAccountValidation),
+            }),
     );
     cfg.route(
         "/group/delete/{id}",
@@ -91,18 +88,14 @@ pub fn leave_routes(cfg: &mut web::ServiceConfig) {
             .to(leave_group_delete_req)
             .wrap(BusinessPermissionValidation {
                 permission_list: vec![PermissionType::CreateLeaveType.to_string()],
-            })
-            .wrap(BusinessAccountValidation),
+            }),
     );
 
     cfg.route(
         "/group/list",
-        web::post()
-            .to(leave_group_list_req)
-            .wrap(BusinessPermissionValidation {
-                permission_list: vec![PermissionType::CreateLeaveType.to_string()],
-            })
-            .wrap(BusinessAccountValidation),
+        web::post().to(leave_group_list_req), // .wrap(BusinessPermissionValidation {
+                                              //     permission_list: vec![PermissionType::CreateLeaveType.to_string()],
+                                              // }),
     );
     cfg.route(
         "/user/association/save",
@@ -110,16 +103,22 @@ pub fn leave_routes(cfg: &mut web::ServiceConfig) {
             .to(create_leave_user_association_req)
             .wrap(BusinessPermissionValidation {
                 permission_list: vec![PermissionType::CreateLeaveType.to_string()],
-            })
-            .wrap(BusinessAccountValidation),
+            }),
     );
     cfg.route(
-        "/user/association/delete",
+        "/user/association/delete/{id}",
         web::delete()
-            .to(leave_group_delete_req)
+            .to(delete_leave_user_association_req)
             .wrap(BusinessPermissionValidation {
                 permission_list: vec![PermissionType::CreateLeaveType.to_string()],
-            })
-            .wrap(BusinessAccountValidation),
+            }),
+    );
+    cfg.route(
+        "/user/association/list",
+        web::post()
+            .to(list_leave_user_association_req)
+            .wrap(BusinessPermissionValidation {
+                permission_list: vec![PermissionType::CreateLeaveType.to_string()],
+            }),
     );
 }

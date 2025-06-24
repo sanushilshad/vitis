@@ -70,10 +70,8 @@ ALTER TABLE user_leave_relationship ADD CONSTRAINT user_leave_uq UNIQUE(user_id,
 
 CREATE TABLE IF NOT EXISTS leave_request (
   id uuid PRIMARY KEY,
-  sender_id uuid NOT NULL,
-  business_id uuid NOT NULL,
   receiver_id uuid NOT NULL,
-  leave_type_id uuid NOT NULL,
+  user_leave_id uuid NOT NULL,
   status leave_status NOT NULL,
   period leave_period NOT NULL,
   date TIMESTAMPTZ NOT NULL,
@@ -90,10 +88,6 @@ CREATE TABLE IF NOT EXISTS leave_request (
   is_deleted BOOLEAN NOT NULL DEFAULT false
 );
 
-ALTER TABLE leave_request ADD CONSTRAINT fk_leave_type_id FOREIGN KEY (leave_type_id)  REFERENCES leave_type(id) ON DELETE CASCADE;
-ALTER TABLE leave_request ADD CONSTRAINT fk_user_id FOREIGN KEY ("sender_id") REFERENCES user_account ("id") ON DELETE CASCADE;
-ALTER TABLE leave_request ADD CONSTRAINT fk_business_id FOREIGN KEY ("business_id") REFERENCES business_account ("id") ON DELETE CASCADE;
-CREATE UNIQUE INDEX leave_uq ON leave_request (sender_id, period, date) WHERE is_deleted = false;
-ALTER TABLE leave_request ADD CONSTRAINT fk_user_id FOREIGN KEY (sender_id)  REFERENCES user_account(id) ON DELETE CASCADE;
-CREATE INDEX leave_user_idx ON leave_request (sender_id);
+ALTER TABLE leave_request ADD CONSTRAINT fk_user_leave_id FOREIGN KEY (user_leave_id)  REFERENCES user_leave_relationship(id) ON DELETE CASCADE;
+CREATE UNIQUE INDEX leave_uq ON leave_request (user_leave_id, period, date) WHERE is_deleted = false;
 CREATE INDEX leave_created_on_idx ON leave_request (created_on);

@@ -1,5 +1,5 @@
 use crate::handlers::health_check;
-use crate::middlewares::{HeaderValidation, RequireAuth};
+use crate::middlewares::{BusinessAccountValidation, HeaderValidation, RequireAuth};
 use crate::openapi::ApiDoc;
 use crate::routes::business::routes::business_routes;
 // use crate::routes::department::routes::department_routes;
@@ -31,26 +31,27 @@ pub fn routes(cfg: &mut web::ServiceConfig) {
         .service(
             web::scope("/business")
                 .configure(business_routes)
-                .wrap(HeaderValidation)
                 .wrap(RequireAuth {
                     allow_deleted_user: false,
-                }),
+                })
+                .wrap(HeaderValidation),
         )
         .service(
             web::scope("/setting")
                 .configure(setting_routes)
-                .wrap(HeaderValidation)
                 .wrap(RequireAuth {
                     allow_deleted_user: false,
-                }),
+                })
+                .wrap(HeaderValidation),
         )
         .service(
             web::scope("/leave")
                 .configure(leave_routes)
-                .wrap(HeaderValidation)
+                .wrap(BusinessAccountValidation)
                 .wrap(RequireAuth {
                     allow_deleted_user: false,
-                }),
+                })
+                .wrap(HeaderValidation),
         )
         .service(SwaggerUi::new("/docs/{_:.*}").url("/api-docs/openapi.json", openapi.clone()));
 }
