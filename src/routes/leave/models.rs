@@ -24,6 +24,7 @@ pub struct LeaveDataModel {
     pub created_on: DateTime<Utc>,
     pub leave_type: String,
     pub user_id: Uuid,
+    pub user_leave_id: Uuid,
 }
 
 impl LeaveDataModel {
@@ -45,6 +46,7 @@ impl LeaveDataModel {
             created_on: local_dt,
             leave_type: self.leave_type,
             user_id: self.user_id,
+            user_leave_id: self.user_leave_id,
         }
     }
 }
@@ -53,7 +55,8 @@ impl LeaveDataModel {
 pub struct MinimalLeaveModel {
     pub id: Uuid,
     pub period: LeavePeriod,
-    pub sender_id: Uuid,
+    pub user_id: Uuid,
+    pub r#type: String,
 }
 
 #[derive(Debug, FromRow)]

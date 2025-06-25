@@ -39,18 +39,18 @@ impl UserRoleType {
     }
 }
 
-pub trait HasFullMobileNumber {
-    fn get_international_dialing_code(&self) -> &str;
-    fn get_mobile_no(&self) -> &str;
+// pub trait HasFullMobileNumber {
+//     fn get_international_dialing_code(&self) -> &str;
+//     fn get_mobile_no(&self) -> &str;
 
-    fn get_full_mobile_no(&self) -> String {
-        format!(
-            "{}{}",
-            self.get_international_dialing_code(),
-            self.get_mobile_no()
-        )
-    }
-}
+//     fn get_full_mobile_no(&self) -> String {
+//         format!(
+//             "{}{}",
+//             self.get_international_dialing_code(),
+//             self.get_mobile_no()
+//         )
+//     }
+// }
 
 #[derive(Deserialize, Debug, ToSchema)]
 #[serde(rename_all = "camelCase")]

@@ -251,12 +251,13 @@ The API Docmentation can be found at `https://{{domain}}/docs/` after running th
 * [x] Create user-business association API.
 * [x] Create fetch all user associated to a business API.
 * [x] Fetch All Users Associated to a business
-* [ ] Create business deletion API.
+* [ ] Create business deletion API.  (Ongoing)
 * [ ] User-Business Diasociation API.
 * [ ] Create business edit API.
 * [ ] Create Project Setting edit API.
+* [ ] Send Invite Email to User for Business Association.
 
-## MILESTONE 4 (12/14) LEAVE:
+## MILESTONE 4 (14/14) LEAVE:
 * [x] Add leave type creation / edit API.
 * [x] Add leave  type fetch API.
 * [x] Add leave  type deletion API.
@@ -269,8 +270,8 @@ The API Docmentation can be found at `https://{{domain}}/docs/` after running th
 * [x] Add leave request management API.
 * [x] Add leave request deletion API.
 * [x] Add leave fetch API.
-* [ ] Add leave request approval API. (Ongoing)
-* [ ] Add Leave Schedule API. (Need change)
+* [x] Add leave request approval API.
+* [x] Add Leave Alert Scheduler.
 
 
 ## MILESTONE 5 (0/4) (ROLE AND PERMISSION MANAGEMENT):

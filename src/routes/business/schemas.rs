@@ -8,7 +8,7 @@ use uuid::Uuid;
 
 use crate::email::EmailObject;
 use crate::errors::GenericError;
-use crate::routes::user::schemas::{UserRoleType, UserVector};
+use crate::routes::user::schemas::UserVector;
 use crate::schemas::Status;
 use anyhow::anyhow;
 
@@ -46,6 +46,7 @@ impl FromRequest for CreateBusinessAccount {
 
 #[derive(Deserialize, Debug, ToSchema)]
 #[serde(rename_all = "camelCase")]
+#[allow(dead_code)]
 pub struct BusinessFetchRequest {
     pub id: Uuid,
 }

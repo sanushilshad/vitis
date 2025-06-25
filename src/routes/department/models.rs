@@ -15,6 +15,7 @@ pub struct DepartmentAccountModel {
 }
 
 impl DepartmentAccountModel {
+    #[allow(dead_code)]
     pub fn into_basic_schema(self) -> BasicDepartmentAccount {
         BasicDepartmentAccount {
             id: self.id,
@@ -34,6 +35,7 @@ impl DepartmentAccountModel {
 }
 
 #[derive(Debug, FromRow)]
+#[allow(dead_code)]
 pub struct UserDepartmentRelationAccountModel {
     pub id: Uuid,
     pub name: String,
@@ -43,6 +45,7 @@ pub struct UserDepartmentRelationAccountModel {
 }
 
 impl UserDepartmentRelationAccountModel {
+    #[allow(dead_code)]
     pub fn into_schema(self) -> DepartmentAccount {
         DepartmentAccount {
             id: self.id,

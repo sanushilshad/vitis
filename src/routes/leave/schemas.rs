@@ -1,12 +1,10 @@
 use std::fmt;
 
-use crate::{
-    email::EmailObject, errors::GenericError, routes::setting::schemas::SettingKey, schemas::Status,
-};
+use crate::{email::EmailObject, errors::GenericError, schemas::Status};
 use actix_http::Payload;
 use actix_web::{FromRequest, HttpRequest, web};
-use bigdecimal::BigDecimal;
-use chrono::{DateTime, FixedOffset, NaiveDate, NaiveDateTime, Utc};
+use bigdecimal::{BigDecimal, FromPrimitive};
+use chrono::{DateTime, FixedOffset, NaiveDateTime, Utc};
 use chrono_tz::Tz;
 use futures::future::LocalBoxFuture;
 use serde::{Deserialize, Serialize};
@@ -44,6 +42,15 @@ impl fmt::Display for LeavePeriod {
     }
 }
 
+impl LeavePeriod {
+    pub fn get_count(&self) -> BigDecimal {
+        match self {
+            LeavePeriod::FullDay => BigDecimal::from_i32(1).unwrap(),
+            LeavePeriod::HalfDay => BigDecimal::from_f32(0.5).unwrap(),
+        }
+    }
+}
+
 #[derive(Deserialize, Debug, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct CreateLeaveData {
@@ -67,8 +74,9 @@ pub struct CreateLeaveRequest {
     pub to: EmailObject,
     pub cc: Option<Vec<EmailObject>>,
     pub reason: Option<String>,
-    pub type_id: Uuid,
-    pub group_id: Uuid,
+    // pub type_id: Uuid,
+    // pub group_id: Uuid,
+    pub user_leave_id: Uuid,
     pub user_id: Option<Uuid>,
     pub leave_data: Vec<CreateLeaveData>,
     pub send_mail: bool,
@@ -93,7 +101,7 @@ impl FromRequest for CreateLeaveRequest {
 #[derive(Debug)]
 pub struct BulkLeaveRequestInsert<'a> {
     pub id: Vec<Uuid>,
-    pub sender_id: Vec<Uuid>,
+    // pub sender_id: Vec<Uuid>,
     pub receiver_id: Vec<Uuid>,
     pub created_on: Vec<DateTime<Utc>>,
     pub created_by: Vec<Uuid>,
@@ -162,6 +170,7 @@ pub struct LeaveData {
     pub id: Uuid,
     // pub r#type: LeaveType,
     pub period: LeavePeriod,
+    pub user_leave_id: Uuid,
     pub date: DateTime<Utc>,
     pub reason: Option<String>,
     pub status: LeaveStatus,
@@ -408,6 +417,7 @@ pub struct LeaveGroup {
 }
 #[derive(Deserialize, Debug, ToSchema)]
 #[serde(rename_all = "camelCase")]
+#[allow(dead_code)]
 pub struct UserLeaveCreationData {
     pub type_id: Uuid,
     #[schema(value_type = String)]
@@ -417,6 +427,7 @@ pub struct UserLeaveCreationData {
 
 #[derive(Deserialize, Debug, ToSchema)]
 #[serde(rename_all = "camelCase")]
+#[allow(dead_code)]
 pub struct CreateLeaveUserAssociationRequest {
     pub group_id: Uuid,
     pub user_id: Uuid,

@@ -112,7 +112,7 @@ pub struct TemplateData {
 }
 
 impl TemplateData {
-    pub fn new(name: TemplateType, language: Language) -> TemplateBuilder {
+    pub fn builder(name: TemplateType, language: Language) -> TemplateBuilder {
         TemplateBuilder {
             name,
             language,
@@ -245,7 +245,7 @@ impl WhatsAppClient {
     ) -> Result<String, anyhow::Error> {
         let parameters: Vec<TextParameter> = par_list.into_iter().map(TextParameter::new).collect();
 
-        let mut builder = TemplateData::new(
+        let mut builder = TemplateData::builder(
             template_name,
             Language::new(LanguagePolicy::Deterministic, "en"),
         )

@@ -2,7 +2,7 @@ use crate::{errors::GenericError, utils::error_chain_fmt};
 
 #[allow(clippy::enum_variant_names)]
 #[derive(thiserror::Error)]
-
+#[allow(dead_code)]
 pub enum DepartmentAccountError {
     #[error("{0}, {1}")]
     DatabaseError(String, anyhow::Error),

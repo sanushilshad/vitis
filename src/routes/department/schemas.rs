@@ -38,6 +38,7 @@ impl FromRequest for CreateDepartmentAccount {
 
 #[derive(Deserialize, Debug, ToSchema)]
 #[serde(rename_all = "camelCase")]
+#[allow(dead_code)]
 pub struct DepartmentFetchRequest {
     pub id: Uuid,
 }

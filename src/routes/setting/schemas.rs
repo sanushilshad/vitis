@@ -17,6 +17,7 @@ pub struct CreateSettingData {
 
 #[derive(Deserialize, Debug, ToSchema)]
 #[serde(rename_all = "camelCase")]
+#[allow(dead_code)]
 pub struct CreateBusinessSettingRequest {
     pub user_id: Option<Uuid>,
     pub settings: Vec<CreateSettingData>,
@@ -158,9 +159,8 @@ impl SettingType {
 #[derive(Serialize, Debug)]
 pub enum SettingKey {
     EmailAppPassword,
-    FinancialYearStart,
     LeaveRequestTemplate,
-    LeaveStatusUpdateTemplate,
+    LeaveRequestStatusUpdateTemplate,
     TimeZone,
     EmailOTPTemplate,
 }
@@ -169,9 +169,8 @@ impl fmt::Display for SettingKey {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let display_str = match self {
             SettingKey::EmailAppPassword => "email_app_password",
-            SettingKey::FinancialYearStart => "financial_year_start",
             SettingKey::LeaveRequestTemplate => "leave_request_template",
-            SettingKey::LeaveStatusUpdateTemplate => "leave_status_update_template",
+            SettingKey::LeaveRequestStatusUpdateTemplate => "leave_request_status_update_template",
             SettingKey::TimeZone => "time_zone",
             SettingKey::EmailOTPTemplate => "email_otp_template",
         };

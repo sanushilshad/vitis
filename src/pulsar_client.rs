@@ -1,5 +1,6 @@
 use crate::{
     // routes::leave::utils::send_slack_notification_for_approved_leave,
+    routes::leave::utils::send_slack_notification_for_approved_leave,
     slack_client::SlackClient,
     utils::{delete_notifications_by_connection_id, fetch_notifications_by_connection_id},
     websocket_client::{Server, SessionExists},
@@ -226,32 +227,32 @@ impl PulsarClient {
             .initiate_cosumer::<SchedulerMessageData>(consumer_name, subscription, topic_name)
             .await;
 
-        // tokio::spawn(async move {
-        //     while let Some(result) = consumer.try_next().await.transpose() {
-        //         match result {
-        //             Ok(msg) => match msg.deserialize() {
-        //                 Ok(data) => {
-        //                     if let Err(e) = send_slack_notification_for_approved_leave(
-        //                         &pool,
-        //                         &slack_client,
-        //                         data.date,
-        //                     )
-        //                     .await
-        //                     {
-        //                         eprintln!("Failed to send Slack message: {:?}", e);
-        //                     } else if let Err(e) = consumer.ack(&msg).await {
-        //                         eprintln!("Failed to acknowledge message: {:?}", e);
-        //                     }
-        //                 }
-        //                 Err(e) => {
-        //                     eprintln!("Failed to deserialize message payload: {:?}", e);
-        //                 }
-        //             },
-        //             Err(e) => {
-        //                 eprintln!("Failed to receive message: {:?}", e);
-        //             }
-        //         }
-        //     }
-        // });
+        tokio::spawn(async move {
+            while let Some(result) = consumer.try_next().await.transpose() {
+                match result {
+                    Ok(msg) => match msg.deserialize() {
+                        Ok(data) => {
+                            if let Err(e) = send_slack_notification_for_approved_leave(
+                                &pool,
+                                &slack_client,
+                                data.date,
+                            )
+                            .await
+                            {
+                                eprintln!("Failed to send Slack message: {:?}", e);
+                            } else if let Err(e) = consumer.ack(&msg).await {
+                                eprintln!("Failed to acknowledge message: {:?}", e);
+                            }
+                        }
+                        Err(e) => {
+                            eprintln!("Failed to deserialize message payload: {:?}", e);
+                        }
+                    },
+                    Err(e) => {
+                        eprintln!("Failed to receive message: {:?}", e);
+                    }
+                }
+            }
+        });
     }
 }

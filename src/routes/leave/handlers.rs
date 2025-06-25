@@ -26,7 +26,7 @@ use crate::{
 use actix::Addr;
 use actix_web::web;
 use anyhow::Context;
-use chrono::{DateTime, Utc};
+use bigdecimal::BigDecimal;
 
 use chrono_tz::Tz;
 use secrecy::SecretString;
@@ -36,196 +36,29 @@ use tokio::join;
 use utoipa::TupleUnit;
 use uuid::Uuid;
 
-use super::schemas::{CreateLeaveUserAssociationRequest, LeaveGroup, LeaveGroupCreationRequest, LeaveStatus, LeaveTypeCreationRequest, LeaveTypeData, LeaveTypeFetchRequest, ListLeaveUserAssociationRequest, UserLeave};
-use super::utils::{delete_leave, delete_leave_group, delete_leave_type, delete_user_leave, fetch_user_leaves, get_leave_group, get_leave_type, get_leaves, leave_group_create_validation, leave_type_create_validation, save_leave_group, save_leave_request, save_leave_type, save_user_leave, validate_leave_request_creation};
-use super::{
-    schemas::{
-        CreateLeaveRequest, FetchLeaveQuery, FetchLeaveRequest, FetchLeaveType, LeaveData,
-        LeaveRequestEmailContext, LeaveRequestStatusEmailContext, UpdateLeaveStatusRequest,
-    },
-    utils::{
-        // delete_leave, get_leaves, save_leave_request, update_leave_status, validate_leave_request,
-        // validate_leave_status_update,
-    },
+use super::schemas::{
+    CreateLeaveRequest, FetchLeaveQuery, FetchLeaveRequest, FetchLeaveType, LeaveData,
+    LeaveRequestEmailContext, LeaveRequestStatusEmailContext, UpdateLeaveStatusRequest,
 };
-
-
-// #[utoipa::path(
-//     patch,
-//     description = "API for making a updating leave status",
-//     tag = "Leave",
-//     summary = "Leave Request Status Updation API",
-//     path = "/leave/status/update",
-//     request_body(content = UpdateLeaveStatusRequest, description = "Request Body"),
-//     responses(
-//         (status=200, description= "project Account created successfully", body= GenericResponse<TupleUnit>),
-//         (status=400, description= "Invalid Request body", body= GenericResponse<TupleUnit>),
-//         (status=401, description= "Invalid Token", body= GenericResponse<TupleUnit>),
-// 	    (status=403, description= "Insufficient Previlege", body= GenericResponse<TupleUnit>),
-// 	    (status=410, description= "Data not found", body= GenericResponse<TupleUnit>),
-//         (status=500, description= "Internal Server Error", body= GenericResponse<TupleUnit>)
-//     ),
-//     params(
-//         ("Authorization" = String, Header, description = "JWT token"),
-//         ("x-request-id" = String, Header, description = "Request id"),
-//         ("x-device-id" = String, Header, description = "Device id"),
-//       )
-// )]
-// #[tracing::instrument(
-//     err,
-//     name = "Leave Request Status Updation API",
-//     skip(pool, body, producer_client),
-//     fields()
-// )]
-// pub async fn update_leave_status_req(
-//     body: UpdateLeaveStatusRequest,
-//     pool: web::Data<PgPool>,
-//     user: UserAccount,
-//     mail_config: web::Data<EmailClientConfig>,
-//     permissions: AllowedPermission,
-//     websocket_srv: web::Data<Addr<Server>>,
-//     producer_client: web::Data<PulsarClient>,
-// ) -> Result<web::Json<GenericResponse<()>>, GenericError> {
-//     if !user.is_vector_verified(&VectorType::Email) {
-//         return Err(GenericError::InsufficientPrevilegeError(
-//             "Please Verify your email, before updating leave requst status".to_string(),
-//         ));
-//     }
-//     let filter_query = FetchLeaveQuery::builder().with_leave_id(Some(body.id));
-//     let leave = get_leaves(&pool, &filter_query)
-//         .await
-//         .map_err(|e| {
-//             GenericError::DatabaseError(
-//                 "Something went wrong while fetching leave data".to_string(),
-//                 e,
-//             )
-//         })?
-//         .into_iter()
-//         .next()
-//         .ok_or_else(|| {
-//             GenericError::DataNotFound("Provided Leave Request not found in database".to_string())
-//         })?;
-//     validate_leave_status_update(&body.status, &leave.status, &permissions)?;
-//     let mut transaction = pool
-//         .begin()
-//         .await
-//         .context("Failed to acquire a Postgres connection from the pool")?;
-
-//     update_leave_status(&mut transaction, body.id, &body.status, user.id)
-//         .await
-//         .map_err(|e| GenericError::DatabaseError("Leave Data not found".to_string(), e))?;
-
-//     if user.id != leave.sender_id {
-//         let setting_value_list = vec![
-//             SettingKey::LeaveStatusUpdateTemplate.to_string(),
-//             SettingKey::EmailAppPassword.to_string(),
-//         ];
-//         let reciever_id = leave.sender_id.to_string();
-//         let (config_res, reciever_account_res) = join!(
-//             get_setting_value(&pool, &setting_value_list, None, Some(user.id), false),
-//             get_user(vec![&reciever_id], &pool),
-//         );
-//         let configs = config_res.map_err(|e| GenericError::DatabaseError(e.to_string(), e))?;
-//         let reciever_account = reciever_account_res
-//             .map_err(|e| GenericError::DatabaseError(e.to_string(), e))?
-//             .ok_or(GenericError::DataNotFound("User not found.".to_string()))?;
-//         let html_template: String = configs
-//             .get_setting(&SettingKey::LeaveStatusUpdateTemplate.to_string())
-//             .ok_or_else(|| {
-//                 GenericError::DataNotFound(format!(
-//                     "Please set the {}",
-//                     SettingKey::LeaveStatusUpdateTemplate
-//                 ))
-//             })?;
-//         let receiver = to_title_case(&reciever_account.display_name);
-//         let sender = to_title_case(&user.display_name);
-//         if body.status == LeaveStatus::Approved {
-//             let msg = SchedulerMessageData {
-//                 partition_key: None,
-//                 date: leave.date,
-//             };
-//             let mut producer = producer_client
-//                 .get_producer(producer_client.get_product_topic(PulsarTopic::Scheduler))
-//                 .await;
-
-//             let msg = producer
-//                 .create_message()
-//                 .with_content(msg)
-//                 .deliver_at(leave.date.into())
-//                 .map_err(|e| GenericError::UnexpectedError(e.into()))?;
-//             msg.send_non_blocking()
-//                 .await
-//                 .map_err(|e| GenericError::UnexpectedError(e.into()))?;
-//         }
-//         let context_data =
-//             LeaveRequestStatusEmailContext::new(&sender, &receiver, &body.status, &leave.date);
-//         let context = TeraContext::from_serialize(&context_data).map_err(|e: tera::Error| {
-//             tracing::error!("{}", e);
-//             GenericError::UnexpectedCustomError(
-//                 "Something went wrong while rendering the email html data".to_string(),
-//             )
-//         })?;
-//         let rendered_string = Tera::one_off(&html_template, &context, true).map_err(|e| {
-//             tracing::error!("Error while rendering html {} error: {}", html_template, e);
-//             GenericError::UnexpectedCustomError(
-//                 "Something went wrong while rendering the email html data".to_string(),
-//             )
-//         })?;
-//         let email_password = configs
-//             .get_setting(&SettingKey::EmailAppPassword.to_string())
-//             .ok_or_else(|| {
-//                 GenericError::DataNotFound(format!(
-//                     "Please set the {}",
-//                     SettingKey::EmailAppPassword
-//                 ))
-//             })?;
-
-//         send_notification(
-//             &pool,
-//             &websocket_srv,
-//             WebSocketActionType::LeaveRequestStatusUpdation,
-//             ProcessType::Deferred,
-//             Some(reciever_account.id),
-//             format!("Leave Request send by {}", user.display_name),
-//         )
-//         .await
-//         .map_err(|e| GenericError::UnexpectedCustomError(e.to_string()))?;
-//         let personal_email_client = SmtpEmailClient::new_personal(
-//             &user.email,
-//             SecretString::from(email_password.as_ref()),
-//             &mail_config.personal.base_url,
-//         )
-//         .unwrap();
-//         personal_email_client
-//             .send_html_email(
-//                 &reciever_account.email,
-//                 &leave.cc,
-//                 &format!("Request for {} leave", leave.r#type),
-//                 rendered_string,
-//                 leave.email_message_id.to_owned(),
-//                 leave.email_message_id.to_owned(),
-//             )
-//             .await
-//             .map_err(|e| GenericError::UnexpectedCustomError(e.to_string()))?;
-//     }
-//     transaction
-//         .commit()
-//         .await
-//         .context("Failed to commit SQL transaction to store a new user account.")?;
-
-//     Ok(web::Json(GenericResponse::success(
-//         "Sucessfully updated leave request status",
-//         (),
-//     )))
-// }
-
+use super::schemas::{
+    CreateLeaveUserAssociationRequest, LeaveGroup, LeaveGroupCreationRequest, LeaveStatus,
+    LeaveTypeCreationRequest, LeaveTypeData, LeaveTypeFetchRequest,
+    ListLeaveUserAssociationRequest, UserLeave,
+};
+use super::utils::{
+    delete_leave, delete_leave_group, delete_leave_type, delete_user_leave, fetch_user_leaves,
+    get_leave_group, get_leave_type, get_leaves, leave_group_create_validation,
+    leave_type_create_validation, save_leave_group, save_leave_request, save_leave_type,
+    save_user_leave, update_leave_request_status, update_user_leave_count,
+    validate_leave_request_creation, validate_leave_status_update,
+};
 
 #[utoipa::path(
     post,
     description = "API for making listing leave request",
     tag = "Leave",
     summary = "Leave Request Fetch API",
-    path = "/leave/list",
+    path = "/leave/request/list",
     request_body(content = FetchLeaveRequest, description = "Request Body"),
     responses(
         (status=200, description= "project Account created successfully", body= GenericResponse<Vec<LeaveData>>),
@@ -328,9 +161,8 @@ pub async fn leave_type_create_req(
     pool: web::Data<PgPool>,
     req: LeaveTypeCreationRequest,
     user: UserAccount,
-    business_account: BusinessAccount
+    business_account: BusinessAccount,
 ) -> Result<web::Json<GenericResponse<()>>, GenericError> {
-
     leave_type_create_validation(&pool, &req, business_account.id).await?;
     save_leave_type(&pool, &req.data, user.id, business_account.id)
         .await
@@ -374,7 +206,7 @@ pub async fn leave_type_list_req(
     pool: web::Data<PgPool>,
     req: LeaveTypeFetchRequest,
     user: UserAccount,
-    business_account: BusinessAccount
+    business_account: BusinessAccount,
 ) -> Result<web::Json<GenericResponse<Vec<LeaveTypeData>>>, GenericError> {
     let leave_type_list = get_leave_type(&pool, business_account.id, None, None, req.query)
         .await
@@ -419,38 +251,39 @@ pub async fn leave_type_delete_req(
     path: web::Path<Uuid>,
     pool: web::Data<PgPool>,
     user: UserAccount,
-    business_account: BusinessAccount
+    business_account: BusinessAccount,
 ) -> Result<web::Json<GenericResponse<()>>, GenericError> {
     let leave_type_id = path.into_inner();
-    let leave_type_list = get_leave_type(&pool, business_account.id, Some(vec![leave_type_id]), None, None)
-        .await
-        .map_err(|e| {
-            GenericError::DatabaseError(
-                "Something went wrong while deleting leave type".to_string(),
-                e,
-            )
-        })?;
+    let leave_type_list = get_leave_type(
+        &pool,
+        business_account.id,
+        Some(vec![leave_type_id]),
+        None,
+        None,
+    )
+    .await
+    .map_err(|e| {
+        GenericError::DatabaseError(
+            "Something went wrong while deleting leave type".to_string(),
+            e,
+        )
+    })?;
     leave_type_list
         .first()
-        .ok_or_else(|| GenericError::DataNotFound(format!("Invalid Leave Type id")))?;
+        .ok_or_else(|| GenericError::DataNotFound("Invalid Leave Type id".to_string()))?;
 
-    delete_leave_type(&pool, leave_type_id)
-        .await
-        .map_err(|e| {
-            GenericError::DatabaseError(
-                "Something went wrong while deleting leave type".to_string(),
-                e,
-            )
-        })?;
+    delete_leave_type(&pool, leave_type_id).await.map_err(|e| {
+        GenericError::DatabaseError(
+            "Something went wrong while deleting leave type".to_string(),
+            e,
+        )
+    })?;
 
     Ok(web::Json(GenericResponse::success(
         "Sucessfully deleted leave type",
         (),
     )))
 }
-
-
-
 
 #[utoipa::path(
     post,
@@ -480,9 +313,8 @@ pub async fn leave_group_create_req(
     pool: web::Data<PgPool>,
     req: LeaveGroupCreationRequest,
     user: UserAccount,
-    business_account: BusinessAccount
+    business_account: BusinessAccount,
 ) -> Result<web::Json<GenericResponse<()>>, GenericError> {
-
     leave_group_create_validation(&pool, &req, business_account.id).await?;
     save_leave_group(&pool, &req, business_account.id, user.id)
         .await
@@ -497,9 +329,6 @@ pub async fn leave_group_create_req(
         (),
     )))
 }
-
-
-
 
 #[utoipa::path(
     delete,
@@ -529,20 +358,27 @@ pub async fn leave_group_delete_req(
     path: web::Path<Uuid>,
     pool: web::Data<PgPool>,
     user: UserAccount,
-    business_account: BusinessAccount
+    business_account: BusinessAccount,
 ) -> Result<web::Json<GenericResponse<()>>, GenericError> {
     let leave_group_id = path.into_inner();
-    let leave_group_list = get_leave_group(&pool, business_account.id, Some(&vec![leave_group_id]), None, None, None)
-        .await
-        .map_err(|e| {
-            GenericError::DatabaseError(
-                "Something went wrong while fetching leave group".to_string(),
-                e,
-            )
-        })?;
+    let leave_group_list = get_leave_group(
+        &pool,
+        business_account.id,
+        Some(&[leave_group_id]),
+        None,
+        None,
+        None,
+    )
+    .await
+    .map_err(|e| {
+        GenericError::DatabaseError(
+            "Something went wrong while fetching leave group".to_string(),
+            e,
+        )
+    })?;
     leave_group_list
         .first()
-        .ok_or_else(|| GenericError::DataNotFound(format!("Invalid Leave Group id")))?;
+        .ok_or_else(|| GenericError::DataNotFound("Invalid Leave Group id".to_string()))?;
 
     delete_leave_group(&pool, leave_group_id)
         .await
@@ -558,10 +394,6 @@ pub async fn leave_group_delete_req(
         (),
     )))
 }
-
-
-
-
 
 #[utoipa::path(
     post,
@@ -591,7 +423,7 @@ pub async fn leave_group_list_req(
     pool: web::Data<PgPool>,
     req: LeaveTypeFetchRequest,
     user: UserAccount,
-    business_account: BusinessAccount
+    business_account: BusinessAccount,
 ) -> Result<web::Json<GenericResponse<Vec<LeaveGroup>>>, GenericError> {
     let leave_group_list = get_leave_group(&pool, business_account.id, None, req.query, None, None)
         .await
@@ -608,9 +440,8 @@ pub async fn leave_group_list_req(
     )))
 }
 
-
 #[utoipa::path(
-    delete,
+    post,
     description = "API for associating user to leave",
     tag = "Leave",
     summary = "Leave User Association API",
@@ -636,18 +467,34 @@ pub async fn create_leave_user_association_req(
     data: CreateLeaveUserAssociationRequest,
 
     user: UserAccount,
-    business_account: BusinessAccount
+    business_account: BusinessAccount,
 ) -> Result<web::Json<GenericResponse<()>>, GenericError> {
     let group_id_list = vec![data.group_id];
     let leave_type_set: HashSet<Uuid> = data.data.iter().map(|x| x.type_id).collect();
-    let leave_type_list: Vec<Uuid> = leave_type_set.iter().map(|x| *x).collect();
+    let leave_type_list: Vec<Uuid> = leave_type_set.iter().copied().collect();
+
     let (leave_group_res, leave_type_res) = join!(
-        get_leave_group(&pool, business_account.id, Some(&group_id_list), None, None, None),
-        get_leave_type(&pool, business_account.id, Some(leave_type_list.to_vec()), None, None),
+        get_leave_group(
+            &pool,
+            business_account.id,
+            Some(&group_id_list),
+            None,
+            None,
+            None
+        ),
+        get_leave_type(
+            &pool,
+            business_account.id,
+            Some(leave_type_list.to_vec()),
+            None,
+            None
+        ),
     );
-    let leave_group_list = leave_group_res
-    .map_err(|e| GenericError::DatabaseError(e.to_string(), e))?;
-   let leave_group = leave_group_list.first().ok_or(GenericError::DataNotFound("Leave group not found.".to_string()))?;
+    let leave_group_list =
+        leave_group_res.map_err(|e| GenericError::DatabaseError(e.to_string(), e))?;
+    let leave_group = leave_group_list.first().ok_or(GenericError::DataNotFound(
+        "Leave group not found.".to_string(),
+    ))?;
     let leave_type = leave_type_res.map_err(|e| GenericError::DatabaseError(e.to_string(), e))?;
     let allowed_leave_type_set: HashSet<Uuid> = leave_type.iter().map(|x| x.id).collect();
     if !allowed_leave_type_set.is_superset(&leave_type_set) {
@@ -655,12 +502,7 @@ pub async fn create_leave_user_association_req(
             "Leave type/s not found for given business".to_string(),
         ));
     }
-    save_user_leave(
-        &pool,
-        &data.data,
-        user.id,
-        leave_group.id,
-    )
+    save_user_leave(&pool, &data.data, user.id, leave_group.id)
         .await
         .map_err(|e| {
             GenericError::DatabaseError(
@@ -675,12 +517,8 @@ pub async fn create_leave_user_association_req(
     )))
 }
 
-
-
-
-
 #[utoipa::path(
-    delete,
+    post,
     description = "API for listing associating user to leave",
     tag = "Leave",
     summary = "List Leave User Association API",
@@ -700,7 +538,12 @@ pub async fn create_leave_user_association_req(
         ("x-business-id" = String, Header, description = "id of business_account"),
       )
 )]
-#[tracing::instrument(err, name = "List User Leave Association request", skip(pool), fields())]
+#[tracing::instrument(
+    err,
+    name = "List User Leave Association request",
+    skip(pool),
+    fields()
+)]
 pub async fn list_leave_user_association_req(
     req: ListLeaveUserAssociationRequest,
     pool: web::Data<PgPool>,
@@ -716,22 +559,25 @@ pub async fn list_leave_user_association_req(
     } else {
         user.id
     };
-    let data  = fetch_user_leaves(&pool, business_account.id,user_id,  req.group_id)
-        .await
-        .map_err(|e| {
-            GenericError::DatabaseError(
-                "Something went wrong while fetching user leave association".to_string(),
-                e,
-            )
-        })?;
+    let data = fetch_user_leaves(
+        &pool,
+        business_account.id,
+        user_id,
+        Some(req.group_id),
+        None,
+    )
+    .await
+    .map_err(|e| {
+        GenericError::DatabaseError(
+            "Something went wrong while fetching user leave association".to_string(),
+            e,
+        )
+    })?;
     Ok(web::Json(GenericResponse::success(
         "Sucessfully fetched user leaves",
         data,
     )))
 }
-
-
-
 
 #[utoipa::path(
     delete,
@@ -755,7 +601,12 @@ pub async fn list_leave_user_association_req(
         ("id" = String, Path, description = "Leave User ID"),
       )
 )]
-#[tracing::instrument(err, name = "Delete User Leave Association request", skip(pool), fields())]
+#[tracing::instrument(
+    err,
+    name = "Delete User Leave Association request",
+    skip(pool),
+    fields()
+)]
 pub async fn delete_leave_user_association_req(
     path: web::Path<Uuid>,
     pool: web::Data<PgPool>,
@@ -777,9 +628,6 @@ pub async fn delete_leave_user_association_req(
         (),
     )))
 }
-
-
-
 
 #[utoipa::path(
     post,
@@ -832,55 +680,44 @@ pub async fn create_leave_req(
         SettingKey::EmailAppPassword.to_string(),
         SettingKey::LeaveRequestTemplate.to_string(),
     ];
-    let (config_res, reciever_account_res,  user_leave_res) = join!(
+    let (config_res, reciever_account_res, user_leave_res) = join!(
         get_setting_value(&pool, &setting_keys, None, Some(user.id), true),
         get_user(vec![body.to.get()], &pool),
         // get_leave_type(&pool, business.id, Some(vec![body.r#type]), None, None),
         // get_leave_group(&pool, business.id, None, None, Some(Utc::now()), Some(Utc::now())),
-        fetch_user_leaves(
-            &pool,
-            business.id,
-            user_id,
-            body.group_id,
-        ),
-
+        fetch_user_leaves(&pool, business.id, user_id, None, Some(body.user_leave_id)),
     );
-    let user_leave_list = user_leave_res.map_err(|e| GenericError::DatabaseError(e.to_string(), e))?;
-    let user_leave = user_leave_list.first()
-        .ok_or_else(|| {
-            GenericError::DataNotFound(format!(
-                "No Leave is added for the user for given group and type is not set fot user"
-            ))
-        })?;
+    let user_leave_list =
+        user_leave_res.map_err(|e| GenericError::DatabaseError(e.to_string(), e))?;
+    let user_leave = user_leave_list.first().ok_or_else(|| {
+        GenericError::DataNotFound(
+            "No Leave is added for the user for given group and type is not set fot user"
+                .to_string(),
+        )
+    })?;
     // .map_err(|e| GenericError::DatabaseError(e.to_string(), e))?;
     let configs = config_res.map_err(|e| GenericError::DatabaseError(e.to_string(), e))?;
 
-
-
-
-    validate_leave_request_creation(
-        &pool,
-        &body,
-        user_leave,
-    )
-    .await
-    .map_err(|e| GenericError::ValidationError(e.to_string()))?;  
-        let email_password = configs
+    validate_leave_request_creation(&body, user_leave)
+        .map_err(|e| GenericError::ValidationError(e.to_string()))?;
+    let email_password = configs
         .get_setting(&SettingKey::EmailAppPassword.to_string())
         .ok_or_else(|| {
             GenericError::DataNotFound(format!("Please set the {}", SettingKey::EmailAppPassword))
         })?;
-   
+
     let personal_email_client = SmtpEmailClient::new_personal(
-            &user.email,
-            SecretString::from(email_password.as_ref()),
-            &mail_config.personal.base_url,
-        )
-        .unwrap();
+        &user.email,
+        SecretString::from(email_password.as_ref()),
+        &mail_config.personal.base_url,
+    )
+    .unwrap();
 
-    let message_id = if body.send_mail{Some(personal_email_client.generate_message_id(&mail_config.personal.message_id_suffix))} else{ None};   
-
-
+    let message_id = if body.send_mail {
+        Some(personal_email_client.generate_message_id(&mail_config.personal.message_id_suffix))
+    } else {
+        None
+    };
 
     let reciever_account = reciever_account_res
         .map_err(|e| GenericError::DatabaseError(e.to_string(), e))?
@@ -901,8 +738,7 @@ pub async fn create_leave_req(
     .await
     .map_err(|e| GenericError::DatabaseError(e.to_string(), e))?
     {
-
-         if body.send_mail{
+        if body.send_mail {
             let html_template: String = configs
                 .get_setting(&SettingKey::LeaveRequestTemplate.to_string())
                 .ok_or_else(|| {
@@ -921,12 +757,13 @@ pub async fn create_leave_req(
                 &receiver,
                 &user_leave.leave_type.label,
             );
-            let context = TeraContext::from_serialize(&context_data).map_err(|e: tera::Error| {
-                tracing::error!("{}", e);
-                GenericError::UnexpectedCustomError(
-                    "Something went wrong while rendering the email html data".to_string(),
-                )
-            })?;
+            let context =
+                TeraContext::from_serialize(&context_data).map_err(|e: tera::Error| {
+                    tracing::error!("{}", e);
+                    GenericError::UnexpectedCustomError(
+                        "Something went wrong while rendering the email html data".to_string(),
+                    )
+                })?;
             let rendered_string = Tera::one_off(&html_template, &context, true).map_err(|e| {
                 tracing::error!("Error while rendering html {} error: {}", html_template, e);
                 GenericError::UnexpectedCustomError(
@@ -934,17 +771,17 @@ pub async fn create_leave_req(
                 )
             })?;
             personal_email_client
-            .send_html_email(
-                &body.to,
-                &body.cc,
-                &format!("Request for {} leave",  &user_leave.leave_type.label),
-                rendered_string,
-                message_id,
-                None,
-            )
-            .await
-            .map_err(|e| GenericError::UnexpectedCustomError(e.to_string()))?;
-         }
+                .send_html_email(
+                    &body.to,
+                    &body.cc,
+                    &format!("Request for {} leave", &user_leave.leave_type.label),
+                    rendered_string,
+                    message_id,
+                    None,
+                )
+                .await
+                .map_err(|e| GenericError::UnexpectedCustomError(e.to_string()))?;
+        }
 
         let _ = send_notification(
             &pool,
@@ -953,11 +790,10 @@ pub async fn create_leave_req(
             ProcessType::Deferred,
             Some(reciever_account.id),
             format!("Leave Request send by {}", user.display_name),
-            Some(business.id)
+            Some(business.id),
         )
         .await;
         // .map_err(|e| GenericError::UnexpectedCustomError(e.to_string()))?;
-
     }
     transaction
         .commit()
@@ -969,7 +805,6 @@ pub async fn create_leave_req(
         (),
     )))
 }
-
 
 #[utoipa::path(
     delete,
@@ -1022,16 +857,237 @@ pub async fn leave_request_deletion_req(
     };
     if leave.status == LeaveStatus::Approved {
         return Err(GenericError::ValidationError(
-            "The leave is already approved, pls reject the leave request before deletion".to_string(),
+            "The leave is already approved, pls reject the leave request before deletion"
+                .to_string(),
         ));
     }
     delete_leave(&pool, leave_id, user.id).await.map_err(|_| {
-        GenericError::UnexpectedCustomError(
-            "something went wrong while deleting leave".to_string(),
-        )
+        GenericError::UnexpectedCustomError("something went wrong while deleting leave".to_string())
     })?;
     Ok(web::Json(GenericResponse::success(
         "Sucessfully deleted leave request",
+        (),
+    )))
+}
+
+#[utoipa::path(
+    patch,
+    description = "API for making a updating leave status",
+    tag = "Leave",
+    summary = "Leave Request Status Updation API",
+    path = "/leave/request/status/update",
+    request_body(content = UpdateLeaveStatusRequest, description = "Request Body"),
+    responses(
+        (status=200, description= "project Account created successfully", body= GenericResponse<TupleUnit>),
+        (status=400, description= "Invalid Request body", body= GenericResponse<TupleUnit>),
+        (status=401, description= "Invalid Token", body= GenericResponse<TupleUnit>),
+	    (status=403, description= "Insufficient Previlege", body= GenericResponse<TupleUnit>),
+	    (status=410, description= "Data not found", body= GenericResponse<TupleUnit>),
+        (status=500, description= "Internal Server Error", body= GenericResponse<TupleUnit>)
+    ),
+    params(
+        ("Authorization" = String, Header, description = "JWT token"),
+        ("x-request-id" = String, Header, description = "Request id"),
+        ("x-device-id" = String, Header, description = "Device id"),
+      )
+)]
+#[tracing::instrument(
+    err,
+    name = "Leave Request Status Updation API",
+    skip(pool, body, producer_client),
+    fields()
+)]
+#[allow(clippy::too_many_arguments)]
+pub async fn update_leave_status_req(
+    body: UpdateLeaveStatusRequest,
+    pool: web::Data<PgPool>,
+    user: UserAccount,
+    mail_config: web::Data<EmailClientConfig>,
+    permissions: AllowedPermission,
+    websocket_srv: web::Data<Addr<Server>>,
+    producer_client: web::Data<PulsarClient>,
+    business: BusinessAccount,
+) -> Result<web::Json<GenericResponse<()>>, GenericError> {
+    let filter_query = FetchLeaveQuery::builder().with_leave_id(Some(body.id));
+    let leave = get_leaves(&pool, &filter_query)
+        .await
+        .map_err(|e| {
+            GenericError::DatabaseError(
+                "Something went wrong while fetching leave data".to_string(),
+                e,
+            )
+        })?
+        .into_iter()
+        .next()
+        .ok_or_else(|| {
+            GenericError::DataNotFound("Provided Leave Request not found in database".to_string())
+        })?;
+
+    let user_leave = fetch_user_leaves(
+        &pool,
+        business.id,
+        leave.user_id,
+        None,
+        Some(leave.user_leave_id),
+    )
+    .await
+    .map_err(|e| {
+        GenericError::DatabaseError(
+            "Something went wrong while fetching  user leave data".to_string(),
+            e,
+        )
+    })?
+    .into_iter()
+    .next()
+    .ok_or_else(|| {
+        GenericError::DataNotFound("Provided Leave Request not found in database".to_string())
+    })?;
+    validate_leave_status_update(
+        &body.status,
+        &leave.status,
+        &permissions,
+        &user_leave,
+        &leave.period,
+    )?;
+    let mut transaction = pool
+        .begin()
+        .await
+        .context("Failed to acquire a Postgres connection from the pool")?;
+
+    update_leave_request_status(&mut transaction, body.id, &body.status, user.id)
+        .await
+        .map_err(|e| {
+            GenericError::DatabaseError(
+                "Something went wrong while updating leave request".to_string(),
+                e,
+            )
+        })?;
+    if body.status == LeaveStatus::Approved || body.status == LeaveStatus::Cancelled {
+        let adjustment = match body.status {
+            LeaveStatus::Approved => leave.period.get_count().clone(),
+            LeaveStatus::Cancelled => -&leave.period.get_count(),
+            _ => BigDecimal::default(),
+        };
+
+        update_user_leave_count(&mut transaction, leave.user_leave_id, &adjustment, user.id)
+            .await
+            .map_err(|e| {
+                GenericError::DatabaseError(
+                    "Something went wrong while updating leave count".to_string(),
+                    e,
+                )
+            })?;
+    }
+
+    let setting_value_list = vec![
+        SettingKey::LeaveRequestStatusUpdateTemplate.to_string(),
+        SettingKey::EmailAppPassword.to_string(),
+    ];
+    let reciever_id = leave.user_id.to_string();
+    let (config_res, reciever_account_res) = join!(
+        get_setting_value(&pool, &setting_value_list, None, Some(user.id), true),
+        get_user(vec![&reciever_id], &pool),
+    );
+    let configs = config_res.map_err(|e| GenericError::DatabaseError(e.to_string(), e))?;
+    let reciever_account = reciever_account_res
+        .map_err(|e| GenericError::DatabaseError(e.to_string(), e))?
+        .ok_or(GenericError::DataNotFound("User not found.".to_string()))?;
+
+    let receiver = to_title_case(&reciever_account.display_name);
+    let sender = to_title_case(&user.display_name);
+    if body.status == LeaveStatus::Approved {
+        let msg = SchedulerMessageData {
+            partition_key: None,
+            date: leave.date,
+        };
+        let mut producer = producer_client
+            .get_producer(producer_client.get_product_topic(PulsarTopic::Scheduler))
+            .await;
+
+        let msg = producer
+            .create_message()
+            .with_content(msg)
+            .deliver_at(leave.date.into())
+            .map_err(|e| GenericError::UnexpectedError(e.into()))?;
+        msg.send_non_blocking()
+            .await
+            .map_err(|e| GenericError::UnexpectedError(e.into()))?;
+    }
+    //     if !user.is_vector_verified(&VectorType::Email) {
+    //     return Err(GenericError::InsufficientPrevilegeError(
+    //         "Please Verify your email, before updating leave requst status".to_string(),
+    //     ));
+    // }
+    if leave.email_message_id.is_some() && user.is_vector_verified(&VectorType::Email) {
+        let html_template: String = configs
+            .get_setting(&SettingKey::LeaveRequestStatusUpdateTemplate.to_string())
+            .ok_or_else(|| {
+                GenericError::DataNotFound(format!(
+                    "Please set the {}",
+                    SettingKey::LeaveRequestStatusUpdateTemplate
+                ))
+            })?;
+        let context_data =
+            LeaveRequestStatusEmailContext::new(&sender, &receiver, &body.status, &leave.date);
+        let context = TeraContext::from_serialize(&context_data).map_err(|e: tera::Error| {
+            tracing::error!("{}", e);
+            GenericError::UnexpectedCustomError(
+                "Something went wrong while rendering the email html data".to_string(),
+            )
+        })?;
+        let rendered_string = Tera::one_off(&html_template, &context, true).map_err(|e| {
+            tracing::error!("Error while rendering html {} error: {}", html_template, e);
+            GenericError::UnexpectedCustomError(
+                "Something went wrong while rendering the email html data".to_string(),
+            )
+        })?;
+        let email_password = configs
+            .get_setting(&SettingKey::EmailAppPassword.to_string())
+            .ok_or_else(|| {
+                GenericError::DataNotFound(format!(
+                    "Please set the {}",
+                    SettingKey::EmailAppPassword
+                ))
+            })?;
+
+        let personal_email_client = SmtpEmailClient::new_personal(
+            &user.email,
+            SecretString::from(email_password.as_ref()),
+            &mail_config.personal.base_url,
+        )
+        .unwrap();
+        personal_email_client
+            .send_html_email(
+                &reciever_account.email,
+                &leave.cc,
+                &format!("Request for {} leave", leave.leave_type),
+                rendered_string,
+                leave.email_message_id.clone(),
+                leave.email_message_id,
+            )
+            .await
+            .map_err(|e| GenericError::UnexpectedCustomError(e.to_string()))?;
+    }
+
+    let _ = send_notification(
+        &pool,
+        &websocket_srv,
+        WebSocketActionType::LeaveRequestStatusUpdation,
+        ProcessType::Deferred,
+        Some(reciever_account.id),
+        format!("Leave Request send by {}", user.display_name),
+        Some(business.id),
+    )
+    .await;
+    // .map_err(|e| GenericError::UnexpectedCustomError(e.to_string()))?;
+
+    transaction
+        .commit()
+        .await
+        .context("Failed to commit SQL transaction to store a new user account.")?;
+
+    Ok(web::Json(GenericResponse::success(
+        "Sucessfully updated leave request status",
         (),
     )))
 }

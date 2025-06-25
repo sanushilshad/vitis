@@ -8,20 +8,15 @@ use crate::{
     configuration::{SecretConfig, UserConfig},
     email_client::SmtpEmailClient,
     errors::GenericError,
-    routes::{
-        business::schemas::BusinessAccount,
-        setting::{schemas::SettingKey, utils::get_setting_value},
-    },
+    routes::setting::{schemas::SettingKey, utils::get_setting_value},
     schemas::{DeleteType, GenericResponse, RequestMetaData, Status},
     whatsapp_client::{TemplateType, WhatsAppClient},
 };
 
 use super::{
-    errors::UserRegistrationError,
     schemas::{
         AuthData, AuthenticateRequest, AuthenticationScope, CreateUserAccount, EditUserAccount,
         ListUserAccountRequest, MinimalUserAccount, PasswordResetReq, SendOTPRequest, UserAccount,
-        UserRoleType,
     },
     utils::{
         fetch_user, get_auth_data, get_minimal_user_list, get_stored_credentials, get_user,
@@ -350,7 +345,7 @@ pub async fn reactivate_user_req(
 
 #[utoipa::path(
     patch,
-    path = "/list",
+    path = "/user/list",
     tag = "User Account",
     description = "API for listing users",
     summary = "List User Accounts API",
@@ -390,7 +385,7 @@ pub async fn user_list_req(
 
 #[utoipa::path(
     patch,
-    path = "/edit",
+    path = "/user/edit",
     tag = "User Account",
     description = "API for editing user account",
     summary = "List User Accounts API",

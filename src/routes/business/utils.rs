@@ -10,8 +10,7 @@ use crate::routes::user::utils::get_role;
 use crate::schemas::{MaskingType, Status};
 use anyhow::Context;
 use chrono::Utc;
-use sqlx::QueryBuilder;
-use sqlx::{Execute, Executor, PgPool, Postgres, Transaction};
+use sqlx::{Executor, PgPool, Postgres, Transaction};
 use uuid::Uuid;
 #[tracing::instrument(name = "create user account")]
 pub fn create_vector_from_business_account(

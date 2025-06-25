@@ -3,7 +3,7 @@ pub mod tests {
     use crate::constants::DUMMY_INTERNATIONAL_DIALING_CODE;
     use crate::email::EmailObject;
     use crate::routes::user::schemas::{
-        AuthenticationScope, CreateUserAccount, EditUserAccount, UserRoleType, VectorType,
+        AuthenticationScope, CreateUserAccount, EditUserAccount, VectorType,
     };
     use crate::routes::user::utils::{
         get_minimal_user_list, get_stored_credentials, get_user, hard_delete_user_account,

@@ -20,7 +20,7 @@ pub async fn send_notification(
         action_type,
         serde_json::to_value(WebSocketData {
             message,
-            business_id: business_id,
+            business_id,
         })
         .unwrap(),
         user_id,

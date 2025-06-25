@@ -8,7 +8,7 @@ use crate::{
     errors::GenericError,
     routes::{
         user::{
-            schemas::{MinimalUserAccount, UserAccount, UserRoleType},
+            schemas::{MinimalUserAccount, UserAccount},
             utils::{fetch_user_account_by_business_account, get_role},
         },
         web_socket::{schemas::ProcessType, utils::send_notification},
@@ -34,7 +34,7 @@ use super::{
     description = "API for creating business accounts for a user. A single user can have multiple business accounts",
     summary = "business Account Registration API",
     path = "/business/register",
-    tag = "business Account",
+    tag = "Business Account",
     request_body(content = CreateBusinessAccount, description = "Request Body"),
     responses(
         (status=200, description= "business Account created successfully", body= GenericResponse<TupleUnit>),
@@ -72,7 +72,7 @@ pub async fn register_business_account_req(
 #[utoipa::path(
     get,
     path = "/business/fetch",
-    tag = "business Account",
+    tag = "Business Account",
     description = "API for fetching business account detail.",
     summary = "business Account Fetch API",
     request_body(content = BusinessFetchRequest, description = "Request Body"),
@@ -113,7 +113,7 @@ pub async fn fetch_business_req(
 #[utoipa::path(
     post,
     path = "/business/permission",
-    tag = "business Account",
+    tag = "Business Account",
     description = "API for checking the permission of a business.",
     summary = "business Account Permission API",
     request_body(content = BusinessPermissionRequest, description = "Request Body"),
@@ -166,7 +166,7 @@ pub async fn business_permission_validation(
 #[utoipa::path(
     get,
     path = "/business/list",
-    tag = "business Account",
+    tag = "Business Account",
     description = "API for listing all business account associated to a user",
     summary = "business Account List API",
     // request_body(content = BusinessAccountListReq, description = "Request Body"),
@@ -208,8 +208,8 @@ pub async fn list_business_req(
 
 #[utoipa::path(
     post,
-    path = "/user/assocation",
-    tag = "business Account",
+    path = "/business/user/assocation",
+    tag = "Business Account",
     description = "API for association of user with business account",
     summary = "Use business Account Association API",
     // request_body(content = BusinessAccountListReq, description = "Request Body"),
@@ -320,7 +320,7 @@ pub async fn user_business_association_req(
 
 #[utoipa::path(
     patch,
-    path = "/user/list",
+    path = "/business/user/list",
     tag = "Business Account",
     description = "API for listing users by business id",
     summary = "List User Accounts API by business id",
