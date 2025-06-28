@@ -695,12 +695,13 @@ pub mod tests {
         let leave_opt = leave_vec.first();
         assert!(leave_opt.is_some());
 
-        let delete_res = hard_delete_user_account(
-            &pool,
-            &format!("{}{}", DUMMY_INTERNATIONAL_DIALING_CODE, mobile_no),
-        )
-        .await;
-        assert!(delete_res.is_ok());
+        let delete_mobile = format!("{}{}", DUMMY_INTERNATIONAL_DIALING_CODE, mobile_no);
+        let (delete_business_account_res, delete_user_account_res) = tokio::join!(
+            hard_delete_business_account(&pool, business_id),
+            hard_delete_user_account(&pool, &delete_mobile)
+        );
+        assert!(delete_business_account_res.is_ok());
+        assert!(delete_user_account_res.is_ok());
     }
 
     fn get_dummy_user_leave_data(
@@ -939,11 +940,12 @@ pub mod tests {
             .unwrap();
 
         assert!(res.is_ok());
-        let delete_res = hard_delete_user_account(
-            &pool,
-            &format!("{}{}", DUMMY_INTERNATIONAL_DIALING_CODE, mobile_no),
-        )
-        .await;
-        assert!(delete_res.is_ok());
+        let delete_mobile = format!("{}{}", DUMMY_INTERNATIONAL_DIALING_CODE, mobile_no);
+        let (delete_business_account_res, delete_user_account_res) = tokio::join!(
+            hard_delete_business_account(&pool, business_id),
+            hard_delete_user_account(&pool, &delete_mobile)
+        );
+        assert!(delete_business_account_res.is_ok());
+        assert!(delete_user_account_res.is_ok());
     }
 }

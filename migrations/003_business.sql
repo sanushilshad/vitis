@@ -35,3 +35,23 @@ ALTER TABLE business_user_relationship ADD CONSTRAINT "fk_user_id" FOREIGN KEY (
 ALTER TABLE business_user_relationship ADD CONSTRAINT "fk_business_id" FOREIGN KEY ("business_id") REFERENCES business_account ("id") ON DELETE CASCADE;
 ALTER TABLE business_user_relationship ADD CONSTRAINT "fk_role_id" FOREIGN KEY ("role_id") REFERENCES role ("id") ON DELETE CASCADE;
 ALTER TABLE business_user_relationship ADD CONSTRAINT user_business_role UNIQUE (user_id, business_id, role_id);
+
+
+
+
+
+CREATE TABLE IF NOT EXISTS business_account_invitation_request (
+  id uuid PRIMARY KEY,
+  email TEXT NOT NULL,
+  business_id uuid NOT NULL,
+  role_id uuid NOT NULL,
+  verified BOOLEAN NOT NULL DEFAULT false,
+  created_on TIMESTAMPTZ NOT NULL,
+  created_by uuid NOT NULL,
+  updated_on TIMESTAMPTZ,
+  updated_by uuid
+);
+
+ALTER TABLE business_account_invitation_request ADD CONSTRAINT "fk_business_invitation_req" FOREIGN KEY ("business_id") REFERENCES business_account ("id") ON DELETE CASCADE;
+ALTER TABLE business_account_invitation_request ADD CONSTRAINT unique_business_email_invite UNIQUE (email, business_id);
+CREATE INDEX idx_invite_email_business ON business_account_invitation_request (email, business_id);

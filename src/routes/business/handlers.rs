@@ -1,15 +1,23 @@
 use actix::Addr;
-use actix_web::web;
+use actix_web::{HttpRequest, web};
+use anyhow::Context;
+use chrono::Utc;
 use sqlx::PgPool;
+use tera::Tera;
 use utoipa::TupleUnit;
 use uuid::Uuid;
 
 use crate::{
+    email_client::{GenericEmailService, SmtpEmailClient},
     errors::GenericError,
     routes::{
+        setting::{
+            schemas::{SettingKey, SettingsExt},
+            utils::get_setting_value,
+        },
         user::{
             schemas::{MinimalUserAccount, UserAccount},
-            utils::{fetch_user_account_by_business_account, get_role},
+            utils::{fetch_user_account_by_business_account, get_role, get_user},
         },
         web_socket::{schemas::ProcessType, utils::send_notification},
     },
@@ -19,13 +27,15 @@ use crate::{
 
 use super::{
     schemas::{
-        BasicBusinessAccount, BusinessAccount, BusinessFetchRequest, BusinessPermissionRequest,
-        BusinessUserAssociationRequest, CreateBusinessAccount,
+        BasicBusinessAccount, BusinessAccount, BusinessFetchRequest, BusinessInviteRequest,
+        BusinessPermissionRequest, BusinessUserAssociationRequest, CreateBusinessAccount,
+        UserBusinessInvitation,
     },
     utils::{
-        associate_user_to_business, create_business_account, get_basic_business_accounts,
-        get_basic_business_accounts_by_user_id, get_business_account,
-        validate_user_business_permission,
+        associate_user_to_business, create_business_account, delete_invite_by_id,
+        fetch_business_invite, get_basic_business_accounts, get_basic_business_accounts_by_user_id,
+        get_business_account, mark_invite_as_verified, save_business_invite_request,
+        save_user_business_relation, validate_user_business_permission,
     },
 };
 
@@ -356,5 +366,311 @@ pub async fn business_user_list_req(
     Ok(web::Json(GenericResponse::success(
         "Successfully fetched users.",
         data,
+    )))
+}
+
+#[utoipa::path(
+    patch,
+    path = "/business/invite/send",
+    tag = "Business Account",
+    description = "API for sending invite request to user for business association",
+    summary = "List User Accounts API by business id",
+
+    responses(
+        (status=200, description= "Successfully updated user.", body= GenericResponse<TupleUnit>),
+        (status=400, description= "Invalid Request body", body= GenericResponse<TupleUnit>),
+        (status=401, description= "Invalid Token", body= GenericResponse<TupleUnit>),
+	    (status=403, description= "Insufficient Previlege", body= GenericResponse<TupleUnit>),
+	    (status=410, description= "Data not found", body= GenericResponse<TupleUnit>),
+        (status=500, description= "Internal Server Error", body= GenericResponse<TupleUnit>)
+    ),
+    params(
+        ("x-request-id" = String, Header, description = "Request id"),
+        ("x-device-id" = String, Header, description = "Device id"),
+        ("Authorization" = String, Header, description = "JWT token"),
+        ("x-business-id" = String, Header, description = "Business id"),
+    )
+)]
+#[tracing::instrument(
+    err,
+    name = "Send Business User Invite Request",
+    skip(pool, email_client),
+    fields()
+)]
+pub async fn business_user_invite_request(
+    req: HttpRequest,
+    body: BusinessInviteRequest,
+    pool: web::Data<PgPool>,
+    user_account: UserAccount,
+    business_account: BusinessAccount,
+    email_client: web::Data<SmtpEmailClient>,
+) -> Result<web::Json<GenericResponse<()>>, GenericError> {
+    let header = req
+        .headers()
+        .get("x-forwarded-for")
+        .ok_or_else(|| GenericError::ValidationError("forwarded host not found.".to_string()))?
+        .to_str()
+        .map_err(|_| GenericError::ValidationError("Invalid forwarded host header".to_string()))?;
+    let role_id = body.role_id.to_string();
+    let setting_keys = vec![SettingKey::BusinessInviteRequestTemplate.to_string()];
+    let role_task = get_role(&pool, &role_id);
+    // let user_id = user_account.id.to_string();
+    let existing_user_task = get_user(vec![&body.email.get()], &pool);
+    let setting_task = get_setting_value(&pool, &setting_keys, None, None, true);
+    let (role_res, setting_res, use_res) =
+        tokio::join!(role_task, setting_task, existing_user_task);
+    let role = role_res
+        .map_err(|e| GenericError::DatabaseError("Failed to fetch role".to_string(), e))?
+        .ok_or_else(|| GenericError::ValidationError("Role does not exist.".to_string()))?;
+    let setting = setting_res.map_err(|e| GenericError::DatabaseError(e.to_string(), e))?;
+    let existing_user =
+        use_res.map_err(|e| GenericError::DatabaseError("Failed to fetch user".to_string(), e))?;
+    if existing_user.is_some() {
+        return Err(GenericError::ValidationError(
+            "User already exists.".to_string(),
+        ));
+    }
+    let invite_template = setting
+        .get_setting(&SettingKey::BusinessInviteRequestTemplate.to_string())
+        .ok_or_else(|| {
+            GenericError::DataNotFound(format!(
+                "Please set the {}",
+                SettingKey::BusinessInviteRequestTemplate
+            ))
+        })?;
+
+    let mut transaction = pool
+        .begin()
+        .await
+        .context("Failed to acquire a Postgres connection from the pool")?;
+
+    let id = save_business_invite_request(
+        &mut transaction,
+        user_account.id,
+        business_account.id,
+        role.id,
+        &body.email,
+    )
+    .await
+    .map_err(|e| GenericError::DatabaseError("Failed to save business invite".to_string(), e))?;
+
+    //
+
+    let context = tera::Context::from_serialize(
+        serde_json::json!({ "link":  format!("https://{}/business/invite/accept/{}", header,  id) }),
+    )
+    .map_err(|_| GenericError::UnexpectedCustomError("Failed to render html".to_string()))?;
+    let rendered_string = Tera::one_off(&invite_template, &context, true).map_err(|e| {
+        tracing::error!("Error while rendering html error: {}", e);
+        GenericError::UnexpectedCustomError(
+            "Something went wrong while rendering the email html data".to_string(),
+        )
+    })?;
+    email_client
+        .send_html_email(
+            &body.email,
+            &None,
+            "Invitation to vitis",
+            rendered_string,
+            None,
+            None,
+        )
+        .await
+        .map_err(|e| {
+            tracing::error!("Failed to send mail: {:?}", e);
+            GenericError::UnexpectedCustomError(
+                "Something went wrong while sending email".to_string(),
+            )
+        })?;
+
+    transaction
+        .commit()
+        .await
+        .context("Failed to commit SQL transaction to store a new user account.")?;
+    Ok(web::Json(GenericResponse::success(
+        "Successfully send invite links.",
+        (),
+    )))
+}
+
+#[utoipa::path(
+    patch,
+    path = "/business/invite/list",
+    tag = "Business Account",
+    description = "API for listing invite request to user for business association",
+    summary = "List Business User Invite Request API",
+
+    responses(
+        (status=200, description= "Successfully updated user.", body= GenericResponse<Vec<UserBusinessInvitation>>),
+        (status=400, description= "Invalid Request body", body= GenericResponse<TupleUnit>),
+        (status=401, description= "Invalid Token", body= GenericResponse<TupleUnit>),
+	    (status=403, description= "Insufficient Previlege", body= GenericResponse<TupleUnit>),
+	    (status=410, description= "Data not found", body= GenericResponse<TupleUnit>),
+        (status=500, description= "Internal Server Error", body= GenericResponse<TupleUnit>)
+    ),
+    params(
+        ("x-request-id" = String, Header, description = "Request id"),
+        ("x-device-id" = String, Header, description = "Device id"),
+        ("Authorization" = String, Header, description = "JWT token"),
+        ("x-business-id" = String, Header, description = "Business id"),
+    )
+)]
+#[tracing::instrument(err, name = "LIst Business User Invite Request", skip(pool), fields())]
+pub async fn list_business_user_invite(
+    req: HttpRequest,
+    pool: web::Data<PgPool>,
+    user_account: UserAccount,
+    business_account: BusinessAccount,
+) -> Result<web::Json<GenericResponse<Vec<UserBusinessInvitation>>>, GenericError> {
+    let data = fetch_business_invite(
+        &pool,
+        None,
+        Some(business_account.id),
+        Some(user_account.id),
+        None,
+    )
+    .await
+    .map_err(|e| GenericError::DatabaseError("Failed to fetch business invite".to_string(), e))?;
+    Ok(web::Json(GenericResponse::success(
+        "Successfully fetched invite links.",
+        data,
+    )))
+}
+
+#[utoipa::path(
+    post,
+    path = "/business/invite/accept/{id}",
+    tag = "Business Account",
+    description = "API for accepting invite request to user for business association",
+    summary = "Accept Business User Invite Request API",
+
+    responses(
+        (status=200, description= "Successfully updated user.", body= GenericResponse<TupleUnit>),
+        (status=400, description= "Invalid Request body", body= GenericResponse<TupleUnit>),
+        (status=401, description= "Invalid Token", body= GenericResponse<TupleUnit>),
+	    (status=403, description= "Insufficient Previlege", body= GenericResponse<TupleUnit>),
+	    (status=410, description= "Data not found", body= GenericResponse<TupleUnit>),
+        (status=500, description= "Internal Server Error", body= GenericResponse<TupleUnit>)
+    ),
+    params(
+        ("x-request-id" = String, Header, description = "Request id"),
+        ("x-device-id" = String, Header, description = "Device id"),
+        ("Authorization" = String, Header, description = "JWT token"),
+        ("x-business-id" = String, Header, description = "Business id"),
+        ("id" = String, Path, description = "Invite ID"),
+    )
+)]
+#[tracing::instrument(err, name = "LIst Business User Invite Request", skip(pool), fields())]
+pub async fn verify_business_user_invite(
+    path: web::Path<Uuid>,
+    pool: web::Data<PgPool>,
+    user_account: UserAccount,
+) -> Result<web::Json<GenericResponse<()>>, GenericError> {
+    let id = path.into_inner();
+    let data_list = fetch_business_invite(&pool, None, None, None, Some(vec![id]))
+        .await
+        .map_err(|e| {
+            GenericError::DatabaseError("Failed to fetch business invite".to_string(), e)
+        })?;
+    if let Some(invite) = data_list.first() {
+        if invite.verified {
+            return Err(GenericError::ValidationError(
+                "Invite is already accepted.".to_string(),
+            ));
+        }
+        let mut transaction = pool
+            .begin()
+            .await
+            .context("Failed to acquire a Postgres connection from the pool")?;
+        save_user_business_relation(
+            &mut transaction,
+            user_account.id,
+            invite.business_id,
+            invite.role_id,
+        )
+        .await
+        .map_err(|e| {
+            GenericError::DatabaseError(
+                "Failed to save user business relation".to_string(),
+                e.into(),
+            )
+        })?;
+
+        mark_invite_as_verified(&mut transaction, invite.id, user_account.id, Utc::now())
+            .await
+            .map_err(|e| {
+                GenericError::DatabaseError(
+                    "Failed to mark invite as verified".to_string(),
+                    e.into(),
+                )
+            })?;
+        transaction
+            .commit()
+            .await
+            .context("Failed to commit SQL transaction to store a new user account.")?;
+    } else {
+        return Err(GenericError::ValidationError(
+            "invalid invitation.".to_string(),
+        ));
+    }
+    Ok(web::Json(GenericResponse::success(
+        "Successfully associated user to business.",
+        (),
+    )))
+}
+
+#[utoipa::path(
+    delete,
+    path = "/business/invite/delete/{id}",
+    tag = "Business Account",
+    description = "API for deleting invite request to user for business association",
+    summary = "Accept Business User Invite Request API",
+
+    responses(
+        (status=200, description= "Successfully updated user.", body= GenericResponse<TupleUnit>),
+        (status=400, description= "Invalid Request body", body= GenericResponse<TupleUnit>),
+        (status=401, description= "Invalid Token", body= GenericResponse<TupleUnit>),
+	    (status=403, description= "Insufficient Previlege", body= GenericResponse<TupleUnit>),
+	    (status=410, description= "Data not found", body= GenericResponse<TupleUnit>),
+        (status=500, description= "Internal Server Error", body= GenericResponse<TupleUnit>)
+    ),
+    params(
+        ("x-request-id" = String, Header, description = "Request id"),
+        ("x-device-id" = String, Header, description = "Device id"),
+        ("Authorization" = String, Header, description = "JWT token"),
+        ("x-business-id" = String, Header, description = "Business id"),
+        ("id" = String, Path, description = "Invite ID"),
+
+    )
+)]
+#[tracing::instrument(err, name = "LIst Business User Invite Request", skip(pool), fields())]
+pub async fn delete_business_user_invite(
+    path: web::Path<Uuid>,
+    pool: web::Data<PgPool>,
+    user_account: UserAccount,
+) -> Result<web::Json<GenericResponse<()>>, GenericError> {
+    let id = path.into_inner();
+    let data_list = fetch_business_invite(&pool, None, None, Some(user_account.id), Some(vec![id]))
+        .await
+        .map_err(|e| {
+            GenericError::DatabaseError("Failed to fetch business invite".to_string(), e)
+        })?;
+    if let Some(invite) = data_list.first() {
+        if invite.verified {
+            return Err(GenericError::ValidationError(
+                "Invite is already accepted.".to_string(),
+            ));
+        }
+        delete_invite_by_id(&pool, invite.id).await.map_err(|e| {
+            GenericError::DatabaseError("Failed to delete business invite".to_string(), e.into())
+        })?;
+    } else {
+        return Err(GenericError::ValidationError(
+            "Invite invitation ID.".to_string(),
+        ));
+    }
+    Ok(web::Json(GenericResponse::success(
+        "Successfully deleted invite.",
+        (),
     )))
 }

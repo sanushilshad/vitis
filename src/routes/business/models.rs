@@ -1,9 +1,10 @@
+use chrono::{DateTime, Utc};
 use sqlx::{FromRow, types::Json};
 use uuid::Uuid;
 
-use crate::{routes::user::schemas::UserVector, schemas::Status};
+use crate::{email::EmailObject, routes::user::schemas::UserVector, schemas::Status};
 
-use super::schemas::{BasicBusinessAccount, BusinessAccount};
+use super::schemas::{BasicBusinessAccount, BusinessAccount, UserBusinessInvitation};
 
 #[derive(Debug, FromRow)]
 pub struct BusinessAccountModel {
@@ -53,6 +54,31 @@ impl UserBusinessRelationAccountModel {
 
             is_active: self.is_active.to_owned(),
             is_deleted: self.is_deleted,
+            verified: self.verified,
+        }
+    }
+}
+
+#[derive(Debug, FromRow)]
+pub struct UserBusinessInvitationModel {
+    pub id: Uuid,
+    pub email: String,
+    pub business_id: Uuid,
+    pub role_id: Uuid,
+    pub created_on: DateTime<Utc>,
+    pub created_by: Uuid,
+    pub verified: bool,
+}
+
+impl UserBusinessInvitationModel {
+    pub fn into_schema(self) -> UserBusinessInvitation {
+        UserBusinessInvitation {
+            id: self.id,
+            email: EmailObject::new(self.email),
+            business_id: self.business_id,
+            role_id: self.role_id,
+            created_on: self.created_on,
+            created_by: self.created_by,
             verified: self.verified,
         }
     }

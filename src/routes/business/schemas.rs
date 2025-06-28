@@ -1,5 +1,6 @@
 use actix_http::Payload;
 use actix_web::{FromRequest, HttpMessage, HttpRequest, web};
+use chrono::{DateTime, Utc};
 use futures::future::LocalBoxFuture;
 use serde::{Deserialize, Serialize};
 use std::future::{Ready, ready};
@@ -179,4 +180,39 @@ impl FromRequest for BusinessUserAssociationRequest {
             }
         })
     }
+}
+
+#[derive(Deserialize, Debug, ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct BusinessInviteRequest {
+    pub role_id: Uuid,
+    pub email: EmailObject,
+}
+
+impl FromRequest for BusinessInviteRequest {
+    type Error = GenericError;
+    type Future = LocalBoxFuture<'static, Result<Self, Self::Error>>;
+
+    fn from_request(req: &HttpRequest, payload: &mut Payload) -> Self::Future {
+        let fut = web::Json::<Self>::from_request(req, payload);
+
+        Box::pin(async move {
+            match fut.await {
+                Ok(json) => Ok(json.into_inner()),
+                Err(e) => Err(GenericError::ValidationError(e.to_string())),
+            }
+        })
+    }
+}
+
+#[derive(Serialize, Debug, ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct UserBusinessInvitation {
+    pub id: Uuid,
+    pub email: EmailObject,
+    pub business_id: Uuid,
+    pub role_id: Uuid,
+    pub created_on: DateTime<Utc>,
+    pub created_by: Uuid,
+    pub verified: bool,
 }

@@ -4,9 +4,12 @@ pub mod tests {
     use crate::email::EmailObject;
     use crate::routes::business::schemas::{BusinessAccount, CreateBusinessAccount};
     use crate::routes::business::utils::{
-        associate_user_to_business, create_business_account, fetch_business_account_model_by_id,
-        get_basic_business_accounts, get_basic_business_accounts_by_user_id, get_business_account,
-        validate_business_account_active, validate_user_business_permission,
+        associate_user_to_business, create_business_account, delete_invite_by_id,
+        fetch_associated_business_account_model, fetch_business_account_model_by_id,
+        fetch_business_invite, get_basic_business_accounts, get_basic_business_accounts_by_user_id,
+        get_business_account, mark_invite_as_verified, save_business_invite_request,
+        save_user_business_relation, validate_business_account_active,
+        validate_user_business_permission,
     };
 
     use crate::routes::user::schemas::UserRoleType;
@@ -19,6 +22,8 @@ pub mod tests {
     use crate::schemas::{PermissionType, Status};
 
     use crate::tests::tests::get_test_pool;
+    use anyhow::Context;
+    use chrono::Utc;
     use sqlx::PgPool;
     use tokio::join;
     use uuid::Uuid;
@@ -311,13 +316,105 @@ pub mod tests {
         let user_account_list = user_account_list_res.unwrap();
         let first_user_account = user_account_list.first().unwrap();
         assert!(first_user_account.id == user_id);
-        let delete_bus_res = hard_delete_business_account(&pool, business_id).await;
-        assert!(delete_bus_res.is_ok());
-        let delete_res = hard_delete_user_account(
+        let delete_mobile = format!("{}{}", DUMMY_INTERNATIONAL_DIALING_CODE, mobile_no);
+        let (delete_business_account_res, delete_user_account_res) = tokio::join!(
+            hard_delete_business_account(&pool, business_id),
+            hard_delete_user_account(&pool, &delete_mobile)
+        );
+        assert!(delete_business_account_res.is_ok());
+        assert!(delete_user_account_res.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_invite_create_accept_fetch_and_delete() {
+        let pool = get_test_pool().await;
+
+        let mobile_no = "12345618935";
+        let mobile_no_2 = "12345618932";
+        let user_res = setup_user(
             &pool,
-            &format!("{}{}", DUMMY_INTERNATIONAL_DIALING_CODE, mobile_no),
+            "testuser39",
+            "testuser39@example.com",
+            mobile_no,
+            "testuser@123",
         )
         .await;
-        assert!(delete_res.is_ok());
+
+        let user_res_2 = setup_user(
+            &pool,
+            "testuser40",
+            "testuser40@example.com",
+            mobile_no_2,
+            "testuser@123",
+        )
+        .await;
+
+        let business_res = setup_business(&pool, mobile_no, "business@example.com").await;
+        let business_id = business_res.unwrap();
+        let invite_email = EmailObject::new("sanushilshad@gmail.com".to_string());
+        let mut transaction = pool
+            .begin()
+            .await
+            .context("Failed to create transaction.")
+            .unwrap();
+        let role = get_role(&pool, &UserRoleType::User.to_lowercase_string())
+            .await
+            .unwrap();
+        let user_id = user_res.unwrap();
+        let user_id_2 = user_res_2.unwrap();
+        let role_id = role.unwrap().id;
+        let id_res = save_business_invite_request(
+            &mut transaction,
+            user_id,
+            business_id,
+            role_id,
+            &invite_email,
+        )
+        .await;
+        transaction
+            .commit()
+            .await
+            .context("Failed to commit SQL transaction to store a new user account.")
+            .unwrap();
+        assert!(id_res.is_ok());
+        let invite_id = id_res.unwrap();
+        let data = fetch_business_invite(&pool, None, None, None, Some(vec![invite_id])).await;
+        assert!(data.is_ok());
+        let invite_data = data.unwrap();
+        assert!(invite_data.len() == 1);
+        let mut transaction_2 = pool
+            .begin()
+            .await
+            .context("Failed to create transaction.")
+            .unwrap();
+        let verify_res =
+            mark_invite_as_verified(&mut transaction_2, invite_id, user_id, Utc::now()).await;
+        let user_business_res =
+            save_user_business_relation(&mut transaction_2, user_id_2, business_id, role_id).await;
+        transaction_2
+            .commit()
+            .await
+            .context("Failed to commit SQL transaction to store a new user account.")
+            .unwrap();
+        print!("aaaaaa{:?}", user_business_res);
+        assert!(user_business_res.is_ok());
+        assert!(verify_res.is_ok());
+        let fetch_association =
+            fetch_associated_business_account_model(user_id, business_id, &pool).await;
+        assert!(fetch_association.is_ok());
+        assert!(fetch_association.unwrap().is_some());
+
+        let invite_delete = delete_invite_by_id(&pool, invite_id).await;
+        assert!(invite_delete.is_ok());
+        let delete_mobile = format!("{}{}", DUMMY_INTERNATIONAL_DIALING_CODE, mobile_no);
+        let delete_mobile_2 = format!("{}{}", DUMMY_INTERNATIONAL_DIALING_CODE, mobile_no_2);
+        let (delete_business_account_res, delete_user_account_res, delete_user_account_res_2) = tokio::join!(
+            hard_delete_business_account(&pool, business_id),
+            hard_delete_user_account(&pool, &delete_mobile),
+            hard_delete_user_account(&pool, &delete_mobile_2)
+        );
+        assert!(delete_business_account_res.is_ok());
+        assert!(delete_user_account_res.is_ok());
+        assert!(delete_user_account_res_2.is_ok());
     }
 }

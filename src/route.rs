@@ -28,14 +28,7 @@ pub fn routes(cfg: &mut web::ServiceConfig) {
         //             allow_deleted_user: false,
         //         }),
         // )
-        .service(
-            web::scope("/business")
-                .configure(business_routes)
-                .wrap(RequireAuth {
-                    allow_deleted_user: false,
-                })
-                .wrap(HeaderValidation),
-        )
+        .service(web::scope("/business").configure(business_routes))
         .service(
             web::scope("/setting")
                 .configure(setting_routes)

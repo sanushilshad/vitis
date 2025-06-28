@@ -1,21 +1,24 @@
 use super::models::UserBusinessRelationAccountModel;
-use super::schemas::{BasicBusinessAccount, BusinessAccount};
+use super::schemas::{BasicBusinessAccount, BusinessAccount, UserBusinessInvitation};
 use super::{
     errors::BusinessAccountError, models::BusinessAccountModel, schemas::CreateBusinessAccount,
 };
+use crate::email::EmailObject;
+use crate::routes::business::models::UserBusinessInvitationModel;
 use crate::routes::user::schemas::{
     AuthenticationScope, BulkAuthMechanismInsert, UserAccount, UserRoleType, UserVector, VectorType,
 };
 use crate::routes::user::utils::get_role;
 use crate::schemas::{MaskingType, Status};
 use anyhow::Context;
+use anyhow::anyhow;
 use chrono::Utc;
-use sqlx::{Executor, PgPool, Postgres, Transaction};
+use sqlx::{Executor, PgPool, Postgres, QueryBuilder, Transaction};
 use uuid::Uuid;
 #[tracing::instrument(name = "create user account")]
 pub fn create_vector_from_business_account(
     business_account: &CreateBusinessAccount,
-) -> Result<Vec<UserVector>, BusinessAccountError> {
+) -> Vec<UserVector> {
     let vector_list: Vec<UserVector> = vec![
         UserVector {
             key: VectorType::Email,
@@ -30,7 +33,7 @@ pub fn create_vector_from_business_account(
             verified: false,
         },
     ];
-    return Ok(vector_list);
+    vector_list
 }
 
 #[tracing::instrument(name = "create user business relation", skip(transaction))]
@@ -41,7 +44,7 @@ pub async fn save_business_account(
 ) -> Result<uuid::Uuid, BusinessAccountError> {
     let business_account_id = Uuid::new_v4();
     let business_name = create_business_obj.name.clone(); // Assuming this maps to `name`
-    let vector_list = create_vector_from_business_account(create_business_obj)?; // JSONB column
+    let vector_list = create_vector_from_business_account(create_business_obj); // JSONB column
 
     let query = sqlx::query!(
         r#"
@@ -67,6 +70,7 @@ pub async fn save_business_account(
 
     Ok(business_account_id)
 }
+
 #[tracing::instrument(name = "create user business relation", skip(transaction))]
 pub async fn save_user_business_relation(
     transaction: &mut Transaction<'_, Postgres>,
@@ -412,4 +416,150 @@ pub async fn validate_user_permission(
     })?;
 
     Ok(permission_list)
+}
+
+#[tracing::instrument(name = "save invite request", skip(transaction))]
+pub async fn save_business_invite_request(
+    transaction: &mut Transaction<'_, Postgres>,
+    created_by: Uuid,
+    business_id: Uuid,
+    role_id: Uuid,
+    email: &EmailObject,
+) -> Result<uuid::Uuid, anyhow::Error> {
+    // let business_account_id = Uuid::new_v4();
+
+    let query = sqlx::query!(
+        r#"
+        INSERT INTO business_account_invitation_request (id, email, business_id, role_id, created_on, created_by)
+        VALUES ($1, $2, $3, $4, $5, $6)
+        ON CONFLICT (email, business_id)
+        DO UPDATE SET
+            created_by = EXCLUDED.created_by,
+            created_on = EXCLUDED.created_on
+        RETURNING id
+        "#,
+        Uuid::new_v4(),
+        email.get(),
+        business_id,
+        role_id,
+        Utc::now(),
+        created_by
+    );
+
+    // let result = query.fetch_one(&mut *transaction).await.map_err(|e| {
+    //     tracing::error!("Failed to execute query: {:?}", e);
+    //     BusinessAccountError::DatabaseError(
+    //         "A database failure occurred while saving business account invite requst".to_string(),
+    //         e.into(),
+    //     )
+    // })?;
+    let result = query.fetch_one(&mut **transaction).await.map_err(|e| {
+        tracing::error!("Failed to execute query: {:?}", e);
+        anyhow::Error::new(e)
+            .context("A database failure occurred while saving RFQ to database request")
+    })?;
+
+    Ok(result.id)
+}
+
+pub async fn fetch_business_models(
+    pool: &PgPool,
+    email: Option<&EmailObject>,
+    business_id: Option<Uuid>,
+    created_by: Option<Uuid>,
+    id_list: Option<Vec<Uuid>>,
+) -> Result<Vec<UserBusinessInvitationModel>, anyhow::Error> {
+    let mut query_builder = QueryBuilder::<Postgres>::new(
+        "SELECT id, verified, email, business_id, role_id, created_on, created_by FROM business_account_invitation_request WHERE 1=1",
+    );
+
+    if let Some(business_id) = business_id {
+        query_builder
+            .push(" AND business_id = ")
+            .push_bind(business_id);
+    }
+
+    if let Some(created_by) = created_by {
+        query_builder
+            .push(" AND created_by = ")
+            .push_bind(created_by);
+    }
+
+    if let Some(email) = email {
+        query_builder.push(" AND email = ").push_bind(email.get());
+    }
+
+    if let Some(id_list) = id_list {
+        if !id_list.is_empty() {
+            query_builder.push(" AND id = ANY(");
+            query_builder.push_bind(id_list);
+            query_builder.push(")");
+        }
+    }
+
+    let query = query_builder.build_query_as::<UserBusinessInvitationModel>();
+
+    let rows = query.fetch_all(pool).await.map_err(|e| {
+        tracing::error!("Failed to execute query: {:?}", e);
+        anyhow!(e).context("A database failure occurred while fetching business invite")
+    })?;
+
+    Ok(rows)
+}
+pub async fn fetch_business_invite(
+    pool: &PgPool,
+    email: Option<&EmailObject>,
+    business_id: Option<Uuid>,
+    created_by: Option<Uuid>,
+    id_list: Option<Vec<Uuid>>,
+) -> Result<Vec<UserBusinessInvitation>, anyhow::Error> {
+    let models = fetch_business_models(pool, email, business_id, created_by, id_list).await?;
+    let business_invite_list = models.into_iter().map(|e| e.into_schema()).collect();
+    Ok(business_invite_list)
+}
+
+#[tracing::instrument(name = "mark invite as verified", skip(transaction))]
+pub async fn mark_invite_as_verified(
+    transaction: &mut Transaction<'_, Postgres>,
+    invite_id: Uuid,
+    updated_by: Uuid,
+    updated_on: chrono::DateTime<Utc>,
+) -> Result<(), anyhow::Error> {
+    let query = sqlx::query!(
+        r#"
+        UPDATE business_account_invitation_request
+        SET verified = TRUE,
+        updated_by = $1,
+        updated_on = $2
+        WHERE id = $3
+        "#,
+        updated_by,
+        updated_on,
+        invite_id,
+    );
+
+    query.execute(&mut **transaction).await.map_err(|e| {
+        tracing::error!("Failed to mark invite as verified: {:?}", e);
+        anyhow::anyhow!(e).context("Failed to update 'verified' field for invite")
+    })?;
+
+    Ok(())
+}
+
+#[tracing::instrument(name = "delete business invite", skip(pool))]
+pub async fn delete_invite_by_id(pool: &PgPool, invite_id: Uuid) -> Result<(), anyhow::Error> {
+    let query = sqlx::query!(
+        r#"
+        DELETE FROM business_account_invitation_request
+        WHERE id = $1
+        "#,
+        invite_id
+    );
+
+    query.execute(pool).await.map_err(|e| {
+        tracing::error!("Failed to delete invite: {:?}", e);
+        anyhow!(e).context("Failed to delete invite from business_account_invitation_request")
+    })?;
+
+    Ok(())
 }

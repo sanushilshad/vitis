@@ -163,6 +163,7 @@ pub enum SettingKey {
     LeaveRequestStatusUpdateTemplate,
     TimeZone,
     EmailOTPTemplate,
+    BusinessInviteRequestTemplate,
 }
 
 impl fmt::Display for SettingKey {
@@ -173,6 +174,7 @@ impl fmt::Display for SettingKey {
             SettingKey::LeaveRequestStatusUpdateTemplate => "leave_request_status_update_template",
             SettingKey::TimeZone => "time_zone",
             SettingKey::EmailOTPTemplate => "email_otp_template",
+            SettingKey::BusinessInviteRequestTemplate => "business_invite_request_template",
         };
         write!(f, "{}", display_str)
     }
