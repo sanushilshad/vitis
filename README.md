@@ -261,7 +261,7 @@ The API Docmentation can be found at `https://{{domain}}/docs/` after running th
 * [ ] Create Project Setting edit API.
 
 
-## MILESTONE 4 (14/14) LEAVE:
+## MILESTONE 4 (14/17) LEAVE:
 * [x] Add leave type creation / edit API.
 * [x] Add leave  type fetch API.
 * [x] Add leave  type deletion API.
@@ -276,6 +276,9 @@ The API Docmentation can be found at `https://{{domain}}/docs/` after running th
 * [x] Add leave fetch API.
 * [x] Add leave request approval API.
 * [x] Add Leave Alert Scheduler.
+* [ ] Add leave period creation API.
+* [ ] Add leave period fetch API.
+* [ ] Add leave period deletion API.
 
 
 ## MILESTONE 5 (0/4) (ROLE AND PERMISSION MANAGEMENT):
