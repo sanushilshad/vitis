@@ -241,7 +241,7 @@ The API Docmentation can be found at `https://{{domain}}/docs/` after running th
 * [x] Integrate Whatsapp.
 
 
-## MILESTONE 3 (13/17) (BUSINESS MANAGEMENT):
+## MILESTONE 3 (13/16) (BUSINESS MANAGEMENT):
 * [x] Create business creation API.
 * [x] List all business of a user data API.
 * [x] Fetch business data API.
@@ -258,7 +258,6 @@ The API Docmentation can be found at `https://{{domain}}/docs/` after running th
 * [ ] Create business deletion API.  (Ongoing)
 * [ ] User-Business diassociation API.
 * [ ] Create business edit API.
-* [ ] Create Project Setting edit API.
 
 
 ## MILESTONE 4 (14/17) LEAVE:
