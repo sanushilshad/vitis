@@ -563,3 +563,26 @@ pub async fn delete_invite_by_id(pool: &PgPool, invite_id: Uuid) -> Result<(), a
 
     Ok(())
 }
+
+#[tracing::instrument(name = "delete user business relationship", skip(pool))]
+pub async fn delete_user_business_relationship(
+    pool: &PgPool,
+    user_id: Uuid,
+    business_id: Uuid,
+) -> Result<(), anyhow::Error> {
+    let query = sqlx::query!(
+        r#"
+        DELETE FROM business_user_relationship
+        WHERE user_id = $1 AND business_id = $2
+        "#,
+        user_id,
+        business_id
+    );
+
+    query.execute(pool).await.map_err(|e| {
+        tracing::error!("Failed to delete user-business relationship: {:?}", e);
+        anyhow!(e).context("Failed to delete from business_user_relationship")
+    })?;
+
+    Ok(())
+}

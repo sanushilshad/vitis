@@ -13,8 +13,8 @@ use crate::{
 use super::{
     models::SettingModel,
     schemas::{
-        CreateBusinessSettingRequest, CreateUserSettingRequest, FetchSettingEnumRequest,
-        FetchSettingRequest, SettingData, SettingEnumData, SettingType,
+        CreateBusinessSettingRequest, CreateGlobalSettingRequest, CreateUserSettingRequest,
+        FetchSettingEnumRequest, FetchSettingRequest, SettingData, SettingEnumData, SettingType,
     },
     utils::{
         create_business_setting, create_global_setting, create_user_business_setting,
@@ -91,7 +91,7 @@ pub async fn create_business_config_req(
     summary = "User Setting Create API",
     path = "/setting/user/save",
     tag = "Setting",
-    request_body(content = CreateBusinessSettingRequest, description = "Request Body"),
+    request_body(content = CreateUserSettingRequest, description = "Request Body"),
     responses(
         (status=200, description= "business Account created successfully", body= GenericResponse<TupleUnit>),
         (status=400, description= "Invalid Request body", body= GenericResponse<TupleUnit>),
@@ -301,7 +301,7 @@ pub async fn fetch_global_setting(
     summary = "Global Setting Create API",
     path = "/setting/global/save",
     tag = "Setting",
-    request_body(content = CreateBusinessSettingRequest, description = "Request Body"),
+    request_body(content = CreateGlobalSettingRequest, description = "Request Body"),
     responses(
         (status=200, description= "business Account created successfully", body= GenericResponse<TupleUnit>),
         (status=400, description= "Invalid Request body", body= GenericResponse<TupleUnit>),
@@ -316,9 +316,9 @@ pub async fn fetch_global_setting(
         ("x-device-id" = String, Header, description = "Device id"),
       )
 )]
-#[tracing::instrument(err, name = "User Config Creation API", skip(pool, body), fields())]
+#[tracing::instrument(err, name = "Global Config Creation API", skip(pool, body), fields())]
 pub async fn save_global_setting(
-    body: CreateUserSettingRequest,
+    body: CreateGlobalSettingRequest,
     pool: web::Data<PgPool>,
     user: UserAccount,
 ) -> Result<web::Json<GenericResponse<()>>, GenericError> {

@@ -139,7 +139,7 @@ pub async fn leave_request_fetch_req(
     tag = "Leave",
     summary = "Leave Type Creation API",
     path = "/leave/type/create",
-    request_body(content = FetchLeaveRequest, description = "Request Body"),
+    request_body(content = LeaveTypeCreationRequest, description = "Request Body"),
     responses(
         (status=200, description= "project Account created successfully", body= GenericResponse<TupleUnit>),
         (status=400, description= "Invalid Request body", body= GenericResponse<TupleUnit>),
@@ -184,7 +184,7 @@ pub async fn leave_type_create_req(
     tag = "Leave",
     summary = "Leave Type List API",
     path = "/leave/type/list",
-    request_body(content = FetchLeaveRequest, description = "Request Body"),
+    request_body(content = LeaveTypeFetchRequest, description = "Request Body"),
     responses(
         (status=200, description= "project Account created successfully", body= GenericResponse<Vec<LeaveTypeData>>),
         (status=400, description= "Invalid Request body", body= GenericResponse<TupleUnit>),
@@ -291,7 +291,7 @@ pub async fn leave_type_delete_req(
     tag = "Leave",
     summary = "Leave Group Creation API",
     path = "/leave/group/create",
-    request_body(content = FetchLeaveRequest, description = "Request Body"),
+    request_body(content = LeaveGroupCreationRequest, description = "Request Body"),
     responses(
         (status=200, description= "project Account created successfully", body= GenericResponse<TupleUnit>),
         (status=400, description= "Invalid Request body", body= GenericResponse<TupleUnit>),
@@ -446,6 +446,7 @@ pub async fn leave_group_list_req(
     tag = "Leave",
     summary = "Leave User Association API",
     path = "/leave/user/association/save",
+    request_body(content = CreateLeaveUserAssociationRequest, description = "Request Body"),
     responses(
         (status=200, description= "project Account created successfully", body= GenericResponse<TupleUnit>),
         (status=400, description= "Invalid Request body", body= GenericResponse<TupleUnit>),
@@ -523,6 +524,7 @@ pub async fn create_leave_user_association_req(
     tag = "Leave",
     summary = "List Leave User Association API",
     path = "/leave/user/association/list",
+    request_body(content = ListLeaveUserAssociationRequest, description = "Request Body"),
     responses(
         (status=200, description= "project Account created successfully", body= GenericResponse<Vec<UserLeave>>),
         (status=400, description= "Invalid Request body", body= GenericResponse<TupleUnit>),

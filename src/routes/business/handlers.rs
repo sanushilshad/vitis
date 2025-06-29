@@ -33,9 +33,10 @@ use super::{
     },
     utils::{
         associate_user_to_business, create_business_account, delete_invite_by_id,
-        fetch_business_invite, get_basic_business_accounts, get_basic_business_accounts_by_user_id,
-        get_business_account, mark_invite_as_verified, save_business_invite_request,
-        save_user_business_relation, validate_user_business_permission,
+        delete_user_business_relationship, fetch_business_invite, get_basic_business_accounts,
+        get_basic_business_accounts_by_user_id, get_business_account, mark_invite_as_verified,
+        save_business_invite_request, save_user_business_relation,
+        validate_user_business_permission,
     },
 };
 
@@ -218,11 +219,11 @@ pub async fn list_business_req(
 
 #[utoipa::path(
     post,
-    path = "/business/user/assocation",
+    path = "/business/user/associate",
     tag = "Business Account",
     description = "API for association of user with business account",
     summary = "Use business Account Association API",
-    // request_body(content = BusinessAccountListReq, description = "Request Body"),
+    request_body(content = BusinessUserAssociationRequest, description = "Request Body"),
     responses(
         (status=200, description= "Sucessfully fetched business data.", body= GenericResponse<TupleUnit>),
         (status=400, description= "Invalid Request body", body= GenericResponse<TupleUnit>),
@@ -375,7 +376,7 @@ pub async fn business_user_list_req(
     tag = "Business Account",
     description = "API for sending invite request to user for business association",
     summary = "List User Accounts API by business id",
-
+    request_body(content = BusinessInviteRequest, description = "Request Body"),
     responses(
         (status=200, description= "Successfully updated user.", body= GenericResponse<TupleUnit>),
         (status=400, description= "Invalid Request body", body= GenericResponse<TupleUnit>),
@@ -407,10 +408,10 @@ pub async fn business_user_invite_request(
 ) -> Result<web::Json<GenericResponse<()>>, GenericError> {
     let header = req
         .headers()
-        .get("x-forwarded-for")
-        .ok_or_else(|| GenericError::ValidationError("forwarded host not found.".to_string()))?
+        .get("origin")
+        .ok_or_else(|| GenericError::ValidationError("origin not found.".to_string()))?
         .to_str()
-        .map_err(|_| GenericError::ValidationError("Invalid forwarded host header".to_string()))?;
+        .map_err(|_| GenericError::ValidationError("Invalid origin header".to_string()))?;
     let role_id = body.role_id.to_string();
     let setting_keys = vec![SettingKey::BusinessInviteRequestTemplate.to_string()];
     let role_task = get_role(&pool, &role_id);
@@ -457,7 +458,7 @@ pub async fn business_user_invite_request(
     //
 
     let context = tera::Context::from_serialize(
-        serde_json::json!({ "link":  format!("https://{}/business/invite/accept/{}", header,  id) }),
+        serde_json::json!({ "link":  format!("{}/business/invite/accept/{}", header,  id) }),
     )
     .map_err(|_| GenericError::UnexpectedCustomError("Failed to render html".to_string()))?;
     let rendered_string = Tera::one_off(&invite_template, &context, true).map_err(|e| {
@@ -671,6 +672,47 @@ pub async fn delete_business_user_invite(
     }
     Ok(web::Json(GenericResponse::success(
         "Successfully deleted invite.",
+        (),
+    )))
+}
+
+#[utoipa::path(
+    post,
+    path = "/business/user/disassociate",
+    tag = "Business Account",
+    description = "API for disassociating user froms business account",
+    summary = "Use business Account Disassociation API",
+    responses(
+        (status=200, description= "Sucessfully fetched business data.", body= GenericResponse<TupleUnit>),
+        (status=400, description= "Invalid Request body", body= GenericResponse<TupleUnit>),
+        (status=401, description= "Invalid Token", body= GenericResponse<TupleUnit>),
+	    (status=403, description= "Insufficient Previlege", body= GenericResponse<TupleUnit>),
+	    (status=410, description= "Data not found", body= GenericResponse<TupleUnit>),
+        (status=500, description= "Internal Server Error", body= GenericResponse<TupleUnit>)
+    ),
+    params(
+        ("Authorization" = String, Header, description = "JWT token"),
+        ("x-request-id" = String, Header, description = "Request id"),
+        ("x-device-id" = String, Header, description = "Device id"),
+        ("x-business-id" = String, Header, description = "Business id"),
+      )
+)]
+#[tracing::instrument(err, name = "user business disassociation", skip(pool), fields())]
+pub async fn user_business_deassociation_req(
+    pool: web::Data<PgPool>,
+    user_account: UserAccount,
+    business_account: BusinessAccount,
+) -> Result<web::Json<GenericResponse<()>>, GenericError> {
+    delete_user_business_relationship(&pool, user_account.id, business_account.id)
+        .await
+        .map_err(|e| {
+            GenericError::DatabaseError(
+                "Something went wrong while disassociating user from business".to_owned(),
+                e,
+            )
+        })?;
+    Ok(web::Json(GenericResponse::success(
+        "Sucessfully disassociated user from business account.",
         (),
     )))
 }

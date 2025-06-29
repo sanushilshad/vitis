@@ -5,11 +5,11 @@ pub mod tests {
     use crate::routes::business::schemas::{BusinessAccount, CreateBusinessAccount};
     use crate::routes::business::utils::{
         associate_user_to_business, create_business_account, delete_invite_by_id,
-        fetch_associated_business_account_model, fetch_business_account_model_by_id,
-        fetch_business_invite, get_basic_business_accounts, get_basic_business_accounts_by_user_id,
-        get_business_account, mark_invite_as_verified, save_business_invite_request,
-        save_user_business_relation, validate_business_account_active,
-        validate_user_business_permission,
+        delete_user_business_relationship, fetch_associated_business_account_model,
+        fetch_business_account_model_by_id, fetch_business_invite, get_basic_business_accounts,
+        get_basic_business_accounts_by_user_id, get_business_account, mark_invite_as_verified,
+        save_business_invite_request, save_user_business_relation,
+        validate_business_account_active, validate_user_business_permission,
     };
 
     use crate::routes::user::schemas::UserRoleType;
@@ -416,5 +416,39 @@ pub mod tests {
         assert!(delete_business_account_res.is_ok());
         assert!(delete_user_account_res.is_ok());
         assert!(delete_user_account_res_2.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_user_business_disassociation() {
+        let pool = get_test_pool().await;
+
+        let mobile_no = "12345618936";
+
+        let user_res = setup_user(
+            &pool,
+            "testuser41",
+            "testuser41@example.com",
+            mobile_no,
+            "testuser@123",
+        )
+        .await;
+
+        let business_res = setup_business(&pool, mobile_no, "business@example.com").await;
+        let user_id = user_res.unwrap();
+        let business_id = business_res.unwrap();
+        let delete_association =
+            delete_user_business_relationship(&pool, user_id, business_id).await;
+        assert!(delete_association.is_ok());
+        let fetch_association =
+            fetch_associated_business_account_model(user_id, business_id, &pool).await;
+        assert!(fetch_association.is_ok());
+        assert!(fetch_association.unwrap().is_none());
+        let delete_mobile = format!("{}{}", DUMMY_INTERNATIONAL_DIALING_CODE, mobile_no);
+        let (delete_business_account_res, delete_user_account_res) = tokio::join!(
+            hard_delete_business_account(&pool, business_id),
+            hard_delete_user_account(&pool, &delete_mobile),
+        );
+        assert!(delete_business_account_res.is_ok());
+        assert!(delete_user_account_res.is_ok());
     }
 }
