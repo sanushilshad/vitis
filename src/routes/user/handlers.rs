@@ -344,7 +344,7 @@ pub async fn reactivate_user_req(
 }
 
 #[utoipa::path(
-    patch,
+    post,
     path = "/user/list",
     tag = "User Account",
     description = "API for listing users",
@@ -385,7 +385,7 @@ pub async fn user_list_req(
 
 #[utoipa::path(
     patch,
-    path = "/user/edit",
+    path = "/user/update",
     tag = "User Account",
     description = "API for editing user account",
     summary = "List User Accounts API",
@@ -405,7 +405,7 @@ pub async fn user_list_req(
     )
 )]
 #[tracing::instrument(err, name = "User Account Edit", skip(pool), fields())]
-pub async fn user_edit_req(
+pub async fn user_update_req(
     data: EditUserAccount,
     pool: web::Data<PgPool>,
     user_account: UserAccount,

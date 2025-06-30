@@ -14,6 +14,7 @@ pub struct BusinessAccountModel {
     pub is_active: Status,
     pub is_deleted: bool,
     pub verified: bool,
+    pub email: Option<String>,
 }
 
 impl BusinessAccountModel {
@@ -31,6 +32,7 @@ impl BusinessAccountModel {
             is_active: self.is_active.to_owned(),
             is_deleted: self.is_deleted,
             verified: self.verified,
+            email: self.email.map(EmailObject::new),
         }
     }
 }
@@ -43,6 +45,7 @@ pub struct UserBusinessRelationAccountModel {
     pub is_active: Status,
     pub verified: bool,
     pub is_deleted: bool,
+    pub email: Option<String>,
 }
 
 impl UserBusinessRelationAccountModel {
@@ -55,6 +58,7 @@ impl UserBusinessRelationAccountModel {
             is_active: self.is_active.to_owned(),
             is_deleted: self.is_deleted,
             verified: self.verified,
+            email: self.email.map(EmailObject::new),
         }
     }
 }

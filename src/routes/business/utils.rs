@@ -1,5 +1,7 @@
 use super::models::UserBusinessRelationAccountModel;
-use super::schemas::{BasicBusinessAccount, BusinessAccount, UserBusinessInvitation};
+use super::schemas::{
+    BasicBusinessAccount, BusinessAccount, UpdateBusinessAccount, UserBusinessInvitation,
+};
 use super::{
     errors::BusinessAccountError, models::BusinessAccountModel, schemas::CreateBusinessAccount,
 };
@@ -26,12 +28,12 @@ pub fn create_vector_from_business_account(
             masking: MaskingType::NA,
             verified: false,
         },
-        UserVector {
-            key: VectorType::MobileNo,
-            value: business_account.get_full_mobile_no(),
-            masking: MaskingType::NA,
-            verified: false,
-        },
+        // UserVector {
+        //     key: VectorType::MobileNo,
+        //     value: business_account.get_full_mobile_no(),
+        //     masking: MaskingType::NA,
+        //     verified: false,
+        // },
     ];
     vector_list
 }
@@ -115,7 +117,7 @@ pub fn prepare_auth_mechanism_data_for_business_account(
     let user_id_list = vec![user_id, user_id];
     let auth_scope = vec![AuthenticationScope::Otp, AuthenticationScope::Email];
     let auth_identifier = vec![
-        user_account.get_full_mobile_no(),
+        // user_account.get_full_mobile_no(),
         user_account.email.get().to_owned(),
     ];
     let secret = vec![];
@@ -190,6 +192,7 @@ pub async fn fetch_business_account_models_by_user_account(
         SELECT 
             ba.id, 
             ba.display_name, 
+            ba.email,
             ba.vectors as "vectors:sqlx::types::Json<Vec<UserVector>>",
             ba.is_active as "is_active!:Status",
             ba.is_deleted,
@@ -219,6 +222,7 @@ pub async fn fetch_business_account_model_by_id(
             id,
             display_name, 
             vectors,
+            email,
             is_active,
             is_deleted,
             TRUE AS verified
@@ -248,6 +252,7 @@ pub async fn fetch_associated_business_account_model(
         SELECT 
             ba.id, 
             ba.display_name,
+            ba.email,
             ba.vectors as "vectors:sqlx::types::Json<Vec<UserVector>>",
             ba.is_active as "is_active!:Status",
             bur.verified, 
@@ -607,6 +612,75 @@ pub async fn soft_delete_business_account(
     query.execute(pool).await.map_err(|e| {
         tracing::error!("Failed to delete business_account: {:?}", e);
         anyhow!(e).context("Failed to delete from business_account")
+    })?;
+
+    Ok(())
+}
+
+fn generate_updated_business_vectors(
+    existing_vectors: &[UserVector],
+    email: &EmailObject,
+) -> Vec<UserVector> {
+    let mut updated_vectors = vec![];
+
+    let mut has_email = false;
+
+    for vector in existing_vectors {
+        if vector.key == VectorType::Email {
+            has_email = true;
+            if vector.value != email.get() {
+                updated_vectors.push(UserVector {
+                    key: VectorType::Email,
+                    value: email.get().to_string(),
+                    masking: vector.masking.clone(),
+                    verified: false,
+                });
+            } else {
+                updated_vectors.push(vector.clone());
+            }
+        }
+    }
+
+    if !has_email {
+        updated_vectors.push(UserVector {
+            key: VectorType::Email,
+            value: email.get().to_owned(),
+            masking: MaskingType::NA, // adjust if needed
+            verified: false,
+        });
+    }
+
+    updated_vectors
+}
+
+#[tracing::instrument(name = "update business account", skip(pool))]
+pub async fn update_business_account(
+    pool: &PgPool,
+    data: &UpdateBusinessAccount,
+    business_account: &BusinessAccount,
+    created_by: Uuid,
+) -> Result<(), anyhow::Error> {
+    let vector_list: Vec<UserVector> =
+        generate_updated_business_vectors(&business_account.vectors, &data.email);
+    let query = sqlx::query!(
+        r#"UPDATE business_account SET
+            email = $1,
+            display_name = $2,
+            vectors = $3,
+            updated_on = $4,
+            updated_by = $5
+        WHERE id = $6"#,
+        data.email.get(),
+        data.display_name,
+        sqlx::types::Json(vector_list) as sqlx::types::Json<Vec<UserVector>>,
+        Utc::now(),
+        created_by,
+        business_account.id
+    );
+
+    pool.execute(query).await.map_err(|e| {
+        tracing::error!("Failed to execute user update query: {:?}", e);
+        anyhow::anyhow!("Something went wrong while updating business details.")
     })?;
 
     Ok(())

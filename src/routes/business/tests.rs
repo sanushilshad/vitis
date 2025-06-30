@@ -2,14 +2,17 @@
 pub mod tests {
     use crate::constants::DUMMY_INTERNATIONAL_DIALING_CODE;
     use crate::email::EmailObject;
-    use crate::routes::business::schemas::{BusinessAccount, CreateBusinessAccount};
+    use crate::routes::business::schemas::{
+        BusinessAccount, CreateBusinessAccount, UpdateBusinessAccount,
+    };
     use crate::routes::business::utils::{
         associate_user_to_business, create_business_account, delete_invite_by_id,
         delete_user_business_relationship, fetch_associated_business_account_model,
         fetch_business_account_model_by_id, fetch_business_invite, get_basic_business_accounts,
         get_basic_business_accounts_by_user_id, get_business_account, mark_invite_as_verified,
         save_business_invite_request, save_user_business_relation, soft_delete_business_account,
-        validate_business_account_active, validate_user_business_permission,
+        update_business_account, validate_business_account_active,
+        validate_user_business_permission,
     };
 
     use crate::routes::user::schemas::UserRoleType;
@@ -37,6 +40,7 @@ pub mod tests {
             is_active: Status::Active,
             is_deleted: false,
             verified: true,
+            email: None,
         };
 
         // Test case 5: business account is inactive
@@ -87,12 +91,10 @@ pub mod tests {
         let user_opt = user_res.unwrap();
         let create_business_obj = CreateBusinessAccount {
             name: "Test Company".to_string(),
-            is_test_account: false,
 
-            mobile_no: mobile_no.to_string(),
+            // mobile_no: mobile_no.to_string(),
             email: EmailObject::new(email.to_string()),
-
-            international_dialing_code: DUMMY_INTERNATIONAL_DIALING_CODE.to_string(),
+            // international_dialing_code: DUMMY_INTERNATIONAL_DIALING_CODE.to_string(),
         };
         let business_res_obj =
             create_business_account(pool, &user_opt.unwrap(), &create_business_obj).await?;
@@ -477,6 +479,48 @@ pub mod tests {
             fetch_associated_business_account_model(user_id, business_id, &pool).await;
         assert!(fetch_association.is_ok());
         assert!(fetch_association.unwrap().unwrap().is_deleted == true);
+        let delete_mobile = format!("{}{}", DUMMY_INTERNATIONAL_DIALING_CODE, mobile_no);
+        let (delete_business_account_res, delete_user_account_res) = tokio::join!(
+            hard_delete_business_account(&pool, business_id),
+            hard_delete_user_account(&pool, &delete_mobile),
+        );
+        assert!(delete_business_account_res.is_ok());
+        assert!(delete_user_account_res.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_update_business() {
+        let pool = get_test_pool().await;
+
+        let mobile_no = "12345678938";
+
+        let user_res = setup_user(
+            &pool,
+            "testuser44",
+            "testuser44@example.com",
+            mobile_no,
+            "testuser@123",
+        )
+        .await;
+
+        let business_res = setup_business(&pool, mobile_no, "business@example.com").await;
+        let user_id = user_res.unwrap();
+        let business_id = business_res.unwrap();
+        let update_req = UpdateBusinessAccount {
+            display_name: "testuser45".to_string(),
+            email: EmailObject::new("testuser45@example.com".to_string()),
+        };
+        let business_account_res = get_business_account(&pool, user_id, business_id).await;
+        let business_account = business_account_res.unwrap().unwrap();
+        let update_res =
+            update_business_account(&pool, &update_req, &business_account, user_id).await;
+        assert!(update_res.is_ok());
+        let business_account_res = get_business_account(&pool, user_id, business_id).await;
+        let business_account = business_account_res.unwrap().unwrap();
+        assert!(business_account.display_name == "testuser45");
+        assert!(
+            business_account.email == Some(EmailObject::new("testuser45@example.com".to_string()))
+        );
         let delete_mobile = format!("{}{}", DUMMY_INTERNATIONAL_DIALING_CODE, mobile_no);
         let (delete_business_account_res, delete_user_account_res) = tokio::join!(
             hard_delete_business_account(&pool, business_id),

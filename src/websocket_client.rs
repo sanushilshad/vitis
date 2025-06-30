@@ -22,6 +22,7 @@ pub enum WebSocketActionType {
     UserDepartmentAssociation,
     LeaveRequest,
     LeaveRequestStatusUpdation,
+    UpdateBusinessAccount,
 }
 
 #[derive(Debug, Serialize, ToSchema)]

@@ -29,14 +29,14 @@ use super::{
     schemas::{
         BasicBusinessAccount, BusinessAccount, BusinessFetchRequest, BusinessInviteRequest,
         BusinessPermissionRequest, BusinessUserAssociationRequest, CreateBusinessAccount,
-        UserBusinessInvitation,
+        UpdateBusinessAccount, UserBusinessInvitation,
     },
     utils::{
         associate_user_to_business, create_business_account, delete_invite_by_id,
         delete_user_business_relationship, fetch_business_invite, get_basic_business_accounts,
         get_basic_business_accounts_by_user_id, get_business_account, mark_invite_as_verified,
         save_business_invite_request, save_user_business_relation, soft_delete_business_account,
-        validate_user_business_permission,
+        update_business_account, validate_user_business_permission,
     },
 };
 
@@ -330,7 +330,7 @@ pub async fn user_business_association_req(
 }
 
 #[utoipa::path(
-    patch,
+    post,
     path = "/business/user/list",
     tag = "Business Account",
     description = "API for listing users by business id",
@@ -371,7 +371,7 @@ pub async fn business_user_list_req(
 }
 
 #[utoipa::path(
-    patch,
+    post,
     path = "/business/invite/send",
     tag = "Business Account",
     description = "API for sending invite request to user for business association",
@@ -495,7 +495,7 @@ pub async fn business_user_invite_request(
 }
 
 #[utoipa::path(
-    patch,
+    post,
     path = "/business/invite/list",
     tag = "Business Account",
     description = "API for listing invite request to user for business association",
@@ -600,10 +600,7 @@ pub async fn verify_business_user_invite(
         mark_invite_as_verified(&mut transaction, invite.id, user_account.id, Utc::now())
             .await
             .map_err(|e| {
-                GenericError::DatabaseError(
-                    "Failed to mark invite as verified".to_string(),
-                    e.into(),
-                )
+                GenericError::DatabaseError("Failed to mark invite as verified".to_string(), e)
             })?;
         transaction
             .commit()
@@ -663,7 +660,7 @@ pub async fn delete_business_user_invite(
             ));
         }
         delete_invite_by_id(&pool, invite.id).await.map_err(|e| {
-            GenericError::DatabaseError("Failed to delete business invite".to_string(), e.into())
+            GenericError::DatabaseError("Failed to delete business invite".to_string(), e)
         })?;
     } else {
         return Err(GenericError::ValidationError(
@@ -718,7 +715,7 @@ pub async fn user_business_deassociation_req(
 }
 
 #[utoipa::path(
-    post,
+    delete,
     path = "/business/delete",
     tag = "Business Account",
     description = "API for deleting  business account",
@@ -748,12 +745,55 @@ pub async fn business_account_deletion_req(
         .await
         .map_err(|e| {
             GenericError::DatabaseError(
-                "Something went wrong while disassociating user from business".to_owned(),
+                "Something went wrong while deleting business account".to_owned(),
                 e,
             )
         })?;
     Ok(web::Json(GenericResponse::success(
-        "Sucessfully disassociated user from business account.",
+        "Sucessfully deleted  business account.",
+        (),
+    )))
+}
+
+#[utoipa::path(
+    patch,
+    path = "/business/update",
+    tag = "Business Account",
+    description = "API for updating  business account",
+    summary = "Business Account Updation API",
+    responses(
+        (status=200, description= "Sucessfully fetched business data.", body= GenericResponse<TupleUnit>),
+        (status=400, description= "Invalid Request body", body= GenericResponse<TupleUnit>),
+        (status=401, description= "Invalid Token", body= GenericResponse<TupleUnit>),
+	    (status=403, description= "Insufficient Previlege", body= GenericResponse<TupleUnit>),
+	    (status=410, description= "Data not found", body= GenericResponse<TupleUnit>),
+        (status=500, description= "Internal Server Error", body= GenericResponse<TupleUnit>)
+    ),
+    params(
+        ("Authorization" = String, Header, description = "JWT token"),
+        ("x-request-id" = String, Header, description = "Request id"),
+        ("x-device-id" = String, Header, description = "Device id"),
+        ("x-business-id" = String, Header, description = "Business id"),
+      )
+)]
+#[tracing::instrument(err, name = "user business updation", skip(pool), fields())]
+pub async fn business_account_updation_req(
+    pool: web::Data<PgPool>,
+    user_account: UserAccount,
+    business_account: BusinessAccount,
+    req: UpdateBusinessAccount,
+) -> Result<web::Json<GenericResponse<()>>, GenericError> {
+    update_business_account(&pool, &req, &business_account, user_account.id)
+        .await
+        .map_err(|e| {
+            GenericError::DatabaseError(
+                "Something went wrong while disassociating user from business".to_owned(),
+                e,
+            )
+        })?;
+
+    Ok(web::Json(GenericResponse::success(
+        "Sucessfully updated business account.",
         (),
     )))
 }

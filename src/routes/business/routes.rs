@@ -8,10 +8,11 @@ use crate::{
 };
 
 use super::handlers::{
-    business_account_deletion_req, business_permission_validation, business_user_invite_request,
-    business_user_list_req, delete_business_user_invite, fetch_business_req, list_business_req,
-    list_business_user_invite, register_business_account_req, user_business_association_req,
-    user_business_deassociation_req, verify_business_user_invite,
+    business_account_deletion_req, business_account_updation_req, business_permission_validation,
+    business_user_invite_request, business_user_list_req, delete_business_user_invite,
+    fetch_business_req, list_business_req, list_business_user_invite,
+    register_business_account_req, user_business_association_req, user_business_deassociation_req,
+    verify_business_user_invite,
 };
 
 pub fn business_routes(cfg: &mut web::ServiceConfig) {
@@ -90,6 +91,15 @@ pub fn business_routes(cfg: &mut web::ServiceConfig) {
                 .to(business_account_deletion_req)
                 .wrap(BusinessPermissionValidation {
                     permission_list: vec![PermissionType::DeleteBusiness.to_string()],
+                })
+                .wrap(BusinessAccountValidation),
+        )
+        .route(
+            "/update",
+            web::patch()
+                .to(business_account_updation_req)
+                .wrap(BusinessPermissionValidation {
+                    permission_list: vec![PermissionType::UpdateBusiness.to_string()],
                 })
                 .wrap(BusinessAccountValidation),
         );

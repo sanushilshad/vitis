@@ -166,6 +166,8 @@ pub enum PermissionType {
     SendBusinessInvite,
     #[serde(rename = "delete:business")]
     DeleteBusiness,
+    #[serde(rename = "update:business")]
+    UpdateBusiness,
 }
 
 impl fmt::Display for PermissionType {
@@ -194,6 +196,7 @@ impl fmt::Display for PermissionType {
             PermissionType::ListUserLeave => "list:user-leave:self",
             PermissionType::SendBusinessInvite => "send:business-invite",
             PermissionType::DeleteBusiness => "delete:business",
+            PermissionType::UpdateBusiness => "update:business",
         };
 
         write!(f, "{}", display_str)

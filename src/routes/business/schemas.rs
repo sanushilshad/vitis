@@ -13,22 +13,13 @@ use crate::routes::user::schemas::UserVector;
 use crate::schemas::Status;
 use anyhow::anyhow;
 
-#[allow(dead_code)]
 #[derive(Deserialize, Debug, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct CreateBusinessAccount {
     pub name: String,
-    pub is_test_account: bool,
-    pub mobile_no: String,
     pub email: EmailObject,
-    pub international_dialing_code: String,
 }
 
-impl CreateBusinessAccount {
-    pub fn get_full_mobile_no(&self) -> String {
-        format!("{}{}", self.international_dialing_code, self.mobile_no)
-    }
-}
 impl FromRequest for CreateBusinessAccount {
     type Error = GenericError;
     type Future = LocalBoxFuture<'static, Result<Self, Self::Error>>;
@@ -102,6 +93,7 @@ pub struct BasicBusinessAccount {
 pub struct BusinessAccount {
     pub id: Uuid,
     pub display_name: String,
+    pub email: Option<EmailObject>,
     pub vectors: Vec<UserVector>,
     pub is_active: Status,
     pub is_deleted: bool,
@@ -215,4 +207,27 @@ pub struct UserBusinessInvitation {
     pub created_on: DateTime<Utc>,
     pub created_by: Uuid,
     pub verified: bool,
+}
+
+#[derive(Deserialize, Debug, ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct UpdateBusinessAccount {
+    pub display_name: String,
+    pub email: EmailObject,
+}
+
+impl FromRequest for UpdateBusinessAccount {
+    type Error = GenericError;
+    type Future = LocalBoxFuture<'static, Result<Self, Self::Error>>;
+
+    fn from_request(req: &HttpRequest, payload: &mut Payload) -> Self::Future {
+        let fut = web::Json::<Self>::from_request(req, payload);
+
+        Box::pin(async move {
+            match fut.await {
+                Ok(json) => Ok(json.into_inner()),
+                Err(e) => Err(GenericError::ValidationError(e.to_string())),
+            }
+        })
+    }
 }
