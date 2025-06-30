@@ -2,17 +2,16 @@ use actix_web::web;
 
 use crate::{
     middlewares::{
-        BusinessAccountValidation, BusinessPermissionValidation, RequireAuth,
-        UserPermissionValidation,
+        BusinessAccountValidation, BusinessPermissionValidation, UserPermissionValidation,
     },
     schemas::PermissionType,
 };
 
 use super::handlers::{
-    business_permission_validation, business_user_invite_request, business_user_list_req,
-    delete_business_user_invite, fetch_business_req, list_business_req, list_business_user_invite,
-    register_business_account_req, user_business_association_req, user_business_deassociation_req,
-    verify_business_user_invite,
+    business_account_deletion_req, business_permission_validation, business_user_invite_request,
+    business_user_list_req, delete_business_user_invite, fetch_business_req, list_business_req,
+    list_business_user_invite, register_business_account_req, user_business_association_req,
+    user_business_deassociation_req, verify_business_user_invite,
 };
 
 pub fn business_routes(cfg: &mut web::ServiceConfig) {
@@ -83,6 +82,15 @@ pub fn business_routes(cfg: &mut web::ServiceConfig) {
             "/user/disassociate",
             web::post()
                 .to(user_business_deassociation_req)
+                .wrap(BusinessAccountValidation),
+        )
+        .route(
+            "/delete",
+            web::delete()
+                .to(business_account_deletion_req)
+                .wrap(BusinessPermissionValidation {
+                    permission_list: vec![PermissionType::DeleteBusiness.to_string()],
+                })
                 .wrap(BusinessAccountValidation),
         );
 }

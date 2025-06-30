@@ -35,7 +35,7 @@ use super::{
         associate_user_to_business, create_business_account, delete_invite_by_id,
         delete_user_business_relationship, fetch_business_invite, get_basic_business_accounts,
         get_basic_business_accounts_by_user_id, get_business_account, mark_invite_as_verified,
-        save_business_invite_request, save_user_business_relation,
+        save_business_invite_request, save_user_business_relation, soft_delete_business_account,
         validate_user_business_permission,
     },
 };
@@ -704,6 +704,47 @@ pub async fn user_business_deassociation_req(
     business_account: BusinessAccount,
 ) -> Result<web::Json<GenericResponse<()>>, GenericError> {
     delete_user_business_relationship(&pool, user_account.id, business_account.id)
+        .await
+        .map_err(|e| {
+            GenericError::DatabaseError(
+                "Something went wrong while disassociating user from business".to_owned(),
+                e,
+            )
+        })?;
+    Ok(web::Json(GenericResponse::success(
+        "Sucessfully disassociated user from business account.",
+        (),
+    )))
+}
+
+#[utoipa::path(
+    post,
+    path = "/business/delete",
+    tag = "Business Account",
+    description = "API for deleting  business account",
+    summary = "Business Account Deletion API",
+    responses(
+        (status=200, description= "Sucessfully fetched business data.", body= GenericResponse<TupleUnit>),
+        (status=400, description= "Invalid Request body", body= GenericResponse<TupleUnit>),
+        (status=401, description= "Invalid Token", body= GenericResponse<TupleUnit>),
+	    (status=403, description= "Insufficient Previlege", body= GenericResponse<TupleUnit>),
+	    (status=410, description= "Data not found", body= GenericResponse<TupleUnit>),
+        (status=500, description= "Internal Server Error", body= GenericResponse<TupleUnit>)
+    ),
+    params(
+        ("Authorization" = String, Header, description = "JWT token"),
+        ("x-request-id" = String, Header, description = "Request id"),
+        ("x-device-id" = String, Header, description = "Device id"),
+        ("x-business-id" = String, Header, description = "Business id"),
+      )
+)]
+#[tracing::instrument(err, name = "user business disassociation", skip(pool), fields())]
+pub async fn business_account_deletion_req(
+    pool: web::Data<PgPool>,
+    user_account: UserAccount,
+    business_account: BusinessAccount,
+) -> Result<web::Json<GenericResponse<()>>, GenericError> {
+    soft_delete_business_account(&pool, business_account.id, user_account.id, Utc::now())
         .await
         .map_err(|e| {
             GenericError::DatabaseError(

@@ -188,6 +188,7 @@ where
                 let extracted_business_account = business_account.ok_or_else(|| {
                     GenericError::ValidationError("business Account doesn't exist".to_string())
                 })?;
+                
                 let error_message = validate_business_account_active(&extracted_business_account);
                 if let Some(message) = error_message {
                     let (request, _pl) = req.into_parts();

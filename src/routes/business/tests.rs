@@ -8,7 +8,7 @@ pub mod tests {
         delete_user_business_relationship, fetch_associated_business_account_model,
         fetch_business_account_model_by_id, fetch_business_invite, get_basic_business_accounts,
         get_basic_business_accounts_by_user_id, get_business_account, mark_invite_as_verified,
-        save_business_invite_request, save_user_business_relation,
+        save_business_invite_request, save_user_business_relation, soft_delete_business_account,
         validate_business_account_active, validate_user_business_permission,
     };
 
@@ -443,6 +443,40 @@ pub mod tests {
             fetch_associated_business_account_model(user_id, business_id, &pool).await;
         assert!(fetch_association.is_ok());
         assert!(fetch_association.unwrap().is_none());
+        let delete_mobile = format!("{}{}", DUMMY_INTERNATIONAL_DIALING_CODE, mobile_no);
+        let (delete_business_account_res, delete_user_account_res) = tokio::join!(
+            hard_delete_business_account(&pool, business_id),
+            hard_delete_user_account(&pool, &delete_mobile),
+        );
+        assert!(delete_business_account_res.is_ok());
+        assert!(delete_user_account_res.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_soft_delete_business() {
+        let pool = get_test_pool().await;
+
+        let mobile_no = "12345618938";
+
+        let user_res = setup_user(
+            &pool,
+            "testuser43",
+            "testuser42@example.com",
+            mobile_no,
+            "testuser@123",
+        )
+        .await;
+
+        let business_res = setup_business(&pool, mobile_no, "business@example.com").await;
+        let user_id = user_res.unwrap();
+        let business_id = business_res.unwrap();
+        let delete_association =
+            soft_delete_business_account(&pool, business_id, user_id, Utc::now()).await;
+        assert!(delete_association.is_ok());
+        let fetch_association =
+            fetch_associated_business_account_model(user_id, business_id, &pool).await;
+        assert!(fetch_association.is_ok());
+        assert!(fetch_association.unwrap().unwrap().is_deleted == true);
         let delete_mobile = format!("{}{}", DUMMY_INTERNATIONAL_DIALING_CODE, mobile_no);
         let (delete_business_account_res, delete_user_account_res) = tokio::join!(
             hard_delete_business_account(&pool, business_id),

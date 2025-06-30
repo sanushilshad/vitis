@@ -586,3 +586,28 @@ pub async fn delete_user_business_relationship(
 
     Ok(())
 }
+
+#[tracing::instrument(name = "deleted business account", skip(pool))]
+pub async fn soft_delete_business_account(
+    pool: &PgPool,
+    business_id: Uuid,
+    deleted_by: Uuid,
+    deleted_on: chrono::DateTime<Utc>,
+) -> Result<(), anyhow::Error> {
+    let query = sqlx::query!(
+        r#"
+        UPDATE business_account SET is_deleted = true, deleted_by=$1,
+         deleted_on=$2 WHERE id = $3
+        "#,
+        deleted_by,
+        deleted_on,
+        business_id
+    );
+
+    query.execute(pool).await.map_err(|e| {
+        tracing::error!("Failed to delete business_account: {:?}", e);
+        anyhow!(e).context("Failed to delete from business_account")
+    })?;
+
+    Ok(())
+}
