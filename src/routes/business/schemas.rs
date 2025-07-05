@@ -234,7 +234,6 @@ impl FromRequest for UpdateBusinessAccount {
 
 #[derive(Deserialize, Debug, ToSchema)]
 #[serde(rename_all = "camelCase")]
-
 pub struct UserBusinessDeassociationRequest {
     pub id: Option<Uuid>,
 }

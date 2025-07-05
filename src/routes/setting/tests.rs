@@ -207,7 +207,6 @@ pub mod tests {
         let setting = setting_opt.unwrap();
         assert!(setting.enum_id.is_some());
         let enum_id = setting.enum_id.unwrap();
-        eprint!("{}", enum_id);
         let enums = fetch_setting_enums(&pool, &vec![enum_id]).await;
         assert!(enums.is_ok());
         assert!(enums.unwrap().first().is_some());

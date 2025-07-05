@@ -354,40 +354,40 @@ pub async fn get_leaves<'a>(
 //     Ok(count.unwrap_or_default())
 // }
 
-// pub fn validate_leave_request_creation(
-//     body: &CreateLeaveRequest,
-//     user_leave: &UserLeave,
-// ) -> Result<(), anyhow::Error> {
-//     // let mut unique_entries = HashSet::new();
-//     let mut leave_map: HashMap<NaiveDate, Vec<&LeavePeriod>> = HashMap::new();
+pub fn validate_leave_request_creation(
+    body: &CreateLeaveRequest,
+    user_leave: &UserLeave,
+) -> Result<(), anyhow::Error> {
+    let period_map: HashMap<Uuid, &LeavePeriodData> =
+        user_leave.periods.iter().map(|p| (p.id, p)).collect();
 
-//     // for entry in body.leave_data.iter() {
-//     //     leave_map.entry(entry.date).or_default().push(&entry.period);
-//     // }
+    // Sum the requested leave values
+    let mut new_leave_count = BigDecimal::from(0);
 
-//     let new_leave_count = body
-//         .leave_data
-//         .iter()
-//         .fold(BigDecimal::from(0), |acc, item| {
-//             acc + match item.period {
-//                 LeavePeriod::FullDay => BigDecimal::from_f64(1.0).unwrap(),
-//                 LeavePeriod::HalfDay => BigDecimal::from_f64(0.5).unwrap(),
-//             }
-//         });
+    for item in &body.leave_data {
+        match period_map.get(&item.period_id) {
+            Some(period_data) => {
+                new_leave_count += &period_data.value;
+            }
+            None => {
+                return Err(anyhow!("Invalid leave period with id: {}", item.period_id));
+            }
+        }
+    }
 
-//     if (&user_leave.used_count + &new_leave_count) > user_leave.allocated_count {
-//         return Err(anyhow!(
-//             "You have exceeded the allowed leave count of {} for the group.",
-//             user_leave.allocated_count
-//         ));
-//     } else if new_leave_count > user_leave.allocated_count {
-//         return Err(anyhow!(
-//             "You are applying for more than {} leaves.",
-//             user_leave.allocated_count
-//         ));
-//     }
-//     Ok(())
-// }
+    if (&user_leave.used_count + &new_leave_count) > user_leave.allocated_count {
+        return Err(anyhow!(
+            "You have exceeded the allowed leave count of {} for the group.",
+            user_leave.allocated_count
+        ));
+    } else if new_leave_count > user_leave.allocated_count {
+        return Err(anyhow!(
+            "You are applying for more than {} leaves.",
+            user_leave.allocated_count
+        ));
+    }
+    Ok(())
+}
 
 #[tracing::instrument(name = "reactivate user account", skip(transaction))]
 pub async fn update_leave_request_status(
@@ -626,7 +626,7 @@ pub async fn send_slack_notification_for_approved_leave(
             let section_text = format!(
                 "*{}* — {}: {}",
                 snake_to_title_case(leave_type),
-                snake_to_title_case(&period.to_string()),
+                snake_to_title_case(period),
                 user_string
             );
 
@@ -737,14 +737,23 @@ pub async fn save_leave_type_to_database<'a>(
 pub async fn save_leave_type(
     transaction: &mut Transaction<'_, Postgres>,
     leave_type_data: &Vec<LeaveTypeCreationData>,
+    user_id: Uuid,
     created_by: Uuid,
     business_id: Uuid,
-) -> Result<HashMap<String, Uuid>, anyhow::Error> {
+) -> Result<(), anyhow::Error> {
     let bulk_data = prepare_bulk_leave_type_data(leave_type_data, business_id, created_by).await?;
     if let Some(data) = bulk_data {
-        return save_leave_type_to_database(transaction, data).await;
+        let map = save_leave_type_to_database(transaction, data).await?;
+        save_leave_type_period_relationship(
+            transaction,
+            leave_type_data,
+            user_id,
+            business_id,
+            map,
+        )
+        .await?;
     }
-    Ok(HashMap::new())
+    Ok(())
 }
 
 #[tracing::instrument(name = "Fetch leave type models", skip(pool))]
@@ -801,12 +810,12 @@ pub async fn get_leave_type(
         fetch_leave_type_models(pool, business_id, id_list, label_list, query).await?;
     let leave_type_id_list = data_models.iter().map(|a| a.id).collect();
     let period_models =
-        fetch_leave_periods_by_association(&pool, Some(leave_type_id_list), None).await?;
+        fetch_leave_periods_by_association(pool, Some(leave_type_id_list), None).await?;
     let mut period_map: HashMap<Uuid, Vec<LeavePeriodData>> = HashMap::new();
     for period in period_models {
         period_map
             .entry(period.type_id)
-            .or_insert_with(Vec::new)
+            .or_default()
             .push(period.into_schema());
     }
     let mut final_data = Vec::with_capacity(data_models.len());
@@ -876,7 +885,7 @@ pub async fn leave_type_create_validation(
         }
     }
 
-    let leave_period = get_leave_period(&pool, business_id, Some(&period_id_list), None, None)
+    let leave_period = get_leave_period(pool, business_id, Some(&period_id_list), None, None)
         .await
         .map_err(|e| {
             GenericError::DatabaseError(
@@ -1109,12 +1118,12 @@ pub async fn fetch_user_leaves(
         fetch_user_leave_models(pool, business_id, user_id, group_id, user_leave_id).await?;
     let leave_type_id_list: Vec<Uuid> = data_models.iter().map(|a| a.leave_type_id).collect();
     let period_models =
-        fetch_leave_periods_by_association(&pool, Some(leave_type_id_list), None).await?;
+        fetch_leave_periods_by_association(pool, Some(leave_type_id_list), None).await?;
     let mut period_map: HashMap<Uuid, Vec<LeavePeriodData>> = HashMap::new();
     for period in period_models {
         period_map
             .entry(period.type_id)
-            .or_insert_with(Vec::new)
+            .or_default()
             .push(period.into_schema());
     }
     let mut final_data = vec![];
@@ -1476,7 +1485,7 @@ pub async fn save_leave_type_period_relationship_to_database<'a>(
         r#"
         INSERT INTO leave_type_period_relationship(id, created_by, created_on, leave_type_id, leave_period_id)
         SELECT * FROM UNNEST($1::uuid[], $2::uuid[], $3::TIMESTAMP[],  $4::uuid[], $5::uuid[]) 
-        ON CONFLICT (id) DO NOTHING
+        ON CONFLICT (leave_type_id, leave_period_id) DO NOTHING
         "#,
         &data.id[..] as &[Uuid],
         &data.created_by[..] as &[Uuid],
@@ -1510,6 +1519,7 @@ pub async fn save_leave_type_period_relationship(
     )
     .await?;
     if let Some(data) = bulk_data {
+        print!("aaaa{:?}", &data);
         return save_leave_type_period_relationship_to_database(transaction, data).await;
     }
     Ok(false)

@@ -50,8 +50,8 @@ use super::utils::{
     delete_leave, delete_leave_group, delete_leave_period, delete_leave_type, delete_user_leave,
     fetch_user_leaves, get_leave_group, get_leave_period, get_leave_type, get_leaves,
     leave_group_create_validation, leave_type_create_validation, save_leave_group,
-    save_leave_period, save_leave_request, save_leave_type, save_leave_type_period_relationship,
-    save_user_leave, update_leave_request_status, update_user_leave_count,
+    save_leave_period, save_leave_request, save_leave_type, save_user_leave,
+    update_leave_request_status, update_user_leave_count, validate_leave_request_creation,
     validate_leave_status_update,
 };
 
@@ -170,25 +170,17 @@ pub async fn leave_type_create_req(
         .begin()
         .await
         .context("Failed to acquire a Postgres connection from the pool")?;
-    let type_map = save_leave_type(&mut transaction, &req.data, user.id, business_account.id)
-        .await
-        .map_err(|e| {
-            GenericError::DatabaseError(
-                "Something went wrong while saving leave type".to_string(),
-                e,
-            )
-        })?;
-    save_leave_type_period_relationship(
+    save_leave_type(
         &mut transaction,
         &req.data,
         user.id,
+        user.id,
         business_account.id,
-        type_map,
     )
     .await
     .map_err(|e| {
         GenericError::DatabaseError(
-            "Something went wrong while saving leave type period relationship".to_string(),
+            "Something went wrong while saving leave type".to_string(),
             e,
         )
     })?;
@@ -725,8 +717,9 @@ pub async fn create_leave_req(
     // .map_err(|e| GenericError::DatabaseError(e.to_string(), e))?;
     let configs = config_res.map_err(|e| GenericError::DatabaseError(e.to_string(), e))?;
 
-    // validate_leave_request_creation(&body, user_leave)
-    //     .map_err(|e| GenericError::ValidationError(e.to_string()))?;
+    validate_leave_request_creation(&body, user_leave)
+        .map_err(|e| GenericError::ValidationError(e.to_string()))?;
+
     let email_password = configs
         .get_setting(&SettingKey::EmailAppPassword.to_string())
         .ok_or_else(|| {

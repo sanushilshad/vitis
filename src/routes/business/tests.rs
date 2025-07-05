@@ -128,7 +128,7 @@ pub mod tests {
         assert!(fetch_basic_business_obj_res.is_ok());
 
         let fetch_basic_business_objs = get_basic_business_accounts(&pool).await;
-        eprint!("Basic business Accounts: {:?}", fetch_basic_business_objs);
+
         assert!(fetch_basic_business_objs.is_ok());
 
         let fetch_business_obj_res = get_business_account(&pool, user_id, business_id).await;
@@ -136,8 +136,7 @@ pub mod tests {
 
         let fetch_business_obj_by_id =
             fetch_business_account_model_by_id(&pool, Some(business_id)).await;
-        eprint!("Business Account List: {:?}", fetch_business_obj_by_id);
-
+        assert!(fetch_business_obj_by_id.is_ok());
         let delete_bus_res = hard_delete_business_account(&pool, business_id).await;
         assert!(delete_bus_res.is_ok());
         let delete_res = hard_delete_user_account(

@@ -30,7 +30,7 @@ CREATE TABLE IF NOT EXISTS leave_period(
   updated_by uuid
 );
 
-ALTER TABLE leave_period ADD CONSTRAINT leave_period_uq UNIQUE(business_id);
+-- ALTER TABLE leave_period ADD CONSTRAINT leave_period_uq UNIQUE(business_id);
 ALTER TABLE leave_period ADD CONSTRAINT leave_period_label_uq UNIQUE(business_id, label);
 ALTER TABLE leave_period ADD CONSTRAINT fk_business_id FOREIGN KEY ("business_id") REFERENCES business_account ("id") ON DELETE CASCADE;
 
