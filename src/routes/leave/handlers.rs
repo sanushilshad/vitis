@@ -37,7 +37,8 @@ use utoipa::TupleUnit;
 use uuid::Uuid;
 
 use super::schemas::{
-    CreateLeaveRequest, FetchLeaveQuery, FetchLeaveRequest, FetchLeaveType, LeaveData,
+    CreateLeaveRequest, FetchLeaveQuery, FetchLeaveRequest, FetchLeaveType,
+    LeavePeriodCreationRequest, LeavePeriodData, LeavePeriodFetchRequest, LeaveRequestData,
     LeaveRequestEmailContext, LeaveRequestStatusEmailContext, UpdateLeaveStatusRequest,
 };
 use super::schemas::{
@@ -46,11 +47,12 @@ use super::schemas::{
     ListLeaveUserAssociationRequest, UserLeave,
 };
 use super::utils::{
-    delete_leave, delete_leave_group, delete_leave_type, delete_user_leave, fetch_user_leaves,
-    get_leave_group, get_leave_type, get_leaves, leave_group_create_validation,
-    leave_type_create_validation, save_leave_group, save_leave_request, save_leave_type,
+    delete_leave, delete_leave_group, delete_leave_period, delete_leave_type, delete_user_leave,
+    fetch_user_leaves, get_leave_group, get_leave_period, get_leave_type, get_leaves,
+    leave_group_create_validation, leave_type_create_validation, save_leave_group,
+    save_leave_period, save_leave_request, save_leave_type, save_leave_type_period_relationship,
     save_user_leave, update_leave_request_status, update_user_leave_count,
-    validate_leave_request_creation, validate_leave_status_update,
+    validate_leave_status_update,
 };
 
 #[utoipa::path(
@@ -61,7 +63,7 @@ use super::utils::{
     path = "/leave/request/list",
     request_body(content = FetchLeaveRequest, description = "Request Body"),
     responses(
-        (status=200, description= "project Account created successfully", body= GenericResponse<Vec<LeaveData>>),
+        (status=200, description= "project Account created successfully", body= GenericResponse<Vec<LeaveRequestData>>),
         (status=400, description= "Invalid Request body", body= GenericResponse<TupleUnit>),
         (status=401, description= "Invalid Token", body= GenericResponse<TupleUnit>),
 	    (status=403, description= "Insufficient Previlege", body= GenericResponse<TupleUnit>),
@@ -82,7 +84,7 @@ pub async fn leave_request_fetch_req(
     user: UserAccount,
     mail_config: web::Data<EmailClientConfig>,
     permissions: AllowedPermission,
-) -> Result<web::Json<GenericResponse<Vec<LeaveData>>>, GenericError> {
+) -> Result<web::Json<GenericResponse<Vec<LeaveRequestData>>>, GenericError> {
     let setting_key_list = vec![SettingKey::TimeZone.to_string()];
     let setting_list = get_setting_value(&pool, &setting_key_list, None, Some(user.id), false)
         .await
@@ -164,7 +166,11 @@ pub async fn leave_type_create_req(
     business_account: BusinessAccount,
 ) -> Result<web::Json<GenericResponse<()>>, GenericError> {
     leave_type_create_validation(&pool, &req, business_account.id).await?;
-    save_leave_type(&pool, &req.data, user.id, business_account.id)
+    let mut transaction = pool
+        .begin()
+        .await
+        .context("Failed to acquire a Postgres connection from the pool")?;
+    let type_map = save_leave_type(&mut transaction, &req.data, user.id, business_account.id)
         .await
         .map_err(|e| {
             GenericError::DatabaseError(
@@ -172,6 +178,25 @@ pub async fn leave_type_create_req(
                 e,
             )
         })?;
+    save_leave_type_period_relationship(
+        &mut transaction,
+        &req.data,
+        user.id,
+        business_account.id,
+        type_map,
+    )
+    .await
+    .map_err(|e| {
+        GenericError::DatabaseError(
+            "Something went wrong while saving leave type period relationship".to_string(),
+            e,
+        )
+    })?;
+
+    transaction
+        .commit()
+        .await
+        .context("Failed to commit SQL transaction to store a save leave type.")?;
     Ok(web::Json(GenericResponse::success(
         "Sucessfully saved leave type",
         (),
@@ -700,8 +725,8 @@ pub async fn create_leave_req(
     // .map_err(|e| GenericError::DatabaseError(e.to_string(), e))?;
     let configs = config_res.map_err(|e| GenericError::DatabaseError(e.to_string(), e))?;
 
-    validate_leave_request_creation(&body, user_leave)
-        .map_err(|e| GenericError::ValidationError(e.to_string()))?;
+    // validate_leave_request_creation(&body, user_leave)
+    //     .map_err(|e| GenericError::ValidationError(e.to_string()))?;
     let email_password = configs
         .get_setting(&SettingKey::EmailAppPassword.to_string())
         .ok_or_else(|| {
@@ -911,7 +936,7 @@ pub async fn update_leave_status_req(
     business: BusinessAccount,
 ) -> Result<web::Json<GenericResponse<()>>, GenericError> {
     let filter_query = FetchLeaveQuery::builder().with_leave_id(Some(body.id));
-    let leave = get_leaves(&pool, &filter_query)
+    let leave: LeaveRequestData = get_leaves(&pool, &filter_query)
         .await
         .map_err(|e| {
             GenericError::DatabaseError(
@@ -965,9 +990,9 @@ pub async fn update_leave_status_req(
             )
         })?;
     if body.status == LeaveStatus::Approved || body.status == LeaveStatus::Cancelled {
-        let adjustment = match body.status {
-            LeaveStatus::Approved => leave.period.get_count().clone(),
-            LeaveStatus::Cancelled => -&leave.period.get_count(),
+        let adjustment = match leave.status {
+            LeaveStatus::Approved => leave.period.value.clone(),
+            LeaveStatus::Cancelled => -&leave.period.value,
             _ => BigDecimal::default(),
         };
 
@@ -1090,6 +1115,187 @@ pub async fn update_leave_status_req(
 
     Ok(web::Json(GenericResponse::success(
         "Sucessfully updated leave request status",
+        (),
+    )))
+}
+
+#[utoipa::path(
+    post,
+    description = "API for creating leave period",
+    tag = "Leave",
+    summary = "Leave Period Creation API",
+    path = "/leave/period/create",
+    request_body(content = LeavePeriodCreationRequest, description = "Request Body"),
+    responses(
+        (status=200, description= "project Account created successfully", body= GenericResponse<TupleUnit>),
+        (status=400, description= "Invalid Request body", body= GenericResponse<TupleUnit>),
+        (status=401, description= "Invalid Token", body= GenericResponse<TupleUnit>),
+	    (status=403, description= "Insufficient Previlege", body= GenericResponse<TupleUnit>),
+	    (status=410, description= "Data not found", body= GenericResponse<TupleUnit>),
+        (status=500, description= "Internal Server Error", body= GenericResponse<TupleUnit>)
+    ),
+    params(
+        ("Authorization" = String, Header, description = "JWT token"),
+        ("x-request-id" = String, Header, description = "Request id"),
+        ("x-device-id" = String, Header, description = "Device id"),
+        ("x-business-id" = String, Header, description = "id of business_account"),
+      )
+)]
+#[tracing::instrument(err, name = "Leave group create request", skip(pool), fields())]
+pub async fn leave_period_create_req(
+    pool: web::Data<PgPool>,
+    req: LeavePeriodCreationRequest,
+    user: UserAccount,
+    business_account: BusinessAccount,
+) -> Result<web::Json<GenericResponse<()>>, GenericError> {
+    let label_list = req
+        .data
+        .iter()
+        .filter(|a| a.id.is_none())
+        .map(|a| a.label.as_str())
+        .collect();
+    let leave_type_list =
+        get_leave_period(&pool, business_account.id, None, Some(label_list), None)
+            .await
+            .map_err(|e| {
+                GenericError::DatabaseError(
+                    "Something went wrong while fetching leave period".to_string(),
+                    e,
+                )
+            })?;
+
+    if !leave_type_list.is_empty() {
+        let existing_labels = leave_type_list
+            .iter()
+            .map(|p| p.label.as_str())
+            .collect::<Vec<&str>>()
+            .join(", ");
+
+        return Err(GenericError::ValidationError(format!(
+            "Leave periods with label(s) already exist: {}",
+            existing_labels
+        )));
+    }
+
+    save_leave_period(&pool, &req.data, user.id, business_account.id)
+        .await
+        .map_err(|e| {
+            GenericError::DatabaseError(
+                "Something went wrong while saving leave period".to_string(),
+                e,
+            )
+        })?;
+    Ok(web::Json(GenericResponse::success(
+        "Sucessfully saved leave period",
+        (),
+    )))
+}
+
+#[utoipa::path(
+    post,
+    description = "API for listing leave period",
+    tag = "Leave",
+    summary = "Leave Period List API",
+    path = "/leave/period/list",
+    request_body(content = LeaveTypeFetchRequest, description = "Request Body"),
+    responses(
+        (status=200, description= "project Account created successfully", body= GenericResponse<Vec<LeavePeriodData>>),
+        (status=400, description= "Invalid Request body", body= GenericResponse<TupleUnit>),
+        (status=401, description= "Invalid Token", body= GenericResponse<TupleUnit>),
+	    (status=403, description= "Insufficient Previlege", body= GenericResponse<TupleUnit>),
+	    (status=410, description= "Data not found", body= GenericResponse<TupleUnit>),
+        (status=500, description= "Internal Server Error", body= GenericResponse<TupleUnit>)
+    ),
+    params(
+        ("Authorization" = String, Header, description = "JWT token"),
+        ("x-request-id" = String, Header, description = "Request id"),
+        ("x-device-id" = String, Header, description = "Device id"),
+        ("x-business-id" = String, Header, description = "id of business_account"),
+        // ("id" = String, Path, description = "Leave ID"),
+      )
+)]
+#[tracing::instrument(err, name = "Leave type list request", skip(pool), fields())]
+pub async fn leave_period_list_req(
+    pool: web::Data<PgPool>,
+    req: LeavePeriodFetchRequest,
+    user: UserAccount,
+    business_account: BusinessAccount,
+) -> Result<web::Json<GenericResponse<Vec<LeavePeriodData>>>, GenericError> {
+    let leave_type_list = get_leave_period(&pool, business_account.id, None, None, req.query)
+        .await
+        .map_err(|e| {
+            GenericError::DatabaseError(
+                "Something went wrong while fetching leave period".to_string(),
+                e,
+            )
+        })?;
+
+    Ok(web::Json(GenericResponse::success(
+        "Sucessfully fetched leave period",
+        leave_type_list,
+    )))
+}
+
+#[utoipa::path(
+    delete,
+    description = "API for deleting leave period",
+    tag = "Leave",
+    summary = "Leave Group Delete API",
+    path = "/leave/period/delete",
+    // request_body(content = FetchLeaveRequest, description = "Request Body"),
+    responses(
+        (status=200, description= "project Account created successfully", body= GenericResponse<TupleUnit>),
+        (status=400, description= "Invalid Request body", body= GenericResponse<TupleUnit>),
+        (status=401, description= "Invalid Token", body= GenericResponse<TupleUnit>),
+	    (status=403, description= "Insufficient Previlege", body= GenericResponse<TupleUnit>),
+	    (status=410, description= "Data not found", body= GenericResponse<TupleUnit>),
+        (status=500, description= "Internal Server Error", body= GenericResponse<TupleUnit>)
+    ),
+    params(
+        ("Authorization" = String, Header, description = "JWT token"),
+        ("x-request-id" = String, Header, description = "Request id"),
+        ("x-device-id" = String, Header, description = "Device id"),
+        ("x-business-id" = String, Header, description = "id of business_account"),
+        ("id" = String, Path, description = "Leave Period ID"),
+      )
+)]
+#[tracing::instrument(err, name = "Leave period delete request", skip(pool), fields())]
+pub async fn leave_period_delete_req(
+    path: web::Path<Uuid>,
+    pool: web::Data<PgPool>,
+    user: UserAccount,
+    business_account: BusinessAccount,
+) -> Result<web::Json<GenericResponse<()>>, GenericError> {
+    let leave_period_id = path.into_inner();
+    let leave_group_list = get_leave_period(
+        &pool,
+        business_account.id,
+        Some(&vec![leave_period_id]),
+        None,
+        None,
+    )
+    .await
+    .map_err(|e| {
+        GenericError::DatabaseError(
+            "Something went wrong while fetching leave period".to_string(),
+            e,
+        )
+    })?;
+    leave_group_list
+        .first()
+        .ok_or_else(|| GenericError::DataNotFound("Invalid Leave period id".to_string()))?;
+
+    delete_leave_period(&pool, leave_period_id)
+        .await
+        .map_err(|e| {
+            GenericError::DatabaseError(
+                "Something went wrong while deleting leave period".to_string(),
+                e,
+            )
+        })?;
+
+    Ok(web::Json(GenericResponse::success(
+        "Sucessfully deleted leave period",
         (),
     )))
 }

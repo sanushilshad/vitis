@@ -1,8 +1,8 @@
 use crate::email::EmailObject;
 
 use super::schemas::{
-    LeaveData, LeaveGroup, LeavePeriod, LeaveStatus, LeaveTypeData, UserLeave, UserLeaveGroup,
-    UserLeaveType,
+    LeaveGroup, LeavePeriodData, LeaveRequestData, LeaveStatus, LeaveTypeData, UserLeave,
+    UserLeaveGroup, UserLeaveType,
 };
 use bigdecimal::BigDecimal;
 use chrono::{DateTime, TimeZone, Utc};
@@ -13,7 +13,6 @@ use uuid::Uuid;
 
 #[derive(Debug, FromRow)]
 pub struct LeaveDataModel {
-    pub period: LeavePeriod,
     pub date: DateTime<Utc>,
     pub reason: Option<String>,
     pub status: LeaveStatus,
@@ -25,17 +24,20 @@ pub struct LeaveDataModel {
     pub leave_type: String,
     pub user_id: Uuid,
     pub user_leave_id: Uuid,
+    pub leave_period_id: Uuid,
+    pub period_label: String,
+    pub period_value: BigDecimal,
 }
 
 impl LeaveDataModel {
-    pub fn into_schema(self, time_zone: Option<&Tz>) -> LeaveData {
+    pub fn into_schema(self, time_zone: Option<&Tz>) -> LeaveRequestData {
         let local_dt = time_zone.map(|tz| {
             tz.from_utc_datetime(&self.created_on.naive_utc())
                 .fixed_offset()
         });
 
-        LeaveData {
-            period: self.period,
+        LeaveRequestData {
+            // period: self.period,
             date: self.date,
             reason: self.reason,
             status: self.status,
@@ -47,6 +49,12 @@ impl LeaveDataModel {
             leave_type: self.leave_type,
             user_id: self.user_id,
             user_leave_id: self.user_leave_id,
+            // leave_period_id: self.leave_period_id,
+            period: LeavePeriodData {
+                id: self.leave_period_id,
+                label: self.period_label,
+                value: self.period_value,
+            },
         }
     }
 }
@@ -54,10 +62,14 @@ impl LeaveDataModel {
 #[derive(Debug, FromRow)]
 pub struct MinimalLeaveModel {
     pub id: Uuid,
-    pub period: LeavePeriod,
+
+    pub period: String,
     pub user_id: Uuid,
     pub r#type: String,
 }
+
+// pub period_label: String,
+// pub period_id: Uuid,
 
 #[derive(Debug, FromRow)]
 pub struct LeaveTypeModel {
@@ -66,10 +78,11 @@ pub struct LeaveTypeModel {
 }
 
 impl LeaveTypeModel {
-    pub fn into_schema(self) -> LeaveTypeData {
+    pub fn into_schema(self, periods: Vec<LeavePeriodData>) -> LeaveTypeData {
         LeaveTypeData {
             id: self.id,
             label: self.label,
+            period_list: periods,
         }
     }
 }
@@ -104,10 +117,12 @@ pub struct UserLeaveModel {
     pub leave_group_id: Uuid,
     pub leave_group_label: String,
     pub leave_type_label: String,
+    // pub period_label: String,
+    // pub period_id: Uuid,
 }
 
 impl UserLeaveModel {
-    pub fn into_schema(self) -> UserLeave {
+    pub fn into_schema(self, periods: Vec<LeavePeriodData>) -> UserLeave {
         UserLeave {
             id: self.id,
             allocated_count: self.allocated_count,
@@ -122,6 +137,43 @@ impl UserLeaveModel {
                 id: self.leave_group_id,
                 label: self.leave_group_label,
             },
+            periods,
+        }
+    }
+}
+
+#[derive(Debug, FromRow)]
+pub struct LeavePeriodModel {
+    pub id: Uuid,
+    pub label: String,
+    pub value: BigDecimal,
+    // pub type_id: Uuid,
+}
+
+impl LeavePeriodModel {
+    pub fn into_schema(self) -> LeavePeriodData {
+        LeavePeriodData {
+            id: self.id,
+            label: self.label,
+            value: self.value,
+        }
+    }
+}
+
+#[derive(Debug, FromRow, Clone)]
+pub struct LeavePeriodWithTypeModel {
+    pub id: Uuid,
+    pub label: String,
+    pub value: BigDecimal,
+    pub type_id: Uuid,
+}
+
+impl LeavePeriodWithTypeModel {
+    pub fn into_schema(self) -> LeavePeriodData {
+        LeavePeriodData {
+            id: self.id,
+            label: self.label,
+            value: self.value,
         }
     }
 }

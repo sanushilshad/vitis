@@ -83,6 +83,12 @@ pub fn business_routes(cfg: &mut web::ServiceConfig) {
             "/user/disassociate",
             web::post()
                 .to(user_business_deassociation_req)
+                .wrap(BusinessPermissionValidation {
+                    permission_list: vec![
+                        PermissionType::DisassociateBusiness.to_string(),
+                        PermissionType::DisassociateBusinessSelf.to_string(),
+                    ],
+                })
                 .wrap(BusinessAccountValidation),
         )
         .route(

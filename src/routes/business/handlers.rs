@@ -29,7 +29,7 @@ use super::{
     schemas::{
         BasicBusinessAccount, BusinessAccount, BusinessFetchRequest, BusinessInviteRequest,
         BusinessPermissionRequest, BusinessUserAssociationRequest, CreateBusinessAccount,
-        UpdateBusinessAccount, UserBusinessInvitation,
+        UpdateBusinessAccount, UserBusinessDeassociationRequest, UserBusinessInvitation,
     },
     utils::{
         associate_user_to_business, create_business_account, delete_invite_by_id,
@@ -679,6 +679,7 @@ pub async fn delete_business_user_invite(
     tag = "Business Account",
     description = "API for disassociating user froms business account",
     summary = "Use business Account Disassociation API",
+    request_body(content = UserBusinessDeassociationRequest, description = "Request Body"),
     responses(
         (status=200, description= "Sucessfully fetched business data.", body= GenericResponse<TupleUnit>),
         (status=400, description= "Invalid Request body", body= GenericResponse<TupleUnit>),
@@ -696,11 +697,21 @@ pub async fn delete_business_user_invite(
 )]
 #[tracing::instrument(err, name = "user business disassociation", skip(pool), fields())]
 pub async fn user_business_deassociation_req(
+    req: UserBusinessDeassociationRequest,
     pool: web::Data<PgPool>,
     user_account: UserAccount,
     business_account: BusinessAccount,
+    permissions: AllowedPermission,
 ) -> Result<web::Json<GenericResponse<()>>, GenericError> {
-    delete_user_business_relationship(&pool, user_account.id, business_account.id)
+    let user_id = req
+        .id
+        .filter(|_| {
+            !permissions
+                .permission_list
+                .contains(&PermissionType::DisassociateBusiness.to_string())
+        })
+        .unwrap_or(user_account.id);
+    delete_user_business_relationship(&pool, user_id, business_account.id)
         .await
         .map_err(|e| {
             GenericError::DatabaseError(

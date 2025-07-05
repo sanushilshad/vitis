@@ -1,17 +1,16 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use anyhow::{Context, anyhow};
-use bigdecimal::{BigDecimal, FromPrimitive};
-use chrono::{DateTime, NaiveDate, TimeZone, Utc};
+use bigdecimal::BigDecimal;
+use chrono::{DateTime, TimeZone, Utc};
 use sqlx::{Execute, Executor, PgPool, Postgres, QueryBuilder, Transaction};
 use uuid::Uuid;
 
 use crate::{
     errors::GenericError,
     routes::{
-        leave::{
-            models::{LeaveGroupModel, LeaveTypeModel, UserLeaveModel},
-            schemas::LeavePeriod,
+        leave::models::{
+            LeaveGroupModel, LeavePeriodWithTypeModel, LeaveTypeModel, UserLeaveModel,
         },
         user::{schemas::MinimalUserAccount, utils::get_minimal_user_list},
     },
@@ -21,12 +20,13 @@ use crate::{
 };
 
 use super::{
-    models::{LeaveDataModel, MinimalLeaveModel},
+    models::{LeaveDataModel, LeavePeriodModel, MinimalLeaveModel},
     schemas::{
-        BulkLeaveRequestInsert, BulkLeaveTypeInsert, BulkUserLeaveInsert, CreateLeaveRequest,
-        FetchLeaveQuery, LeaveData, LeaveGroup, LeaveGroupCreationRequest, LeaveStatus,
-        LeaveTypeCreationData, LeaveTypeCreationRequest, LeaveTypeData, UserLeave,
-        UserLeaveCreationData,
+        BulkLeavePeriodInsert, BulkLeaveRequestInsert, BulkLeaveTypeInsert,
+        BulkLeaveTypePeriodInsert, BulkUserLeaveInsert, CreateLeaveRequest, FetchLeaveQuery,
+        LeaveGroup, LeaveGroupCreationRequest, LeavePeriodCreationData, LeavePeriodData,
+        LeaveRequestData, LeaveStatus, LeaveTypeCreationData, LeaveTypeCreationRequest,
+        LeaveTypeData, UserLeave, UserLeaveCreationData,
     },
 };
 use serde_json::Value;
@@ -60,7 +60,7 @@ pub async fn prepare_bulk_leave_request_data<'a>(
         id_list.push(Uuid::new_v4());
         sender_id_list.push(leave_request_data.user_id.unwrap_or(created_by));
         user_leave_id_list.push(user_leave_id);
-        leave_period_list.push(&leave_request.period);
+        leave_period_list.push(&leave_request.period_id);
 
         date_list.push(Utc.from_utc_datetime(&leave_request.date.and_hms_opt(0, 0, 0).unwrap()));
         status_list.push(LeaveStatus::Requested); // Assuming default status is Requested
@@ -86,7 +86,7 @@ pub async fn prepare_bulk_leave_request_data<'a>(
         email_message_id: email_message_id_list,
         cc: cc_list,
         user_leave_id: user_leave_id_list,
-        leave_period: leave_period_list,
+        leave_period_id: leave_period_list,
     }))
 }
 
@@ -97,12 +97,12 @@ pub async fn save_leave_to_database<'a>(
 ) -> Result<bool, anyhow::Error> {
     let query = sqlx::query!(
         r#"
-    INSERT INTO leave_request (id, created_by, created_on, period, date, status, reason, email_message_id, cc, receiver_id, user_leave_id)
+    INSERT INTO leave_request (id, created_by, created_on, leave_period_id, date, status, reason, email_message_id, cc, receiver_id, user_leave_id)
     SELECT * FROM UNNEST(
         $1::uuid[], 
         $2::uuid[], 
         $3::timestamptz[], 
-        $4::leave_period[], 
+        $4::uuid[], 
         $5::timestamptz[], 
         $6::leave_status[], 
         $7::text[], 
@@ -115,7 +115,7 @@ pub async fn save_leave_to_database<'a>(
         &data.id[..] as &[Uuid],
         &data.created_by[..] as &[Uuid],
         &data.created_on[..] as &[DateTime<Utc>],
-        &data.leave_period[..] as &[&LeavePeriod],
+        &data.leave_period_id[..] as &[&Uuid],
         &data.date[..] as &[DateTime<Utc>],
         &data.status[..] as &[LeaveStatus],
         &data.reason[..] as &[Option<&str>],
@@ -165,17 +165,19 @@ pub async fn fetch_leave_models<'a>(
         r#"
         SELECT 
             l_r.id, 
-            l_r.period, 
+            l_r.leave_period_id, 
             l_r.date, 
             l_r.reason, 
             l_r.status,  
             l_r.email_message_id, 
             l_r.cc, 
-            l_r.reason,
             l_r.created_on,
             l_r.user_leave_id,
             lt.label AS leave_type,
-            ulr.user_id
+            ulr.user_id,
+            lp.id AS period_id,
+            lp.label AS period_label,
+            lp.value AS period_value
         FROM 
             leave_request AS l_r
         LEFT JOIN 
@@ -184,6 +186,9 @@ pub async fn fetch_leave_models<'a>(
         LEFT JOIN 
             leave_type AS lt 
             ON ulr.leave_type_id = lt.id
+        LEFT JOIN 
+            leave_period AS lp 
+            ON l_r.leave_period_id = lp.id
         WHERE 
             l_r.is_deleted = false"#,
     );
@@ -199,10 +204,10 @@ pub async fn fetch_leave_models<'a>(
         query_builder.push(" AND date =");
         query_builder.push_bind(date);
     }
-    if let Some(period) = query.period {
-        query_builder.push(" AND period =");
-        query_builder.push_bind(period);
-    }
+    // if let Some(period) = query.period {
+    //     query_builder.push(" AND period =");
+    //     query_builder.push_bind(period);
+    // }
 
     if let Some(leave_id) = query.leave_id {
         query_builder.push(" AND l_r.id =");
@@ -259,14 +264,25 @@ pub async fn fetch_leave_models<'a>(
 pub async fn get_leaves<'a>(
     pool: &PgPool,
     query: &'a FetchLeaveQuery<'a>,
-) -> Result<Vec<LeaveData>, anyhow::Error> {
+) -> Result<Vec<LeaveRequestData>, anyhow::Error> {
     let models = fetch_leave_models(pool, query).await?;
-
-    let data: Vec<LeaveData> = models
+    let final_data = models
         .into_iter()
         .map(|a| a.into_schema(query.tz))
         .collect();
-    Ok(data)
+
+    // let period_models =
+    //     fetch_leave_periods_by_association(&pool, None, Some(period_id_list)).await?;
+    // let period_map: HashMap<Uuid, LeavePeriodWithTypeModel> =
+    //     period_models.into_iter().map(|p| (p.id, p)).collect();
+    // let mut final_data = vec![];
+    // for model in models {
+    //     if let Some(period) = period_map.get(&model.leave_period_id) {
+    //         let period_schema = period.clone().into_schema(); // clone the individual period
+    //         final_data.push(model.into_schema(query.tz, period_schema));
+    //     }
+    // }
+    Ok(final_data)
 }
 
 // pub async fn _leave_exists(
@@ -338,66 +354,40 @@ pub async fn get_leaves<'a>(
 //     Ok(count.unwrap_or_default())
 // }
 
-pub fn validate_leave_request_creation(
-    body: &CreateLeaveRequest,
-    user_leave: &UserLeave,
-) -> Result<(), anyhow::Error> {
-    // let mut unique_entries = HashSet::new();
-    let mut leave_map: HashMap<NaiveDate, Vec<&LeavePeriod>> = HashMap::new();
+// pub fn validate_leave_request_creation(
+//     body: &CreateLeaveRequest,
+//     user_leave: &UserLeave,
+// ) -> Result<(), anyhow::Error> {
+//     // let mut unique_entries = HashSet::new();
+//     let mut leave_map: HashMap<NaiveDate, Vec<&LeavePeriod>> = HashMap::new();
 
-    for entry in body.leave_data.iter() {
-        leave_map.entry(entry.date).or_default().push(&entry.period);
-    }
+//     // for entry in body.leave_data.iter() {
+//     //     leave_map.entry(entry.date).or_default().push(&entry.period);
+//     // }
 
-    for (date, periods) in leave_map {
-        let full_days = periods
-            .iter()
-            .filter(|&&p| p == &LeavePeriod::FullDay)
-            .count();
-        let half_days = periods
-            .iter()
-            .filter(|&&p| p == &LeavePeriod::HalfDay)
-            .count();
+//     let new_leave_count = body
+//         .leave_data
+//         .iter()
+//         .fold(BigDecimal::from(0), |acc, item| {
+//             acc + match item.period {
+//                 LeavePeriod::FullDay => BigDecimal::from_f64(1.0).unwrap(),
+//                 LeavePeriod::HalfDay => BigDecimal::from_f64(0.5).unwrap(),
+//             }
+//         });
 
-        if full_days > 1 {
-            return Err(anyhow!("More than one FullDay leave applied for {}", date));
-        }
-
-        if full_days > 0 && half_days > 0 {
-            return Err(anyhow!(
-                "Cannot mix FullDay and HalfDay leaves on the same date: {}",
-                date
-            ));
-        }
-
-        if half_days > 2 {
-            return Err(anyhow!("More than two HalfDay leaves applied for {}", date));
-        }
-    }
-
-    let new_leave_count = body
-        .leave_data
-        .iter()
-        .fold(BigDecimal::from(0), |acc, item| {
-            acc + match item.period {
-                LeavePeriod::FullDay => BigDecimal::from_f64(1.0).unwrap(),
-                LeavePeriod::HalfDay => BigDecimal::from_f64(0.5).unwrap(),
-            }
-        });
-
-    if (&user_leave.used_count + &new_leave_count) > user_leave.allocated_count {
-        return Err(anyhow!(
-            "You have exceeded the allowed leave count of {} for the group.",
-            user_leave.allocated_count
-        ));
-    } else if new_leave_count > user_leave.allocated_count {
-        return Err(anyhow!(
-            "You are applying for more than {} leaves.",
-            user_leave.allocated_count
-        ));
-    }
-    Ok(())
-}
+//     if (&user_leave.used_count + &new_leave_count) > user_leave.allocated_count {
+//         return Err(anyhow!(
+//             "You have exceeded the allowed leave count of {} for the group.",
+//             user_leave.allocated_count
+//         ));
+//     } else if new_leave_count > user_leave.allocated_count {
+//         return Err(anyhow!(
+//             "You are applying for more than {} leaves.",
+//             user_leave.allocated_count
+//         ));
+//     }
+//     Ok(())
+// }
 
 #[tracing::instrument(name = "reactivate user account", skip(transaction))]
 pub async fn update_leave_request_status(
@@ -433,7 +423,7 @@ pub fn validate_leave_status_update(
     current_status: &LeaveStatus,
     permissions: &AllowedPermission,
     user_leave: &UserLeave,
-    leave_period: &LeavePeriod,
+    leave_period: &LeavePeriodData,
 ) -> Result<(), GenericError> {
     let has_approval_permission = permissions
         .permission_list
@@ -476,8 +466,7 @@ pub fn validate_leave_status_update(
         ));
     }
 
-    // Leave count validation
-    if (leave_period.get_count() + &user_leave.used_count) > user_leave.allocated_count {
+    if (&leave_period.value + &user_leave.used_count) > user_leave.allocated_count {
         return Err(GenericError::ValidationError(format!(
             "You have exceeded the allowed leave count of {} for the group.",
             user_leave.allocated_count
@@ -487,7 +476,7 @@ pub fn validate_leave_status_update(
     Ok(())
 }
 
-// pub async fn send_personal_html() -> Result<(), anyhow::Error> {
+// pub async fn send_personal_html() -> Result<(), anyhow::Error>
 //     Ok(())
 // }
 
@@ -527,7 +516,7 @@ async fn get_approved_leaves_by_lock(
         r#"
         SELECT 
             l_r.id, 
-            l_r.period  as "period: LeavePeriod", 
+            lp.label as period, 
             ulr.user_id,
             lt.label as type
         FROM 
@@ -538,6 +527,12 @@ async fn get_approved_leaves_by_lock(
         INNER JOIN 
             leave_type AS lt 
             ON ulr.leave_type_id = lt.id
+        INNER JOIN 
+            leave_type_period_relationship AS ltpr
+            ON ltpr.leave_type_id = lt.id
+        INNER JOIN 
+            leave_period AS lp
+            ON lp.id = ltpr.leave_period_id
         WHERE 
             l_r.is_deleted = false
             AND l_r.date = $1
@@ -595,7 +590,7 @@ pub async fn send_slack_notification_for_approved_leave(
     if !leave_data.is_empty() {
         let mut leave_id_list = Vec::new();
         let mut sender_id_list = Vec::new();
-        let mut grouped: HashMap<(&str, &LeavePeriod), Vec<&MinimalLeaveModel>> = HashMap::new();
+        let mut grouped: HashMap<(&str, &str), Vec<&MinimalLeaveModel>> = HashMap::new();
         for leave in &leave_data {
             leave_id_list.push(leave.id);
             sender_id_list.push(leave.user_id);
@@ -699,11 +694,11 @@ pub async fn prepare_bulk_leave_type_data<'a>(
 }
 
 // test case not needed
-#[tracing::instrument(name = "save leave type to database", skip(pool, data))]
+#[tracing::instrument(name = "save leave type to database", skip(transaction, data))]
 pub async fn save_leave_type_to_database<'a>(
-    pool: &PgPool,
+    transaction: &mut Transaction<'_, Postgres>,
     data: BulkLeaveTypeInsert<'a>,
-) -> Result<bool, anyhow::Error> {
+) -> Result<HashMap<String, Uuid>, anyhow::Error> {
     let query = sqlx::query!(
         r#"
         INSERT INTO leave_type (id, created_by, created_on, label, business_id)
@@ -712,6 +707,7 @@ pub async fn save_leave_type_to_database<'a>(
         SET label = EXCLUDED.label,
         updated_by = EXCLUDED.created_by,
         updated_on = EXCLUDED.created_on
+        RETURNING id, label
         "#,
         &data.id[..] as &[Uuid],
         &data.created_by[..] as &[Uuid],
@@ -721,29 +717,37 @@ pub async fn save_leave_type_to_database<'a>(
     );
     let query_string = query.sql();
     println!("Generated SQL query for: {}", query_string);
-    let result = pool.execute(query).await.map_err(|e| {
-        tracing::error!("Failed to execute query: {:?}", e);
-        anyhow!(e).context("A database failure occurred while saving leave type request")
-    })?;
+    let rows = query
+        .fetch_all(&mut **transaction)
+        .await
+        .map_err(|e: sqlx::Error| {
+            tracing::error!("Failed to execute query: {:?}", e);
+            anyhow!(e).context("A database failure occurred while saving leave type request")
+        })?;
 
-    Ok(result.rows_affected() > 0)
+    let label_id_map = rows
+        .into_iter()
+        .map(|row| (row.label, row.id))
+        .collect::<HashMap<String, Uuid>>();
+
+    Ok(label_id_map)
 }
 
-#[tracing::instrument(name = "save leave type", skip(pool))]
+#[tracing::instrument(name = "save leave type", skip(transaction))]
 pub async fn save_leave_type(
-    pool: &PgPool,
+    transaction: &mut Transaction<'_, Postgres>,
     leave_type_data: &Vec<LeaveTypeCreationData>,
     created_by: Uuid,
     business_id: Uuid,
-) -> Result<bool, anyhow::Error> {
+) -> Result<HashMap<String, Uuid>, anyhow::Error> {
     let bulk_data = prepare_bulk_leave_type_data(leave_type_data, business_id, created_by).await?;
     if let Some(data) = bulk_data {
-        return save_leave_type_to_database(pool, data).await;
+        return save_leave_type_to_database(transaction, data).await;
     }
-    Ok(false)
+    Ok(HashMap::new())
 }
 
-#[tracing::instrument(name = "Fetch leave models", skip(pool))]
+#[tracing::instrument(name = "Fetch leave type models", skip(pool))]
 async fn fetch_leave_type_models<'a>(
     pool: &PgPool,
     business_id: Uuid,
@@ -795,8 +799,24 @@ pub async fn get_leave_type(
 ) -> Result<Vec<LeaveTypeData>, anyhow::Error> {
     let data_models =
         fetch_leave_type_models(pool, business_id, id_list, label_list, query).await?;
-    let data = data_models.into_iter().map(|a| a.into_schema()).collect();
-    Ok(data)
+    let leave_type_id_list = data_models.iter().map(|a| a.id).collect();
+    let period_models =
+        fetch_leave_periods_by_association(&pool, Some(leave_type_id_list), None).await?;
+    let mut period_map: HashMap<Uuid, Vec<LeavePeriodData>> = HashMap::new();
+    for period in period_models {
+        period_map
+            .entry(period.type_id)
+            .or_insert_with(Vec::new)
+            .push(period.into_schema());
+    }
+    let mut final_data = Vec::with_capacity(data_models.len());
+
+    for data_model in data_models {
+        let periods = period_map.remove(&data_model.id).unwrap_or_default();
+        final_data.push(data_model.into_schema(periods));
+    }
+
+    Ok(final_data)
 }
 
 #[tracing::instrument(name = "delete payment", skip(pool))]
@@ -819,18 +839,27 @@ pub async fn leave_type_create_validation(
             "Incoming Data is empty".to_string(),
         ));
     }
-    let label_list: Vec<&str> = req
-        .data
-        .iter()
-        .filter(|a| a.id.is_none())
-        .map(|f| f.label.as_str())
-        .collect();
+
+    let mut label_list = vec![];
+    let mut period_id_list: Vec<Uuid> = vec![];
+    for item in &req.data {
+        if item.id.is_none() {
+            label_list.push(item.label.as_str());
+        }
+        if item.period_id_list.is_empty() {
+            return Err(GenericError::ValidationError(format!(
+                "Please select a period for type  {}",
+                item.label
+            )));
+        }
+        period_id_list.extend(&item.period_id_list);
+    }
     if !label_list.is_empty() {
         let leave_types = get_leave_type(pool, business_id, None, Some(label_list), None)
             .await
             .map_err(|e| {
                 GenericError::DatabaseError(
-                    "Something went wrong while creating leave type".to_string(),
+                    "Something went wrong while fetching leave type".to_string(),
                     e,
                 )
             })?;
@@ -847,6 +876,27 @@ pub async fn leave_type_create_validation(
         }
     }
 
+    let leave_period = get_leave_period(&pool, business_id, Some(&period_id_list), None, None)
+        .await
+        .map_err(|e| {
+            GenericError::DatabaseError(
+                "Something went wrong while fetching leave period".to_string(),
+                e,
+            )
+        })?;
+    let existing_ids: HashSet<Uuid> = leave_period.iter().map(|p| p.id).collect();
+
+    let missing_ids: Vec<&Uuid> = period_id_list
+        .iter()
+        .filter(|id| !existing_ids.contains(id))
+        .collect();
+
+    if !missing_ids.is_empty() {
+        return Err(GenericError::ValidationError(format!(
+            "Invalid period IDs: {:?}",
+            missing_ids
+        )));
+    }
     Ok(())
 }
 
@@ -985,7 +1035,7 @@ pub async fn save_leave_group<'a>(
     Ok(result.id)
 }
 
-#[tracing::instrument(name = "delete payment", skip(pool))]
+#[tracing::instrument(name = "delete leave group", skip(pool))]
 pub async fn delete_leave_group(pool: &PgPool, id: Uuid) -> Result<(), anyhow::Error> {
     sqlx::query("DELETE FROM leave_group WHERE id = $1")
         .bind(id)
@@ -1057,9 +1107,52 @@ pub async fn fetch_user_leaves(
 ) -> Result<Vec<UserLeave>, anyhow::Error> {
     let data_models =
         fetch_user_leave_models(pool, business_id, user_id, group_id, user_leave_id).await?;
-    let data = data_models.into_iter().map(|a| a.into_schema()).collect();
-    Ok(data)
+    let leave_type_id_list: Vec<Uuid> = data_models.iter().map(|a| a.leave_type_id).collect();
+    let period_models =
+        fetch_leave_periods_by_association(&pool, Some(leave_type_id_list), None).await?;
+    let mut period_map: HashMap<Uuid, Vec<LeavePeriodData>> = HashMap::new();
+    for period in period_models {
+        period_map
+            .entry(period.type_id)
+            .or_insert_with(Vec::new)
+            .push(period.into_schema());
+    }
+    let mut final_data = vec![];
+    for data_model in data_models.into_iter() {
+        let periods = period_map
+            .remove(&data_model.leave_type_id)
+            .unwrap_or_default();
+        final_data.push(data_model.into_schema(periods))
+    }
+
+    // let mut final_data = Vec::with_capacity(data_models.len());
+
+    // for data_model in data_models {
+    //     let periods = period_map.remove(&data_model.id).unwrap_or_default();
+    //     final_data.push(data_model.into_schema(periods));
+    // }
+
+    // let data = data_models.into_iter().map(|a| a.into_schema()).collect();
+    Ok(final_data)
 }
+
+// let data_models =
+//     fetch_leave_type_models(pool, business_id, id_list, label_list, query).await?;
+// let leave_type_id_list = data_models.iter().map(|a| a.id).collect();
+// let period_models = fetch_leave_periods_by_type(&pool, leave_type_id_list).await?;
+// let mut period_map: HashMap<Uuid, Vec<LeavePeriodWithTypeModel>> = HashMap::new();
+// for period in period_models {
+//     period_map
+//         .entry(period.type_id)
+//         .or_insert_with(Vec::new)
+//         .push(period.in);
+// }
+// let mut final_data = vec![];
+// for data in data_models.iter() {
+//     finaldata.push(data.into_schema(periods))
+// }
+// // let data = data_models.into_iter().map(|a| a.into_schema()).collect();
+// Ok(data)
 
 #[tracing::instrument(name = "delete payment", skip(pool))]
 pub async fn delete_user_leave(
@@ -1169,4 +1262,303 @@ pub async fn update_user_leave_count(
         anyhow::Error::new(e).context("A database failure occurred while updating leave status")
     })?;
     Ok(())
+}
+
+#[tracing::instrument(name = "prepare bulk leave period data", skip(created_by))]
+pub async fn prepare_bulk_leave_period_data<'a>(
+    leave_type_data: &'a Vec<LeavePeriodCreationData>,
+    business_id: Uuid,
+    created_by: Uuid,
+) -> Result<Option<BulkLeavePeriodInsert<'a>>, anyhow::Error> {
+    let current_utc = Utc::now();
+    let mut label_list = vec![];
+    let mut created_on_list = vec![];
+    let mut id_list = vec![];
+    let mut business_id_list = vec![];
+    let mut created_by_list = vec![];
+    let mut value_list = vec![];
+    if leave_type_data.is_empty() {
+        return Ok(None);
+    }
+    for leave_data in leave_type_data.iter() {
+        created_on_list.push(current_utc);
+        created_by_list.push(created_by);
+        if let Some(id) = leave_data.id {
+            id_list.push(id);
+        } else {
+            id_list.push(Uuid::new_v4());
+        }
+        label_list.push(leave_data.label.as_ref());
+        business_id_list.push(business_id);
+        value_list.push(&leave_data.value);
+    }
+    Ok(Some(BulkLeavePeriodInsert {
+        id: id_list,
+        label: label_list,
+        value: value_list,
+        created_on: created_on_list,
+        created_by: created_by_list,
+        business_id: business_id_list,
+    }))
+}
+
+#[tracing::instrument(name = "save leave period to database", skip(pool, data))]
+pub async fn save_leave_period_to_database<'a>(
+    pool: &PgPool,
+    data: BulkLeavePeriodInsert<'a>,
+) -> Result<bool, anyhow::Error> {
+    let query = sqlx::query!(
+        r#"
+        INSERT INTO leave_period (id, created_by, created_on, label, business_id, value)
+        SELECT * FROM UNNEST($1::uuid[], $2::uuid[], $3::TIMESTAMP[],  $4::TEXT[], $5::uuid[], $6::decimal[]) 
+        ON CONFLICT (id) DO UPDATE
+        SET label = EXCLUDED.label,
+        updated_by = EXCLUDED.created_by,
+        updated_on = EXCLUDED.created_on
+        "#,
+        &data.id[..] as &[Uuid],
+        &data.created_by[..] as &[Uuid],
+        &data.created_on[..] as &[DateTime<Utc>],
+        &data.label[..] as &[&str],
+        &data.business_id[..] as &[Uuid],
+        &data.value[..] as &[&BigDecimal]
+    );
+    let query_string = query.sql();
+    println!("Generated SQL query for: {}", query_string);
+    let result = pool.execute(query).await.map_err(|e| {
+        tracing::error!("Failed to execute query: {:?}", e);
+        anyhow!(e).context("A database failure occurred while saving leave type request")
+    })?;
+
+    Ok(result.rows_affected() > 0)
+}
+
+#[tracing::instrument(name = "save leave period", skip(pool))]
+pub async fn save_leave_period(
+    pool: &PgPool,
+    leave_period_data: &Vec<LeavePeriodCreationData>,
+    created_by: Uuid,
+    business_id: Uuid,
+) -> Result<bool, anyhow::Error> {
+    let bulk_data =
+        prepare_bulk_leave_period_data(leave_period_data, business_id, created_by).await?;
+    if let Some(data) = bulk_data {
+        return save_leave_period_to_database(pool, data).await;
+    }
+    Ok(false)
+}
+
+#[tracing::instrument(name = "Fetch leave period models", skip(pool))]
+async fn fetch_leave_period_models<'a>(
+    pool: &PgPool,
+    business_id: Uuid,
+    id_list: Option<&Vec<Uuid>>,
+    label_list: Option<Vec<&str>>,
+    query: Option<String>,
+) -> Result<Vec<LeavePeriodModel>, anyhow::Error> {
+    let mut query_builder = QueryBuilder::new(
+        r#"
+        SELECT id, value,  label FROM leave_period WHERE business_id="#,
+    );
+    query_builder.push_bind(business_id);
+    if let Some(id_list) = id_list {
+        if !id_list.is_empty() {
+            query_builder.push(" AND id = ANY(");
+            query_builder.push_bind(id_list);
+            query_builder.push(")");
+        }
+    }
+    if let Some(label_list) = label_list {
+        if !label_list.is_empty() {
+            query_builder.push(" AND label = ANY(");
+            query_builder.push_bind(label_list);
+            query_builder.push(")");
+        }
+    }
+    if let Some(query) = query {
+        let like_pattern = format!("%{}%", query);
+        query_builder.push(" AND label ILIKE ");
+        query_builder.push_bind(like_pattern);
+    }
+
+    let query = query_builder.build_query_as::<LeavePeriodModel>();
+    let leave_type = query.fetch_all(pool).await.map_err(|e| {
+        tracing::error!("Failed to execute query: {:?}", e);
+        anyhow!(e).context("A database failure occurred while fetching leave period")
+    })?;
+
+    Ok(leave_type)
+}
+
+#[tracing::instrument(name = "get leave period", skip(pool))]
+pub async fn get_leave_period(
+    pool: &PgPool,
+    business_id: Uuid,
+    id_list: Option<&Vec<Uuid>>,
+    label_list: Option<Vec<&str>>,
+    query: Option<String>,
+) -> Result<Vec<LeavePeriodData>, anyhow::Error> {
+    let data_models =
+        fetch_leave_period_models(pool, business_id, id_list, label_list, query).await?;
+    let data = data_models.into_iter().map(|a| a.into_schema()).collect();
+    Ok(data)
+}
+
+#[tracing::instrument(name = "delete leave period", skip(pool))]
+pub async fn delete_leave_period(pool: &PgPool, id: Uuid) -> Result<(), anyhow::Error> {
+    sqlx::query("DELETE FROM leave_period WHERE id = $1")
+        .bind(id)
+        .execute(pool)
+        .await
+        .context("Failed to delete leave period by ID")
+        .map_err(|e| {
+            tracing::error!("Failed to execute query: {:?}", e);
+            anyhow!(e).context("A database failure occurred while deleting leave period")
+        })?;
+
+    Ok(())
+}
+
+#[tracing::instrument(name = "prepare bulk leave type data", skip(created_by))]
+pub async fn prepare_bulk_leave_type_period_relationship_data(
+    leave_type_data: &Vec<LeaveTypeCreationData>,
+    business_id: Uuid,
+    created_by: Uuid,
+    type_map: HashMap<String, Uuid>,
+) -> Result<Option<BulkLeaveTypePeriodInsert>, anyhow::Error> {
+    let current_utc = Utc::now();
+    let mut period_id_list = vec![];
+    let mut created_on_list = vec![];
+    let mut id_list = vec![];
+    let mut business_id_list = vec![];
+    let mut created_by_list = vec![];
+    let mut type_id_list = vec![];
+    if leave_type_data.is_empty() {
+        return Ok(None);
+    }
+    for leave_data in leave_type_data.iter() {
+        if let Some(type_id) = type_map.get(&leave_data.label) {
+            for id in leave_data.period_id_list.iter() {
+                type_id_list.push(type_id.to_owned());
+                created_on_list.push(current_utc);
+                created_by_list.push(created_by);
+                if let Some(id) = leave_data.id {
+                    id_list.push(id);
+                } else {
+                    id_list.push(Uuid::new_v4());
+                }
+
+                business_id_list.push(business_id);
+                period_id_list.push(id);
+            }
+        }
+    }
+    Ok(Some(BulkLeaveTypePeriodInsert {
+        id: id_list,
+        type_id: type_id_list,
+        period_id: period_id_list,
+        created_on: created_on_list,
+        created_by: created_by_list,
+        // business_id: business_id_list,
+    }))
+}
+
+// test case not needed
+#[tracing::instrument(
+    name = "save leave type period relationship to database",
+    skip(transaction, data)
+)]
+pub async fn save_leave_type_period_relationship_to_database<'a>(
+    transaction: &mut Transaction<'_, Postgres>,
+    data: BulkLeaveTypePeriodInsert<'a>,
+) -> Result<bool, anyhow::Error> {
+    let query = sqlx::query!(
+        r#"
+        INSERT INTO leave_type_period_relationship(id, created_by, created_on, leave_type_id, leave_period_id)
+        SELECT * FROM UNNEST($1::uuid[], $2::uuid[], $3::TIMESTAMP[],  $4::uuid[], $5::uuid[]) 
+        ON CONFLICT (id) DO NOTHING
+        "#,
+        &data.id[..] as &[Uuid],
+        &data.created_by[..] as &[Uuid],
+        &data.created_on[..] as &[DateTime<Utc>],
+        &data.type_id[..] as &[Uuid],
+        &data.period_id[..] as &[&Uuid]
+    );
+    let query_string = query.sql();
+    println!("Generated SQL query for: {}", query_string);
+    let result = transaction.execute(query).await.map_err(|e| {
+        tracing::error!("Failed to execute query: {:?}", e);
+        anyhow!(e).context("A database failure occurred while saving leave type request")
+    })?;
+
+    Ok(result.rows_affected() > 0)
+}
+
+#[tracing::instrument(name = "save leave period relationship", skip(transaction))]
+pub async fn save_leave_type_period_relationship(
+    transaction: &mut Transaction<'_, Postgres>,
+    leave_type_data: &Vec<LeaveTypeCreationData>,
+    created_by: Uuid,
+    business_id: Uuid,
+    type_map: HashMap<String, Uuid>,
+) -> Result<bool, anyhow::Error> {
+    let bulk_data = prepare_bulk_leave_type_period_relationship_data(
+        leave_type_data,
+        business_id,
+        created_by,
+        type_map,
+    )
+    .await?;
+    if let Some(data) = bulk_data {
+        return save_leave_type_period_relationship_to_database(transaction, data).await;
+    }
+    Ok(false)
+}
+
+#[tracing::instrument(name = "Fetch leave periods by type", skip(pool))]
+pub async fn fetch_leave_periods_by_association(
+    pool: &PgPool,
+    leave_type_id: Option<Vec<Uuid>>,
+    id_list: Option<Vec<Uuid>>,
+) -> Result<Vec<LeavePeriodWithTypeModel>, anyhow::Error> {
+    let mut query_builder = sqlx::QueryBuilder::new(
+        r#"
+        SELECT 
+            lp.id, 
+            lp.label, 
+            lp.value, 
+            ltpr.leave_type_id AS type_id
+        FROM leave_period AS lp
+        INNER JOIN leave_type_period_relationship AS ltpr 
+            ON lp.id = ltpr.leave_period_id
+        WHERE 1 = 1
+        "#,
+    );
+
+    if let Some(ref ids) = leave_type_id {
+        if !ids.is_empty() {
+            query_builder
+                .push(" AND ltpr.leave_type_id = ANY(")
+                .push_bind(ids)
+                .push(")");
+        }
+    }
+
+    if let Some(ref ids) = id_list {
+        if !ids.is_empty() {
+            query_builder
+                .push(" AND lp.id = ANY(")
+                .push_bind(ids)
+                .push(")");
+        }
+    }
+
+    let query = query_builder.build_query_as::<LeavePeriodWithTypeModel>();
+
+    let rows = query.fetch_all(pool).await.map_err(|e| {
+        tracing::error!("Failed to fetch leave periods with filters: {:?}", e);
+        anyhow::anyhow!("Database error").context(e)
+    })?;
+
+    Ok(rows)
 }

@@ -102,6 +102,9 @@ INSERT INTO permission(id, permission_name, permission_description, created_on, 
 INSERT INTO permission(id, permission_name, permission_description, created_on, created_by)VALUES(uuid_generate_v4(), 'send:business-invite', 'send business invite', CURRENT_TIMESTAMP, '00000000-0000-0000-0000-000000000000'::uuid);
 INSERT INTO permission(id, permission_name, permission_description, created_on, created_by)VALUES(uuid_generate_v4(), 'update:business', 'update business', CURRENT_TIMESTAMP, '00000000-0000-0000-0000-000000000000'::uuid);
 
+INSERT INTO permission(id, permission_name, permission_description, created_on, created_by)VALUES(uuid_generate_v4(), 'disassociate:business', 'disassociate business self', CURRENT_TIMESTAMP, '00000000-0000-0000-0000-000000000000'::uuid);
+INSERT INTO permission(id, permission_name, permission_description, created_on, created_by)VALUES(uuid_generate_v4(), 'disassociate:business:self', 'disassociate business', CURRENT_TIMESTAMP, '00000000-0000-0000-0000-000000000000'::uuid);
+
 
 
 WITH superadmin_role AS (SELECT "id" FROM "role" WHERE "role_name" = 'superadmin' LIMIT 1) INSERT INTO "role_permission" ("id", "role_id", "permission_id", "created_on", "created_by") SELECT uuid_generate_v4(), superadmin_role."id" AS "role_id", "permission"."id" AS "permission_id", NOW(), '00000000-0000-0000-0000-000000000000'::uuid  FROM superadmin_role, "permission" WHERE "permission"."permission_name" NOT LIKE '%:self';

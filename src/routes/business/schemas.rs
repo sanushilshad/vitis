@@ -231,3 +231,26 @@ impl FromRequest for UpdateBusinessAccount {
         })
     }
 }
+
+#[derive(Deserialize, Debug, ToSchema)]
+#[serde(rename_all = "camelCase")]
+
+pub struct UserBusinessDeassociationRequest {
+    pub id: Option<Uuid>,
+}
+
+impl FromRequest for UserBusinessDeassociationRequest {
+    type Error = GenericError;
+    type Future = LocalBoxFuture<'static, Result<Self, Self::Error>>;
+
+    fn from_request(req: &HttpRequest, payload: &mut Payload) -> Self::Future {
+        let fut = web::Json::<Self>::from_request(req, payload);
+
+        Box::pin(async move {
+            match fut.await {
+                Ok(json) => Ok(json.into_inner()),
+                Err(e) => Err(GenericError::ValidationError(e.to_string())),
+            }
+        })
+    }
+}

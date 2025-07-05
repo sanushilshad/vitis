@@ -4,10 +4,10 @@ use crate::{middlewares::BusinessPermissionValidation, schemas::PermissionType};
 
 use super::handlers::{
     create_leave_req, create_leave_user_association_req, delete_leave_user_association_req,
-    leave_group_create_req, leave_group_delete_req, leave_group_list_req,
-    leave_request_deletion_req, leave_request_fetch_req, leave_type_create_req,
-    leave_type_delete_req, leave_type_list_req, list_leave_user_association_req,
-    update_leave_status_req,
+    leave_group_create_req, leave_group_delete_req, leave_group_list_req, leave_period_create_req,
+    leave_period_delete_req, leave_period_list_req, leave_request_deletion_req,
+    leave_request_fetch_req, leave_type_create_req, leave_type_delete_req, leave_type_list_req,
+    list_leave_user_association_req, update_leave_status_req,
 };
 
 pub fn leave_routes(cfg: &mut web::ServiceConfig) {
@@ -120,6 +120,32 @@ pub fn leave_routes(cfg: &mut web::ServiceConfig) {
                     PermissionType::ApproveLeaveRequest.to_string(),
                     PermissionType::UpdateLeaveRequestStatus.to_string(), // PermissionType::CreateLeaveRequest.to_string(),
                 ],
+            }),
+    );
+
+    cfg.route(
+        "/period/create",
+        web::post()
+            .to(leave_period_create_req)
+            .wrap(BusinessPermissionValidation {
+                permission_list: vec![PermissionType::CreateLeaveType.to_string()],
+            }),
+    );
+    cfg.route(
+        "/period/delete/{id}",
+        web::delete()
+            .to(leave_period_delete_req)
+            .wrap(BusinessPermissionValidation {
+                permission_list: vec![PermissionType::CreateLeaveType.to_string()],
+            }),
+    );
+
+    cfg.route(
+        "/period/list",
+        web::post()
+            .to(leave_period_list_req)
+            .wrap(BusinessPermissionValidation {
+                permission_list: vec![PermissionType::CreateLeaveType.to_string()],
             }),
     );
 }

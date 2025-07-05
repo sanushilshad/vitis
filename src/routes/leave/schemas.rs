@@ -1,9 +1,7 @@
-use std::fmt;
-
 use crate::{email::EmailObject, errors::GenericError, schemas::Status};
 use actix_http::Payload;
 use actix_web::{FromRequest, HttpRequest, web};
-use bigdecimal::{BigDecimal, FromPrimitive};
+use bigdecimal::BigDecimal;
 use chrono::{DateTime, FixedOffset, NaiveDateTime, Utc};
 use chrono_tz::Tz;
 use futures::future::LocalBoxFuture;
@@ -24,37 +22,37 @@ use uuid::Uuid;
 //     }
 // }
 
-#[derive(Serialize, Deserialize, Debug, ToSchema, sqlx::Type, PartialEq, Eq, Hash)]
-#[sqlx(type_name = "leave_period", rename_all = "snake_case")]
-#[serde(rename_all = "snake_case")]
-pub enum LeavePeriod {
-    HalfDay,
-    FullDay,
-}
+// #[derive(Serialize, Deserialize, Debug, ToSchema, sqlx::Type, PartialEq, Eq, Hash)]
+// #[sqlx(type_name = "leave_period", rename_all = "snake_case")]
+// #[serde(rename_all = "snake_case")]
+// pub enum LeavePeriod {
+//     HalfDay,
+//     FullDay,
+// }
 
-impl fmt::Display for LeavePeriod {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let display_str = match self {
-            LeavePeriod::FullDay => "full_day",
-            LeavePeriod::HalfDay => "half_day",
-        };
-        write!(f, "{}", display_str)
-    }
-}
+// impl fmt::Display for LeavePeriod {
+//     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+//         let display_str = match self {
+//             LeavePeriod::FullDay => "full_day",
+//             LeavePeriod::HalfDay => "half_day",
+//         };
+//         write!(f, "{}", display_str)
+//     }
+// }
 
-impl LeavePeriod {
-    pub fn get_count(&self) -> BigDecimal {
-        match self {
-            LeavePeriod::FullDay => BigDecimal::from_i32(1).unwrap(),
-            LeavePeriod::HalfDay => BigDecimal::from_f32(0.5).unwrap(),
-        }
-    }
-}
+// impl LeavePeriod {
+//     pub fn get_count(&self) -> BigDecimal {
+//         match self {
+//             LeavePeriod::FullDay => BigDecimal::from_i32(1).unwrap(),
+//             LeavePeriod::HalfDay => BigDecimal::from_f32(0.5).unwrap(),
+//         }
+//     }
+// }
 
 #[derive(Deserialize, Debug, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct CreateLeaveData {
-    pub period: LeavePeriod,
+    pub period_id: Uuid,
     pub date: chrono::NaiveDate,
 }
 
@@ -106,7 +104,7 @@ pub struct BulkLeaveRequestInsert<'a> {
     pub created_on: Vec<DateTime<Utc>>,
     pub created_by: Vec<Uuid>,
     pub user_leave_id: Vec<Uuid>,
-    pub leave_period: Vec<&'a LeavePeriod>,
+    pub leave_period_id: Vec<&'a Uuid>,
     pub date: Vec<DateTime<Utc>>,
     pub status: Vec<LeaveStatus>,
     pub reason: Vec<Option<&'a str>>,
@@ -166,10 +164,11 @@ impl FromRequest for UpdateLeaveStatusRequest {
 
 #[derive(Deserialize, Debug, ToSchema, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct LeaveData {
+pub struct LeaveRequestData {
     pub id: Uuid,
     // pub r#type: LeaveType,
-    pub period: LeavePeriod,
+    // pub period: LeavePeriod,
+    // pub leave_period_id: Uuid,
     pub user_leave_id: Uuid,
     pub date: DateTime<Utc>,
     pub reason: Option<String>,
@@ -179,6 +178,7 @@ pub struct LeaveData {
     pub cc: Option<Vec<EmailObject>>,
     pub created_on: Option<DateTime<FixedOffset>>,
     pub leave_type: String,
+    pub period: LeavePeriodData,
 }
 
 #[derive(Serialize)]
@@ -242,7 +242,7 @@ impl FromRequest for FetchLeaveRequest {
 #[derive(Debug)]
 pub struct FetchLeaveQuery<'a> {
     pub date: Option<&'a DateTime<Utc>>,
-    pub period: Option<&'a LeavePeriod>,
+    // pub period: Option<&'a LeavePeriod>,
     pub sender_id: Option<Uuid>,
     pub leave_id: Option<Uuid>,
     pub offset: Option<i32>,
@@ -257,7 +257,7 @@ impl<'a> FetchLeaveQuery<'a> {
     pub fn builder() -> Self {
         Self {
             date: None,
-            period: None,
+            // period: None,
             sender_id: None,
             leave_id: None,
             offset: None,
@@ -306,11 +306,11 @@ impl<'a> FetchLeaveQuery<'a> {
         self
     }
 
-    #[allow(dead_code)]
-    pub fn with_period(mut self, period: Option<&'a LeavePeriod>) -> Self {
-        self.period = period;
-        self
-    }
+    // #[allow(dead_code)]
+    // pub fn with_period(mut self, period: Option<&'a LeavePeriod>) -> Self {
+    //     self.period = period;
+    //     self
+    // }
     pub fn with_tz(mut self, tz: Option<&'a Tz>) -> Self {
         self.tz = tz;
         self
@@ -322,6 +322,7 @@ impl<'a> FetchLeaveQuery<'a> {
 pub struct LeaveTypeCreationData {
     pub id: Option<Uuid>,
     pub label: String,
+    pub period_id_list: Vec<Uuid>,
 }
 
 #[derive(Deserialize, Debug, ToSchema)]
@@ -359,6 +360,15 @@ pub struct BulkLeaveTypeInsert<'a> {
 pub struct LeaveTypeData {
     pub id: Uuid,
     pub label: String,
+    pub period_list: Vec<LeavePeriodData>,
+}
+
+#[derive(Debug, Serialize, ToSchema, Deserialize)]
+pub struct LeavePeriodData {
+    pub id: Uuid,
+    pub label: String,
+    #[schema(value_type = f64)]
+    pub value: BigDecimal,
 }
 
 #[derive(Deserialize, Debug, ToSchema)]
@@ -420,7 +430,7 @@ pub struct LeaveGroup {
 #[allow(dead_code)]
 pub struct UserLeaveCreationData {
     pub type_id: Uuid,
-    #[schema(value_type = String)]
+    #[schema(value_type = f64)]
     pub count: BigDecimal,
     pub status: Status,
 }
@@ -499,6 +509,7 @@ pub struct UserLeave {
     pub user_id: Uuid,
     pub leave_type: UserLeaveType,
     pub leave_group: UserLeaveGroup,
+    pub periods: Vec<LeavePeriodData>,
 }
 
 // #[derive(Deserialize, Debug, ToSchema)]
@@ -513,6 +524,78 @@ pub struct BulkUserLeaveInsert<'a> {
     pub group_id: Vec<Uuid>,
     pub type_id: Vec<Uuid>,
     pub allocated_count: Vec<&'a BigDecimal>,
+    pub created_on: Vec<DateTime<Utc>>,
+    pub created_by: Vec<Uuid>,
+}
+
+#[derive(Deserialize, Debug, ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct LeavePeriodCreationRequest {
+    pub data: Vec<LeavePeriodCreationData>,
+}
+
+impl FromRequest for LeavePeriodCreationRequest {
+    type Error = GenericError;
+    type Future = LocalBoxFuture<'static, Result<Self, Self::Error>>;
+
+    fn from_request(req: &HttpRequest, payload: &mut Payload) -> Self::Future {
+        let fut = web::Json::<Self>::from_request(req, payload);
+
+        Box::pin(async move {
+            match fut.await {
+                Ok(json) => Ok(json.into_inner()),
+                Err(e) => Err(GenericError::ValidationError(e.to_string())),
+            }
+        })
+    }
+}
+
+#[derive(Deserialize, Debug, ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct LeavePeriodCreationData {
+    pub id: Option<Uuid>,
+    pub label: String,
+    #[schema(value_type = f64)]
+    pub value: BigDecimal,
+}
+
+#[derive(Debug)]
+pub struct BulkLeavePeriodInsert<'a> {
+    pub id: Vec<Uuid>,
+    pub label: Vec<&'a str>,
+    pub value: Vec<&'a BigDecimal>,
+    pub created_on: Vec<DateTime<Utc>>,
+    pub created_by: Vec<Uuid>,
+    pub business_id: Vec<Uuid>,
+}
+
+#[derive(Deserialize, Debug, ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct LeavePeriodFetchRequest {
+    pub query: Option<String>,
+}
+
+impl FromRequest for LeavePeriodFetchRequest {
+    type Error = GenericError;
+    type Future = LocalBoxFuture<'static, Result<Self, Self::Error>>;
+
+    fn from_request(req: &HttpRequest, payload: &mut Payload) -> Self::Future {
+        let fut = web::Json::<Self>::from_request(req, payload);
+
+        Box::pin(async move {
+            match fut.await {
+                Ok(json) => Ok(json.into_inner()),
+                Err(e) => Err(GenericError::ValidationError(e.to_string())),
+            }
+        })
+    }
+}
+
+#[derive(Debug)]
+pub struct BulkLeaveTypePeriodInsert<'a> {
+    pub id: Vec<Uuid>,
+    pub period_id: Vec<&'a Uuid>,
+    pub type_id: Vec<Uuid>,
     pub created_on: Vec<DateTime<Utc>>,
     pub created_by: Vec<Uuid>,
 }
