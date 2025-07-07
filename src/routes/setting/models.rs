@@ -34,6 +34,7 @@ pub struct SettingValueModel {
     pub user_id: Option<Uuid>,
     pub business_id: Option<Uuid>,
     pub is_editable: bool,
+    pub cluster_id: Option<String>,
 }
 
 #[derive(FromRow, Debug)]

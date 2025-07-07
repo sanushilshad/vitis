@@ -102,8 +102,8 @@ INSERT INTO permission(id, permission_name, permission_description, created_on, 
 INSERT INTO permission(id, permission_name, permission_description, created_on, created_by)VALUES(uuid_generate_v4(), 'send:business-invite', 'send business invite', CURRENT_TIMESTAMP, '00000000-0000-0000-0000-000000000000'::uuid);
 INSERT INTO permission(id, permission_name, permission_description, created_on, created_by)VALUES(uuid_generate_v4(), 'update:business', 'update business', CURRENT_TIMESTAMP, '00000000-0000-0000-0000-000000000000'::uuid);
 
-INSERT INTO permission(id, permission_name, permission_description, created_on, created_by)VALUES(uuid_generate_v4(), 'disassociate:business', 'disassociate business self', CURRENT_TIMESTAMP, '00000000-0000-0000-0000-000000000000'::uuid);
-INSERT INTO permission(id, permission_name, permission_description, created_on, created_by)VALUES(uuid_generate_v4(), 'disassociate:business:self', 'disassociate business', CURRENT_TIMESTAMP, '00000000-0000-0000-0000-000000000000'::uuid);
+INSERT INTO permission(id, permission_name, permission_description, created_on, created_by)VALUES(uuid_generate_v4(), 'disassociate:user-business', 'disassociate business self', CURRENT_TIMESTAMP, '00000000-0000-0000-0000-000000000000'::uuid);
+INSERT INTO permission(id, permission_name, permission_description, created_on, created_by)VALUES(uuid_generate_v4(), 'disassociate:user-business:self', 'disassociate business', CURRENT_TIMESTAMP, '00000000-0000-0000-0000-000000000000'::uuid);
 
 
 

@@ -281,22 +281,20 @@ The API Docmentation can be found at `https://{{domain}}/docs/` after running th
 
 
 ## MILESTONE 5 (0/5) (ROLE AND PERMISSION MANAGEMENT):
-* [ ] Move most env to database + allow bulk send of websocket
+* [x] Add Cluster ID for setting.
+* [ ] Allow bulk send of websocket.
+* [ ] Move Slack + Personal Email Credential to Setting.
 * [ ] Create Role fetch API.
 * [ ] Create role permissions assigment API.
 * [ ] Create Permission fetch API.
 * [ ] Create role permissions assigment edit API.
-* [ ] Add Cluster ID for setting
-* [ ] Move Slack + Personal Email Credential to Setting
+
 
 ## MILESTONE 6 DEPARTMENT:
 * [x] Department Creation.
 * [x] Department-User Association.
 * [ ] Department Deletion.
 * [ ] Department Edit.
-
-
-
 
 
 ## MILESTONE 7  (0/3) (ON-CALL MANAGEMENT):

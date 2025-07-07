@@ -168,9 +168,9 @@ pub enum PermissionType {
     DeleteBusiness,
     #[serde(rename = "update:business")]
     UpdateBusiness,
-    #[serde(rename = "disassociate:business:self")]
+    #[serde(rename = "disassociate:user-business:self")]
     DisassociateBusinessSelf,
-    #[serde(rename = "disassociate:business")]
+    #[serde(rename = "disassociate:user-business")]
     DisassociateBusiness,
 }
 
@@ -201,8 +201,8 @@ impl fmt::Display for PermissionType {
             PermissionType::SendBusinessInvite => "send:business-invite",
             PermissionType::DeleteBusiness => "delete:business",
             PermissionType::UpdateBusiness => "update:business",
-            PermissionType::DisassociateBusinessSelf => "disassociate:business:self",
-            PermissionType::DisassociateBusiness => "disassociate:business",
+            PermissionType::DisassociateBusinessSelf => "disassociate:user-business:self",
+            PermissionType::DisassociateBusiness => "disassociate:user-business",
         };
 
         write!(f, "{}", display_str)

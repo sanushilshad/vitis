@@ -14,9 +14,8 @@ pub mod tests {
                     CreateBusinessSettingRequest, CreateSettingData, SettingKey, SettingType,
                 },
                 utils::{
-                    create_business_setting, create_global_setting, create_user_business_setting,
-                    create_user_setting, delete_global_setting, fetch_setting, fetch_setting_enums,
-                    get_setting_value,
+                    create_setting_with_scope, delete_global_setting, fetch_setting,
+                    fetch_setting_enums, get_setting_value,
                 },
             },
             user::{
@@ -67,11 +66,12 @@ pub mod tests {
                 value: "Asia/Kolkata".to_string(),
             }],
         };
-        let create_setting_res_business = create_business_setting(
+        let create_setting_res_business = create_setting_with_scope(
             &pool,
-            &req_business_level,
+            &req_business_level.settings,
+            None,
+            Some(business_id),
             user_id,
-            business_id,
             &setting_map,
         )
         .await;
@@ -127,7 +127,8 @@ pub mod tests {
         }];
 
         let create_setting_res =
-            create_user_setting(&pool, &setting, user_id, user_id, &setting_map).await;
+            create_setting_with_scope(&pool, &setting, Some(user_id), None, user_id, &setting_map)
+                .await;
         assert!(create_setting_res.is_ok());
         let data_res = get_setting_value(
             &pool,
@@ -178,7 +179,7 @@ pub mod tests {
         }];
 
         let create_setting_res =
-            create_global_setting(&pool, &setting, user_id, &setting_map).await;
+            create_setting_with_scope(&pool, &setting, None, None, user_id, &setting_map).await;
         assert!(create_setting_res.is_ok());
         let data_res =
             get_setting_value(&pool, &vec![setting_key.to_string()], None, None, true).await;
@@ -252,12 +253,12 @@ pub mod tests {
                 value: "Asia/Kolkata".to_string(),
             }],
         };
-        let create_setting_res_business = create_user_business_setting(
+        let create_setting_res_business = create_setting_with_scope(
             &pool,
-            &req_business_level,
+            &req_business_level.settings,
+            Some(user_id),
+            Some(business_id),
             user_id,
-            user_id,
-            business_id,
             &setting_map,
         )
         .await;
