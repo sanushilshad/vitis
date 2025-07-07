@@ -280,9 +280,9 @@ The API Docmentation can be found at `https://{{domain}}/docs/` after running th
 * [x] Add leave period deletion API.
 
 
-## MILESTONE 5 (0/5) (ROLE AND PERMISSION MANAGEMENT):
+## MILESTONE 5 (2/7) (ROLE AND PERMISSION MANAGEMENT):
 * [x] Add Cluster ID for setting.
-* [ ] Allow bulk send of websocket.
+* [x] Allow bulk send of websocket.
 * [ ] Move Slack + Personal Email Credential to Setting.
 * [ ] Create Role fetch API.
 * [ ] Create role permissions assigment API.

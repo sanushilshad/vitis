@@ -669,7 +669,13 @@ pub async fn delete_leave_user_association_req(
         ("x-device-id" = String, Header, description = "Device id"),
       )
 )]
-#[tracing::instrument(err, name = "Leave Request Creation API", skip(pool, body), fields())]
+#[tracing::instrument(
+    err,
+    name = "Leave Request Creation API",
+    skip(pool, body, producer_client),
+    fields()
+)]
+#[allow(clippy::too_many_arguments)]
 pub async fn create_leave_req(
     body: CreateLeaveRequest,
     pool: web::Data<PgPool>,
@@ -678,6 +684,7 @@ pub async fn create_leave_req(
     mail_config: web::Data<EmailClientConfig>,
     permissions: AllowedPermission,
     websocket_srv: web::Data<Addr<Server>>,
+    producer_client: web::Data<PulsarClient>,
 ) -> Result<web::Json<GenericResponse<()>>, GenericError> {
     if body.user_id.is_some()
         && !permissions
@@ -808,9 +815,10 @@ pub async fn create_leave_req(
             &websocket_srv,
             WebSocketActionType::LeaveRequest,
             ProcessType::Deferred,
-            Some(reciever_account.id),
+            vec![reciever_account.id],
             format!("Leave Request send by {}", user.display_name),
             Some(business.id),
+            &producer_client,
         )
         .await;
         // .map_err(|e| GenericError::UnexpectedCustomError(e.to_string()))?;
@@ -1094,9 +1102,10 @@ pub async fn update_leave_status_req(
         &websocket_srv,
         WebSocketActionType::LeaveRequestStatusUpdation,
         ProcessType::Deferred,
-        Some(reciever_account.id),
+        vec![reciever_account.id],
         format!("Leave Request send by {}", user.display_name),
         Some(business.id),
+        &producer_client,
     )
     .await;
     // .map_err(|e| GenericError::UnexpectedCustomError(e.to_string()))?;

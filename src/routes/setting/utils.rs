@@ -2,10 +2,7 @@ use std::collections::HashMap;
 
 use super::{
     models::{BulkSettingCreateModel, SettingEnumModel, SettingModel, SettingValueModel},
-    schemas::{
-        CreateBusinessSettingRequest, CreateSettingData, Setting, SettingEnumData, SettingType,
-        Settings,
-    },
+    schemas::{CreateSettingData, Setting, SettingEnumData, SettingType, Settings},
 };
 use chrono::DateTime;
 use chrono::Utc;
@@ -324,6 +321,7 @@ pub fn get_setting_value_from_model(
                 user_level: vec![],
                 business_level: vec![],
                 user_business_level: vec![],
+                cluster_id: model.cluster_id,
             });
 
         let setting = Setting {

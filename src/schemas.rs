@@ -1,9 +1,10 @@
 use crate::errors::GenericError;
 use actix_http::StatusCode;
 use actix_web::{FromRequest, HttpMessage};
-
 use anyhow::anyhow;
+use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 use std::fmt::{self, Debug};
 use std::future::{Ready, ready};
 use utoipa::ToSchema;
@@ -247,4 +248,12 @@ pub enum AlertStatus {
     Pending,
     Success,
     Failed,
+}
+
+#[derive(Debug)]
+pub struct BulkNotificationData<'a> {
+    pub id: Vec<Uuid>,
+    pub data: Vec<&'a Value>,
+    pub connection_id: Vec<&'a str>,
+    pub created_on: Vec<&'a DateTime<Utc>>,
 }

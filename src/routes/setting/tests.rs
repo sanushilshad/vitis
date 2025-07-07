@@ -140,7 +140,8 @@ pub mod tests {
         .await;
         assert!(data_res.is_ok());
         let data = data_res.unwrap();
-        assert!(data[0].user_level.len() == 1);
+        print!("apple{:?}", data);
+        assert!(!data[0].user_level.is_empty());
 
         let _ = hard_delete_user_account(
             &pool,

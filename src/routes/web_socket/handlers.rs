@@ -49,7 +49,7 @@ pub async fn web_socket(
         .await;
     producer
         .send_non_blocking(WSMessageData {
-            partition_key: web_socket_key.to_string(),
+            partition_key_list: vec![web_socket_key.to_string()],
         })
         .await
         .map_err(|e| GenericError::UnexpectedError(e.into()))?;

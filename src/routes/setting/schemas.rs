@@ -79,6 +79,7 @@ pub struct Settings {
     pub user_level: Vec<Setting>,
     pub business_level: Vec<Setting>,
     pub user_business_level: Vec<Setting>,
+    pub cluster_id: Option<String>,
 }
 
 impl Settings {
