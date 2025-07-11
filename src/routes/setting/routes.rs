@@ -38,7 +38,7 @@ pub fn setting_routes(cfg: &mut web::ServiceConfig) {
             }),
     );
     cfg.route(
-        "/business/fetch",
+        "/business/list",
         web::post()
             .to(fetch_business_config_req)
             .wrap(BusinessPermissionValidation {
@@ -50,7 +50,7 @@ pub fn setting_routes(cfg: &mut web::ServiceConfig) {
             .wrap(BusinessAccountValidation),
     );
     cfg.route(
-        "/user/fetch",
+        "/user/list",
         web::post()
             .to(fetch_user_config_req)
             .wrap(UserPermissionValidation {
@@ -61,7 +61,7 @@ pub fn setting_routes(cfg: &mut web::ServiceConfig) {
             }),
     );
     cfg.route(
-        "/global/fetch",
+        "/global/list",
         web::post()
             .to(fetch_global_setting)
             .wrap(UserPermissionValidation {
@@ -77,7 +77,7 @@ pub fn setting_routes(cfg: &mut web::ServiceConfig) {
             }),
     );
     cfg.route(
-        "/user-business/fetch",
+        "/user-business/list",
         web::post()
             .to(fetch_user_business_config_req)
             .wrap(BusinessPermissionValidation {
@@ -94,5 +94,5 @@ pub fn setting_routes(cfg: &mut web::ServiceConfig) {
             })
             .wrap(BusinessAccountValidation),
     );
-    cfg.route("/enum/fetch", web::post().to(fetch_config_enums));
+    cfg.route("/enum/list", web::post().to(fetch_config_enums));
 }

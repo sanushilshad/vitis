@@ -3,7 +3,7 @@ pub mod tests {
     use crate::constants::DUMMY_INTERNATIONAL_DIALING_CODE;
     use crate::email::EmailObject;
     use crate::routes::user::schemas::{
-        AuthenticationScope, CreateUserAccount, EditUserAccount, VectorType,
+        AuthenticationScope, CreateUserAccount, EditUserAccount, MobileNoInfo, VectorType,
     };
     use crate::routes::user::utils::{
         get_minimal_user_list, get_stored_credentials, get_user, hard_delete_user_account,
@@ -65,10 +65,14 @@ pub mod tests {
         let user_account = CreateUserAccount {
             username: username.to_string(),
             email: EmailObject::new(email.to_string()),
-            mobile_no: mobile_no.to_string(),
+            mobile_no_info: MobileNoInfo {
+                mobile_no: mobile_no.to_string(),
+                international_dialing_code: DUMMY_INTERNATIONAL_DIALING_CODE.to_string(),
+            },
+
             display_name: "Test User".to_string(),
             is_test_user: false,
-            international_dialing_code: DUMMY_INTERNATIONAL_DIALING_CODE.to_string(),
+
             password: SecretString::from(password),
         };
         let user_result = register_user(pool, &user_account).await?;
@@ -316,8 +320,11 @@ pub mod tests {
         let user_obj = user_obj_opt.unwrap();
         let edit_req = EditUserAccount {
             username: username_2.to_string(),
-            mobile_no: format!("{}{}", DUMMY_INTERNATIONAL_DIALING_CODE, mobile_no_2).to_string(),
-            // international_dialing_code: DUMMY_INTERNATIONAL_DIALING_CODE.to_string(),
+            mobile_no_info: MobileNoInfo {
+                mobile_no: mobile_no_2.to_string(),
+                international_dialing_code: DUMMY_INTERNATIONAL_DIALING_CODE.to_string(),
+            },
+
             email: EmailObject::new(email_2.to_string()),
             display_name: display_name_2.to_string(),
         };

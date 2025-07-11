@@ -193,7 +193,7 @@ pub async fn create_user_config_req(
     post,
     description = "API for fetching configs specific to user/business/TSP.",
     summary = "Business Setting Fetch API",
-    path = "/setting/business/fetch",
+    path = "/setting/business/list",
     tag = "Setting",
     request_body(content = FetchSettingRequest, description = "Request Body"),
     responses(
@@ -232,7 +232,7 @@ pub async fn fetch_business_config_req(
     post,
     description = "API for fetching configs specific to user.",
     summary = "User Setting Fetch API",
-    path = "/setting/user/fetch",
+    path = "/setting/user/list",
     tag = "Setting",
     request_body(content = FetchSettingRequest, description = "Request Body"),
     responses(
@@ -265,7 +265,7 @@ pub async fn fetch_user_config_req(
     } else {
         Some(user.id)
     };
-    let settings = get_setting_value(&pool, &body.keys, None, user_id, true)
+    let settings = get_setting_value(&pool, &body.keys, None, user_id, false)
         .await
         .map_err(|e| GenericError::DatabaseError(e.to_string(), e))?;
     let data = SettingData { settings };
@@ -279,7 +279,7 @@ pub async fn fetch_user_config_req(
     post,
     description = "API for fetching global configs.",
     summary = "Global Setting Fetch API",
-    path = "/setting/global/fetch",
+    path = "/setting/global/list",
     tag = "Setting",
     request_body(content = FetchSettingRequest, description = "Request Body"),
     responses(
@@ -385,7 +385,7 @@ pub async fn save_global_setting(
     post,
     description = "API for fetching setting enums",
     summary = "Setting Enum Fetch API",
-    path = "/setting/enum/fetch",
+    path = "/setting/enum/list",
     tag = "Setting",
     request_body(content = FetchSettingEnumRequest, description = "Request Body"),
     responses(
@@ -422,7 +422,7 @@ pub async fn fetch_config_enums(
     post,
     description = "API for fetching configs specific to user-business.",
     summary = "Business Setting Fetch API",
-    path = "/setting/user-business/fetch",
+    path = "/setting/user-business/list",
     tag = "Setting",
     request_body(content = FetchSettingRequest, description = "Request Body"),
     responses(

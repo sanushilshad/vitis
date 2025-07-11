@@ -54,10 +54,22 @@ impl UserRoleType {
 
 #[derive(Deserialize, Debug, ToSchema)]
 #[serde(rename_all = "camelCase")]
-pub struct CreateUserAccount {
-    pub username: String,
+pub struct MobileNoInfo {
     pub mobile_no: String,
     pub international_dialing_code: String,
+}
+
+impl MobileNoInfo {
+    pub fn get_full_mobile_no(&self) -> String {
+        format!("{}{}", self.international_dialing_code, self.mobile_no)
+    }
+}
+
+#[derive(Deserialize, Debug, ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct CreateUserAccount {
+    pub username: String,
+    pub mobile_no_info: MobileNoInfo,
     #[schema(value_type = String)]
     pub password: SecretString,
     #[serde(deserialize_with = "deserialize_subscriber_email")]
@@ -76,11 +88,6 @@ pub struct CreateUserAccount {
 //         &self.mobile_no
 //     }
 // }
-impl CreateUserAccount {
-    pub fn get_full_mobile_no(&self) -> String {
-        format!("{}{}", self.international_dialing_code, self.mobile_no)
-    }
-}
 
 impl FromRequest for CreateUserAccount {
     type Error = GenericError;
@@ -369,7 +376,7 @@ impl FromRequest for ListUserAccountRequest {
 #[serde(rename_all = "camelCase")]
 pub struct EditUserAccount {
     pub username: String,
-    pub mobile_no: String,
+    pub mobile_no_info: MobileNoInfo,
     // pub international_dialing_code: String,
     #[serde(deserialize_with = "deserialize_subscriber_email")]
     pub email: EmailObject,

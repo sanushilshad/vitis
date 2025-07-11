@@ -267,7 +267,7 @@ pub fn create_vector_from_create_account(
         },
         UserVector {
             key: VectorType::MobileNo,
-            value: user_account.get_full_mobile_no(),
+            value: user_account.mobile_no_info.get_full_mobile_no(),
             masking: MaskingType::NA,
             verified: false,
         },
@@ -292,7 +292,7 @@ pub async fn save_user(
         user_id,
         &user_account.username,
         &user_account.email.get(),
-        &user_account.get_full_mobile_no(),
+        &user_account.mobile_no_info.get_full_mobile_no(),
         user_id,
         Utc::now(),
         &user_account.display_name,
@@ -472,7 +472,7 @@ pub async fn prepare_auth_mechanism_data_for_user_account(
     ];
     let auth_identifier: Vec<String> = vec![
         user_account.username.to_owned(),
-        user_account.get_full_mobile_no(),
+        user_account.mobile_no_info.get_full_mobile_no(),
         user_account.email.get().to_owned(),
     ];
     let secret = vec![password_hash.expose_secret().to_string()];
@@ -543,15 +543,15 @@ pub async fn register_user(
         .context("Failed to acquire a Postgres connection from the pool")?;
 
     if let Some(existing_user_obj) = fetch_user(
-        vec![user_account.email.get(), &user_account.mobile_no],
+        vec![user_account.email.get(), &user_account.mobile_no_info.get_full_mobile_no()],
         pool,
     )
     .await?
     {
-        if user_account.get_full_mobile_no() == existing_user_obj.mobile_no {
+        if user_account.mobile_no_info.get_full_mobile_no() == existing_user_obj.mobile_no {
             let message = format!(
                 "User Already exists with the given mobile number: {}",
-                user_account.mobile_no
+                user_account.mobile_no_info.get_full_mobile_no()
             );
             tracing::error!(message);
             return Err(UserRegistrationError::DuplicateMobileNo(message));
@@ -798,7 +798,7 @@ pub fn prepare_auth_mechanism_update(
     ];
     let auth_identifier: Vec<String> = vec![
         data.username.to_owned(),
-        data.mobile_no.to_owned(),
+        data.mobile_no_info.get_full_mobile_no(),
         data.email.get().to_owned(),
     ];
     let updated_on = vec![current_utc, current_utc, current_utc];
@@ -924,7 +924,7 @@ fn generate_updated_user_vectors(
 
 #[tracing::instrument(name = "update user account", skip(tx))]
 pub async fn update_user_account(tx: &mut Transaction<'_, Postgres>, data: &EditUserAccount, user_account: &UserAccount) -> Result<(), anyhow::Error>{
-    let vector_list: Vec<UserVector> = generate_updated_user_vectors(&user_account.vectors, &data.mobile_no, &data.email);
+    let vector_list: Vec<UserVector> = generate_updated_user_vectors(&user_account.vectors, &data.mobile_no_info.get_full_mobile_no(), &data.email);
     let query= sqlx::query!(
         r#"UPDATE user_account SET
             username = $1,
@@ -937,7 +937,7 @@ pub async fn update_user_account(tx: &mut Transaction<'_, Postgres>, data: &Edit
         WHERE id = $8"#,
         data.username,
         // data.international_dialing_code,
-        data.mobile_no,
+        data.mobile_no_info.get_full_mobile_no(),
         data.email.get(),
         data.display_name,
         sqlx::types::Json(vector_list) as sqlx::types::Json<Vec<UserVector>>,

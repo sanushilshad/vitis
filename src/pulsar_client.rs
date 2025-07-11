@@ -172,7 +172,6 @@ impl PulsarClient {
                             serde_json::from_slice(&msg.payload.data).unwrap();
 
                         let partition_key_list = message.partition_key_list;
-                        tracing::info!("noooo{:?}", partition_key_list);
                         for partition_key in partition_key_list {
                             if websocket_client
                                 .send(SessionExists {
@@ -222,10 +221,9 @@ impl PulsarClient {
                                     .await
                                     .context("Failed to commit SQL transaction to store a order")
                                     .unwrap();
-
-                                if let Err(e) = consumer.ack(&msg).await {
-                                    eprintln!("Failed to acknowledge message: {:?}", e);
-                                }
+                            }
+                            if let Err(e) = consumer.ack(&msg).await {
+                                eprintln!("Failed to acknowledge message: {:?}", e);
                             }
                         }
                     }

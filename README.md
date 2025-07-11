@@ -260,7 +260,7 @@ The API Docmentation can be found at `https://{{domain}}/docs/` after running th
 * [x] Create business edit API. (Ongoing)
 
 
-## MILESTONE 4 (14/17) LEAVE:
+## MILESTONE 4 (17/17) LEAVE:
 * [x] Add leave type creation / edit API.
 * [x] Add leave  type fetch API.
 * [x] Add leave  type deletion API.
@@ -279,8 +279,14 @@ The API Docmentation can be found at `https://{{domain}}/docs/` after running th
 * [x] Add leave period fetch API.
 * [x] Add leave period deletion API.
 
+## MILESTONE 5 DEPARTMENT:
+* [ ] Department Creation.
+* [ ] Department-User Association.
+* [ ] Department Deletion.
+* [ ] Department Edit.
 
-## MILESTONE 5 (2/7) (ROLE AND PERMISSION MANAGEMENT):
+
+## MILESTONE 6 (2/7) (ROLE AND PERMISSION MANAGEMENT):
 * [x] Add Cluster ID for setting.
 * [x] Allow bulk send of websocket.
 * [ ] Move Slack + Personal Email Credential to Setting.
@@ -288,13 +294,6 @@ The API Docmentation can be found at `https://{{domain}}/docs/` after running th
 * [ ] Create role permissions assigment API.
 * [ ] Create Permission fetch API.
 * [ ] Create role permissions assigment edit API.
-
-
-## MILESTONE 6 DEPARTMENT:
-* [x] Department Creation.
-* [x] Department-User Association.
-* [ ] Department Deletion.
-* [ ] Department Edit.
 
 
 ## MILESTONE 7  (0/3) (ON-CALL MANAGEMENT):
