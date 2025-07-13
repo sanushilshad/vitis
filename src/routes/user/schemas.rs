@@ -52,7 +52,7 @@ impl UserRoleType {
 //     }
 // }
 
-#[derive(Deserialize, Debug, ToSchema)]
+#[derive(Deserialize, Clone, Serialize, Debug, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct MobileNoInfo {
     pub mobile_no: String,
@@ -239,7 +239,8 @@ pub struct BulkAuthMechanismInsert {
 pub struct UserAccount {
     pub id: Uuid,
     pub username: String,
-    pub mobile_no: String,
+    // pub mobile_no: String,
+    pub mobile_no_info: MobileNoInfo,
     pub email: EmailObject,
     pub is_active: Status,
     pub display_name: String,

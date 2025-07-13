@@ -121,10 +121,6 @@ impl WSKeyTrait for WebSocketParam {
 
 #[derive(Debug, Serialize, Clone, Deserialize, PartialEq)]
 pub enum PermissionType {
-    #[serde(rename = "create:user-setting")]
-    CreateUserSetting,
-    #[serde(rename = "create:user-setting:self")]
-    CreateUserSettingSelf,
     #[serde(rename = "associate:user-business")]
     AssociateUserBusiness,
     #[serde(rename = "create:leave-request:self")]
@@ -137,12 +133,18 @@ pub enum PermissionType {
     UpdateLeaveRequestStatus,
     #[serde(rename = "list:users")]
     ListUsers,
+    #[serde(rename = "create:user-setting")]
+    CreateUserSetting,
+    #[serde(rename = "create:user-setting:self")]
+    CreateUserSettingSelf,
     #[serde(rename = "create:global-setting")]
     CreateGlobalSetting,
     #[serde(rename = "create:business-setting")]
     CreateBusinessSetting,
     #[serde(rename = "create:business-setting:self")]
     CreateBusinessSettingSelf,
+    #[serde(rename = "create:user-business-setting")]
+    CreateUserBusinessSetting,
     #[serde(rename = "associate:user-department")]
     AssociateUserDepartment,
     #[serde(rename = "create:department")]
@@ -151,8 +153,7 @@ pub enum PermissionType {
     ListLeaveRequestSelf,
     #[serde(rename = "list:leave-request")]
     ListLeaveRequest,
-    #[serde(rename = "create:user-business-setting")]
-    CreateUserBusinessSetting,
+
     #[serde(rename = "create:leave-type")]
     CreateLeaveType,
     #[serde(rename = "list:user-business")]
@@ -179,21 +180,25 @@ impl fmt::Display for PermissionType {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let display_str = match self {
             PermissionType::CreateUserSetting => "create:user-setting",
+            PermissionType::CreateUserSettingSelf => "create:user-setting:self",
+            PermissionType::CreateBusinessSetting => "create:business-setting",
+            PermissionType::CreateBusinessSettingSelf => "create:business-setting:self",
+            PermissionType::CreateGlobalSetting => "create:global-setting",
+            PermissionType::CreateUserBusinessSetting => "list:leave-request",
             PermissionType::AssociateUserBusiness => "associate:user-business",
             PermissionType::CreateLeaveRequestSelf => "create:leave-request:self",
             PermissionType::CreateLeaveRequest => "create:leave-request",
             PermissionType::ApproveLeaveRequest => "approve:leave-request",
             PermissionType::UpdateLeaveRequestStatus => "update:leave-request-status",
-            PermissionType::CreateUserSettingSelf => "create:user-setting:self",
+
             PermissionType::ListUsers => "list:users",
-            PermissionType::CreateGlobalSetting => "create:global-setting",
+
             PermissionType::AssociateUserDepartment => "associate:user-department",
-            PermissionType::CreateBusinessSetting => "create:business-setting",
-            PermissionType::CreateBusinessSettingSelf => "create:business-setting:self",
+
             PermissionType::CreateDepartment => "create:department",
             PermissionType::ListLeaveRequestSelf => "list:leave-request:self",
             PermissionType::ListLeaveRequest => "list:leave-request",
-            PermissionType::CreateUserBusinessSetting => "list:leave-request",
+
             PermissionType::CreateLeaveType => "create:leave-type",
             PermissionType::ListUserBusinessSelf => "list:user-business:self",
             PermissionType::ListUserBusiness => "list:user-business",

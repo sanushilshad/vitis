@@ -337,7 +337,7 @@ pub mod tests {
         assert!(user_obj.username == username_2);
         assert!(user_obj.display_name == display_name_2);
         assert!(user_obj.email.get() == email_2);
-        assert!(&user_obj.mobile_no == complete_mobile_2);
+        assert!(&user_obj.mobile_no_info.get_full_mobile_no() == complete_mobile_2);
         let mobile_vector = user_obj
             .vectors
             .iter()
@@ -370,7 +370,7 @@ pub mod tests {
     async fn test_reset_password() {
         let pool = get_test_pool().await;
         let password = "123";
-        let mobile_no = "123456785";
+        let mobile_no = "1234256785";
         let new_password = "456";
         let user_res = setup_user(
             &pool,

@@ -54,7 +54,7 @@ async fn get_auth_mechanism_model(username: &str,
 ) -> Result<Option<AuthMechanismModel>, anyhow::Error> {
     let row: Option<AuthMechanismModel> = sqlx::query_as!(AuthMechanismModel, 
         r#"SELECT a.id as id, user_id, auth_identifier, retry_count, secret, a.is_active as "is_active: Status", auth_scope as "auth_scope: AuthenticationScope", valid_upto from auth_mechanism
-        as a inner join user_account as b on a.user_id = b.id where (b.username = $1 OR b.mobile_no = $1 OR  b.email = $1)  AND auth_scope = $2"#,
+        as a inner join user_account as b on a.user_id = b.id where (b.username = $1 OR b.full_mobile_no = $1 OR  b.email = $1)  AND auth_scope = $2"#,
         username,
         scope as &AuthenticationScope,
         // auth_context as &AuthContextType
@@ -225,12 +225,12 @@ pub async fn fetch_user(
     let row: Option<UserAccountModel> = sqlx::query_as!(
         UserAccountModel,
         r#"SELECT 
-            ua.id, username, is_test_user, mobile_no, email, is_active as "is_active!:Status", 
+            ua.id, username, is_test_user, mobile_no, international_dialing_code,  email, is_active as "is_active!:Status", 
             vectors as "vectors:sqlx::types::Json<Vec<UserVector>>", display_name, 
             ua.is_deleted, r.role_name FROM user_account as ua
             INNER JOIN user_role ur ON ua.id = ur.user_id
             INNER JOIN role r ON ur.role_id = r.id
-        WHERE ua.email = ANY($1) OR ua.mobile_no = ANY($1) OR ua.id::text = ANY($1)
+        WHERE ua.email = ANY($1) OR ua.full_mobile_no = ANY($1) OR ua.id::text = ANY($1)
         "#,
         &val_list
     )
@@ -286,19 +286,21 @@ pub async fn save_user(
     let vector_list = create_vector_from_create_account(user_account)?;
     let query = sqlx::query!(
         r#"
-        INSERT INTO user_account (id, username, email, mobile_no, created_by, created_on, display_name, vectors, is_active, is_test_user)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+        INSERT INTO user_account (id, username, email, mobile_no, created_by, created_on, display_name, vectors, is_active, is_test_user, international_dialing_code, full_mobile_no)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
         "#,
         user_id,
         &user_account.username,
         &user_account.email.get(),
-        &user_account.mobile_no_info.get_full_mobile_no(),
+        &user_account.mobile_no_info.mobile_no,
         user_id,
         Utc::now(),
         &user_account.display_name,
         sqlx::types::Json(vector_list) as sqlx::types::Json<Vec<UserVector>>,
         Status::Active as Status,
         &user_account.is_test_user,
+        user_account.mobile_no_info.international_dialing_code,
+        user_account.mobile_no_info.get_full_mobile_no()
         // &user_account.international_dialing_code,
     );
 
@@ -377,7 +379,7 @@ pub async fn hard_delete_user_account(
     pool: &PgPool,
     user_id: &str,
 ) -> Result<(), anyhow::Error> {
-    let _ = sqlx::query("DELETE FROM user_account WHERE id::text = $1 OR mobile_no = $1 OR username = $1")
+    let _ = sqlx::query("DELETE FROM user_account WHERE id::text = $1 OR full_mobile_no = $1 OR username = $1")
     .bind(user_id)
     .execute(pool)
     .await;
@@ -422,17 +424,7 @@ pub async fn hard_delete_business_account(
     Ok(())
 }
 
-// #[tracing::instrument(name = "delete user account", skip(pool))]
-// pub async fn hard_delete_user_account_by_(
-//     pool: &PgPool,
-//     user_id: &Uuid,
-// ) -> Result<(), anyhow::Error> {
-//     let _ = sqlx::query("DELETE FROM user_account WHERE id = $1")
-//     .bind(user_id)
-//     .execute(pool)
-//     .await;
-//     Ok(())
-// }
+
 
 
 // test case not needed
@@ -542,13 +534,13 @@ pub async fn register_user(
         .await
         .context("Failed to acquire a Postgres connection from the pool")?;
 
-    if let Some(existing_user_obj) = fetch_user(
+    if let Some(existing_user_obj) = get_user(
         vec![user_account.email.get(), &user_account.mobile_no_info.get_full_mobile_no()],
         pool,
     )
     .await?
     {
-        if user_account.mobile_no_info.get_full_mobile_no() == existing_user_obj.mobile_no {
+        if user_account.mobile_no_info.get_full_mobile_no() == existing_user_obj.mobile_no_info.get_full_mobile_no() {
             let message = format!(
                 "User Already exists with the given mobile number: {}",
                 user_account.mobile_no_info.get_full_mobile_no()
@@ -589,16 +581,6 @@ pub async fn register_user(
 
 
 
-
-pub async fn _get_user_id_from_mobile(pool: &PgPool, username: &str) ->  Result<Option<Uuid>, anyhow::Error>{
-    let result = sqlx::query_scalar!(
-        "SELECT id FROM user_account WHERE mobile_no = $1",
-        username
-    )
-    .fetch_optional(pool)
-    .await?;
-    Ok(result)
-}
 
 
 
@@ -747,7 +729,7 @@ pub async fn fetch_minimal_user_list(
         query_builder.push_bind(pattern.clone());
         query_builder.push(" OR LOWER(display_name) ILIKE ");
         query_builder.push_bind(pattern.clone());
-        query_builder.push(" OR LOWER(mobile_no) ILIKE ");
+        query_builder.push(" OR LOWER(full_mobile_no) ILIKE ");
         query_builder.push_bind(pattern.clone());
         query_builder.push(" OR LOWER(username) ILIKE ");
         query_builder.push_bind(pattern);
@@ -928,13 +910,15 @@ pub async fn update_user_account(tx: &mut Transaction<'_, Postgres>, data: &Edit
     let query= sqlx::query!(
         r#"UPDATE user_account SET
             username = $1,
-            mobile_no = $2,
+            full_mobile_no = $2,
             email = $3,
             display_name = $4,
             vectors = $5,
             updated_on = $6,
-            updated_by = $7
-        WHERE id = $8"#,
+            updated_by = $7,
+            mobile_no = $8,
+            international_dialing_code = $9
+        WHERE id = $10"#,
         data.username,
         // data.international_dialing_code,
         data.mobile_no_info.get_full_mobile_no(),
@@ -943,7 +927,11 @@ pub async fn update_user_account(tx: &mut Transaction<'_, Postgres>, data: &Edit
         sqlx::types::Json(vector_list) as sqlx::types::Json<Vec<UserVector>>,
         Utc::now(),
         user_account.id,
-        user_account.id
+
+        data.mobile_no_info.mobile_no,
+
+        data.mobile_no_info.international_dialing_code,
+                user_account.id,
     );
 
     tx.execute(query).await.map_err(|e| {

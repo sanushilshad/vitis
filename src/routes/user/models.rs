@@ -4,7 +4,8 @@ use sqlx::{FromRow, types::Json};
 use uuid::Uuid;
 
 use super::schemas::{
-    AccountRole, AuthMechanism, AuthenticationScope, MinimalUserAccount, UserAccount, UserVector,
+    AccountRole, AuthMechanism, AuthenticationScope, MinimalUserAccount, MobileNoInfo, UserAccount,
+    UserVector,
 };
 use crate::{email::EmailObject, schemas::Status};
 #[derive(Debug, FromRow)]
@@ -45,7 +46,7 @@ pub struct UserAccountModel {
     pub is_active: Status,
     pub display_name: String,
     pub vectors: Json<Vec<UserVector>>,
-    // pub international_dialing_code: String,
+    pub international_dialing_code: String,
     pub is_test_user: bool,
     pub is_deleted: bool,
     pub role_name: String,
@@ -56,13 +57,17 @@ impl UserAccountModel {
         let vectors_option: Vec<UserVector> = self.vectors.0;
         UserAccount {
             id: self.id,
-            mobile_no: self.mobile_no,
+            mobile_no_info: MobileNoInfo {
+                mobile_no: self.mobile_no,
+                international_dialing_code: self.international_dialing_code,
+            },
+
             username: self.username,
             email: EmailObject::new(self.email),
             is_active: self.is_active,
             display_name: self.display_name,
             vectors: vectors_option,
-            // international_dialing_code: self.international_dialing_code,
+            //
             is_test_user: self.is_test_user,
             is_deleted: self.is_deleted,
             user_role: self.role_name,

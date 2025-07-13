@@ -87,6 +87,12 @@ impl Settings {
         if !self.user_level.is_empty() {
             return self.user_level.first().and_then(|obj| obj.value.clone());
         }
+        if !self.user_business_level.is_empty() {
+            return self
+                .user_business_level
+                .first()
+                .and_then(|obj| obj.value.clone());
+        }
         if !self.business_level.is_empty() {
             return self
                 .business_level
