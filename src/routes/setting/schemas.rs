@@ -87,6 +87,12 @@ impl Settings {
         if !self.user_level.is_empty() {
             return self.user_level.first().and_then(|obj| obj.value.clone());
         }
+        if !self.user_business_level.is_empty() {
+            return self
+                .user_business_level
+                .first()
+                .and_then(|obj| obj.value.clone());
+        }
         if !self.business_level.is_empty() {
             return self
                 .business_level
@@ -189,11 +195,11 @@ pub struct SettingEnumData {
 
 #[derive(Deserialize, Debug, ToSchema)]
 #[serde(rename_all = "camelCase")]
-pub struct FetchSettingEnumRequest {
+pub struct ListSettingEnumRequest {
     pub id_list: Vec<Uuid>,
 }
 
-impl FromRequest for FetchSettingEnumRequest {
+impl FromRequest for ListSettingEnumRequest {
     type Error = GenericError;
     type Future = LocalBoxFuture<'static, Result<Self, Self::Error>>;
 

@@ -14,7 +14,7 @@ use super::{
     models::SettingModel,
     schemas::{
         CreateBusinessSettingRequest, CreateGlobalSettingRequest, CreateUserSettingRequest,
-        FetchSettingEnumRequest, FetchSettingRequest, SettingData, SettingEnumData, SettingType,
+        FetchSettingRequest, ListSettingEnumRequest, SettingData, SettingEnumData, SettingType,
     },
     utils::{
         // create_business_setting, create_global_setting, create_user_business_setting,
@@ -192,8 +192,8 @@ pub async fn create_user_config_req(
 #[utoipa::path(
     post,
     description = "API for fetching configs specific to user/business/TSP.",
-    summary = "Business Setting Fetch API",
-    path = "/setting/business/fetch",
+    summary = "Business Setting List API",
+    path = "/setting/business/list",
     tag = "Setting",
     request_body(content = FetchSettingRequest, description = "Request Body"),
     responses(
@@ -211,8 +211,8 @@ pub async fn create_user_config_req(
         ("x-device-id" = String, Header, description = "Device id"),
       )
 )]
-#[tracing::instrument(err, name = "Business Config Fetch API", skip(pool, body), fields())]
-pub async fn fetch_business_config_req(
+#[tracing::instrument(err, name = "Business Config List API", skip(pool, body), fields())]
+pub async fn list_business_config_req(
     body: FetchSettingRequest,
     pool: web::Data<PgPool>,
     user: UserAccount,
@@ -231,8 +231,8 @@ pub async fn fetch_business_config_req(
 #[utoipa::path(
     post,
     description = "API for fetching configs specific to user.",
-    summary = "User Setting Fetch API",
-    path = "/setting/user/fetch",
+    summary = "User Setting List API",
+    path = "/setting/user/list",
     tag = "Setting",
     request_body(content = FetchSettingRequest, description = "Request Body"),
     responses(
@@ -249,8 +249,8 @@ pub async fn fetch_business_config_req(
         ("x-device-id" = String, Header, description = "Device id"),
       )
 )]
-#[tracing::instrument(err, name = "User Config Fetch API", skip(pool, body), fields())]
-pub async fn fetch_user_config_req(
+#[tracing::instrument(err, name = "User Config List API", skip(pool, body), fields())]
+pub async fn list_user_config_req(
     body: FetchSettingRequest,
     pool: web::Data<PgPool>,
     user: UserAccount,
@@ -278,8 +278,8 @@ pub async fn fetch_user_config_req(
 #[utoipa::path(
     post,
     description = "API for fetching global configs.",
-    summary = "Global Setting Fetch API",
-    path = "/setting/global/fetch",
+    summary = "Global Setting List API",
+    path = "/setting/global/list",
     tag = "Setting",
     request_body(content = FetchSettingRequest, description = "Request Body"),
     responses(
@@ -297,8 +297,8 @@ pub async fn fetch_user_config_req(
         ("x-device-id" = String, Header, description = "Device id"),
       )
 )]
-#[tracing::instrument(err, name = "Global Config Fetch API", skip(pool, body), fields())]
-pub async fn fetch_global_setting(
+#[tracing::instrument(err, name = "Global Config List API", skip(pool, body), fields())]
+pub async fn list_global_setting(
     body: FetchSettingRequest,
     pool: web::Data<PgPool>,
     user: UserAccount,
@@ -384,10 +384,10 @@ pub async fn save_global_setting(
 #[utoipa::path(
     post,
     description = "API for fetching setting enums",
-    summary = "Setting Enum Fetch API",
-    path = "/setting/enum/fetch",
+    summary = "Setting Enum List API",
+    path = "/setting/enum/list",
     tag = "Setting",
-    request_body(content = FetchSettingEnumRequest, description = "Request Body"),
+    request_body(content = ListSettingEnumRequest, description = "Request Body"),
     responses(
         (status=200, description= "business Account created successfully", body= GenericResponse<Vec<SettingEnumData>>),
         (status=400, description= "Invalid Request body", body= GenericResponse<TupleUnit>),
@@ -403,9 +403,9 @@ pub async fn save_global_setting(
         ("x-device-id" = String, Header, description = "Device id"),
       )
 )]
-#[tracing::instrument(err, name = "Global Config Fetch API", skip(pool, body), fields())]
-pub async fn fetch_config_enums(
-    body: FetchSettingEnumRequest,
+#[tracing::instrument(err, name = "Global Config List API", skip(pool, body), fields())]
+pub async fn list_config_enums(
+    body: ListSettingEnumRequest,
     pool: web::Data<PgPool>,
     user: UserAccount,
 ) -> Result<web::Json<GenericResponse<Vec<SettingEnumData>>>, GenericError> {
@@ -421,8 +421,8 @@ pub async fn fetch_config_enums(
 #[utoipa::path(
     post,
     description = "API for fetching configs specific to user-business.",
-    summary = "Business Setting Fetch API",
-    path = "/setting/user-business/fetch",
+    summary = "Business Setting List API",
+    path = "/setting/user-business/list",
     tag = "Setting",
     request_body(content = FetchSettingRequest, description = "Request Body"),
     responses(
@@ -442,11 +442,11 @@ pub async fn fetch_config_enums(
 )]
 #[tracing::instrument(
     err,
-    name = "User-Business Config Fetch API",
+    name = "User-Business Config List API",
     skip(pool, body),
     fields()
 )]
-pub async fn fetch_user_business_config_req(
+pub async fn list_user_business_config_req(
     body: FetchSettingRequest,
     pool: web::Data<PgPool>,
     user: UserAccount,

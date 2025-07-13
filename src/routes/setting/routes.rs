@@ -9,8 +9,8 @@ use crate::{
 
 use super::handlers::{
     create_business_config_req, create_user_business_config_req, create_user_config_req,
-    fetch_business_config_req, fetch_config_enums, fetch_global_setting,
-    fetch_user_business_config_req, fetch_user_config_req, save_global_setting,
+    list_business_config_req, list_config_enums, list_global_setting,
+    list_user_business_config_req, list_user_config_req, save_global_setting,
 };
 
 pub fn setting_routes(cfg: &mut web::ServiceConfig) {
@@ -38,9 +38,9 @@ pub fn setting_routes(cfg: &mut web::ServiceConfig) {
             }),
     );
     cfg.route(
-        "/business/fetch",
+        "/business/list",
         web::post()
-            .to(fetch_business_config_req)
+            .to(list_business_config_req)
             .wrap(BusinessPermissionValidation {
                 permission_list: vec![
                     PermissionType::CreateBusinessSetting.to_string(),
@@ -50,9 +50,9 @@ pub fn setting_routes(cfg: &mut web::ServiceConfig) {
             .wrap(BusinessAccountValidation),
     );
     cfg.route(
-        "/user/fetch",
+        "/user/list",
         web::post()
-            .to(fetch_user_config_req)
+            .to(list_user_config_req)
             .wrap(UserPermissionValidation {
                 permission_list: vec![
                     PermissionType::CreateUserSetting.to_string(),
@@ -61,9 +61,9 @@ pub fn setting_routes(cfg: &mut web::ServiceConfig) {
             }),
     );
     cfg.route(
-        "/global/fetch",
+        "/global/list",
         web::post()
-            .to(fetch_global_setting)
+            .to(list_global_setting)
             .wrap(UserPermissionValidation {
                 permission_list: vec![PermissionType::CreateGlobalSetting.to_string()],
             }),
@@ -77,9 +77,9 @@ pub fn setting_routes(cfg: &mut web::ServiceConfig) {
             }),
     );
     cfg.route(
-        "/user-business/fetch",
+        "/user-business/list",
         web::post()
-            .to(fetch_user_business_config_req)
+            .to(list_user_business_config_req)
             .wrap(BusinessPermissionValidation {
                 permission_list: vec![PermissionType::CreateUserBusinessSetting.to_string()],
             })
@@ -94,5 +94,5 @@ pub fn setting_routes(cfg: &mut web::ServiceConfig) {
             })
             .wrap(BusinessAccountValidation),
     );
-    cfg.route("/enum/fetch", web::post().to(fetch_config_enums));
+    cfg.route("/enum/list", web::post().to(list_config_enums));
 }

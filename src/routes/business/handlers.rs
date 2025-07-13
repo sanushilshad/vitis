@@ -83,7 +83,7 @@ pub async fn register_business_account_req(
 
 #[utoipa::path(
     get,
-    path = "/business/fetch",
+    path = "/business/fetch/{id}",
     tag = "Business Account",
     description = "API for fetching business account detail.",
     summary = "business Account Fetch API",
