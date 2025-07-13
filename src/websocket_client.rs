@@ -25,11 +25,12 @@ pub enum WebSocketActionType {
     UpdateBusinessAccount,
 }
 
-#[derive(Debug, Serialize, ToSchema)]
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
 pub struct WebSocketData {
     // pub action_type: WebSocketActionType,
     pub business_id: Option<Uuid>,
     pub message: String,
+    pub action_type: WebSocketActionType,
 }
 
 #[derive(ActixMessage)]
@@ -41,7 +42,7 @@ pub struct Message(pub String);
 #[rtype(result = "()")]
 pub struct MessageToClient {
     pub id: Option<String>,
-    pub action_type: WebSocketActionType,
+    // pub action_type: WebSocketActionType,
     pub data: Value,
 }
 
@@ -59,7 +60,7 @@ impl MessageToClient {
         )
     }
     pub fn new(
-        msg_type: WebSocketActionType,
+        // msg_type: WebSocketActionType,
         data: Value,
         user_id: Option<Uuid>,
         business_id: Option<Uuid>,
@@ -67,7 +68,15 @@ impl MessageToClient {
     ) -> Self {
         Self {
             id: Some(Self::get_ws_key(user_id, business_id, device_id)),
-            action_type: msg_type,
+            // action_type: msg_type,
+            data,
+        }
+    }
+
+    pub fn new_with_key(data: Value, key: String) -> Self {
+        Self {
+            id: Some(key),
+            // action_type: msg_type,
             data,
         }
     }

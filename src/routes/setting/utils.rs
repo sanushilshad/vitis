@@ -2,10 +2,7 @@ use std::collections::HashMap;
 
 use super::{
     models::{BulkSettingCreateModel, SettingEnumModel, SettingModel, SettingValueModel},
-    schemas::{
-        CreateBusinessSettingRequest, CreateSettingData, Setting, SettingEnumData, SettingType,
-        Settings,
-    },
+    schemas::{CreateSettingData, Setting, SettingEnumData, SettingType, Settings},
 };
 use chrono::DateTime;
 use chrono::Utc;
@@ -19,7 +16,7 @@ pub async fn fetch_setting(
 ) -> Result<Vec<SettingModel>, anyhow::Error> {
     let mut query_builder = QueryBuilder::new(
         r#"
-        SELECT id, key, is_editable, enum_id
+        SELECT id, key, is_editable, enum_id, cluster_id
         FROM setting
         WHERE is_deleted = false
         "#,
@@ -122,68 +119,82 @@ async fn create_setting(
     Ok(())
 }
 
-pub async fn create_business_setting(
-    pool: &PgPool,
-    setting_req: &CreateBusinessSettingRequest,
-    created_by: Uuid,
-    business_account_id: Uuid,
-    setting_map: &HashMap<String, &SettingModel>,
-) -> Result<(), anyhow::Error> {
-    let bulk_data = get_setting_bulk_insert_data(
-        &setting_req.settings,
-        None,
-        created_by,
-        Some(business_account_id),
-        setting_map,
-    );
-    create_setting(pool, bulk_data).await?;
+// pub async fn create_business_setting(
+//     pool: &PgPool,
+//     setting_req: &CreateBusinessSettingRequest,
+//     created_by: Uuid,
+//     business_account_id: Uuid,
+//     setting_map: &HashMap<String, &SettingModel>,
+// ) -> Result<(), anyhow::Error> {
+//     let bulk_data = get_setting_bulk_insert_data(
+//         &setting_req.settings,
+//         None,
+//         created_by,
+//         Some(business_account_id),
+//         setting_map,
+//     );
+//     create_setting(pool, bulk_data).await?;
 
-    Ok(())
-}
+//     Ok(())
+// }
 
-pub async fn create_user_setting(
+// pub async fn create_user_setting(
+//     pool: &PgPool,
+//     settings: &[CreateSettingData],
+//     user_id: Uuid,
+//     created_by: Uuid,
+//     setting_map: &HashMap<String, &SettingModel>,
+// ) -> Result<(), anyhow::Error> {
+//     let bulk_data =
+//         get_setting_bulk_insert_data(settings, Some(user_id), created_by, None, setting_map);
+//     create_setting(pool, bulk_data).await?;
+
+//     Ok(())
+// }
+
+// pub async fn create_user_business_setting(
+//     pool: &PgPool,
+//     setting_req: &CreateBusinessSettingRequest,
+//     user_id: Uuid,
+//     created_by: Uuid,
+//     business_account_id: Uuid,
+//     setting_map: &HashMap<String, &SettingModel>,
+// ) -> Result<(), anyhow::Error> {
+//     let bulk_data = get_setting_bulk_insert_data(
+//         &setting_req.settings,
+//         Some(user_id),
+//         created_by,
+//         Some(business_account_id),
+//         setting_map,
+//     );
+//     create_setting(pool, bulk_data).await?;
+
+//     Ok(())
+// }
+
+// pub async fn create_global_setting(
+//     pool: &PgPool,
+//     settings: &[CreateSettingData],
+//     created_by: Uuid,
+//     setting_map: &HashMap<String, &SettingModel>,
+// ) -> Result<(), anyhow::Error> {
+//     let bulk_data = get_setting_bulk_insert_data(settings, None, created_by, None, setting_map);
+//     create_setting(pool, bulk_data).await?;
+
+//     Ok(())
+// }
+
+pub async fn create_setting_with_scope(
     pool: &PgPool,
     settings: &[CreateSettingData],
-    user_id: Uuid,
+    user_id: Option<Uuid>,
+    business_id: Option<Uuid>,
     created_by: Uuid,
     setting_map: &HashMap<String, &SettingModel>,
 ) -> Result<(), anyhow::Error> {
     let bulk_data =
-        get_setting_bulk_insert_data(settings, Some(user_id), created_by, None, setting_map);
+        get_setting_bulk_insert_data(settings, user_id, created_by, business_id, setting_map);
     create_setting(pool, bulk_data).await?;
-
-    Ok(())
-}
-
-pub async fn create_user_business_setting(
-    pool: &PgPool,
-    setting_req: &CreateBusinessSettingRequest,
-    user_id: Uuid,
-    created_by: Uuid,
-    business_account_id: Uuid,
-    setting_map: &HashMap<String, &SettingModel>,
-) -> Result<(), anyhow::Error> {
-    let bulk_data = get_setting_bulk_insert_data(
-        &setting_req.settings,
-        Some(user_id),
-        created_by,
-        Some(business_account_id),
-        setting_map,
-    );
-    create_setting(pool, bulk_data).await?;
-
-    Ok(())
-}
-
-pub async fn create_global_setting(
-    pool: &PgPool,
-    settings: &[CreateSettingData],
-    created_by: Uuid,
-    setting_map: &HashMap<String, &SettingModel>,
-) -> Result<(), anyhow::Error> {
-    let bulk_data = get_setting_bulk_insert_data(settings, None, created_by, None, setting_map);
-    create_setting(pool, bulk_data).await?;
-
     Ok(())
 }
 
@@ -198,6 +209,7 @@ async fn fetch_setting_value_model(
         r#"
         SELECT 
             sv.id AS id,
+            s.cluster_id as cluster_id,
             s.key AS key,
             sv.value AS value,
             s.label AS label,
@@ -245,26 +257,6 @@ async fn fetch_setting_value_model(
             query.push(" AND sv.user_id IS NULL AND sv.business_id IS NULL");
         }
     }
-
-    // WHERE clause
-    // query.push(" WHERE s.is_deleted = false");
-    // if user_id.is_some() && business_id.is_some() {
-    //     query.push(" AND (s.is_user = true OR s.is_business = true OR s.is_global = true)");
-    // } else if user_id.is_some() && !business_id.is_some() {
-    //     if fetch_multi_level {
-    //         query.push(" AND (s.is_user = true OR s.is_global = true)");
-    //     } else {
-    //         query.push(" AND s.is_user = true");
-    //     }
-    // } else if business_id.is_some() {
-    //     if fetch_multi_level {
-    //         query.push(" AND (s.is_business = true OR s.is_global = true)");
-    //     } else {
-    //         query.push(" AND s.is_business = true");
-    //     }
-    // } else {
-    //     query.push(" AND s.is_global = true");
-    // }
     query.push(" WHERE s.is_deleted = false");
     match (user_id.is_some(), business_id.is_some(), fetch_multi_level) {
         (true, false, true) => {
@@ -310,7 +302,11 @@ async fn fetch_setting_value_model(
     Ok(rows)
 }
 
-pub fn get_setting_value_from_model(data_models: Vec<SettingValueModel>) -> Vec<Settings> {
+pub fn get_setting_value_from_model(
+    data_models: Vec<SettingValueModel>,
+    user_id: Option<Uuid>,
+    business_id: Option<Uuid>,
+) -> Vec<Settings> {
     let mut settings_map: HashMap<String, Settings> = HashMap::new();
 
     for model in data_models.into_iter() {
@@ -325,17 +321,26 @@ pub fn get_setting_value_from_model(data_models: Vec<SettingValueModel>) -> Vec<
                 user_level: vec![],
                 business_level: vec![],
                 user_business_level: vec![],
+                cluster_id: model.cluster_id,
             });
 
         let setting = Setting {
             id: model.id,
             value: model.value,
         };
-        match (model.user_id.is_some(), model.business_id.is_some()) {
-            (true, true) => entry.user_business_level.push(setting),
-            (true, false) => entry.user_level.push(setting),
-            (false, true) => entry.business_level.push(setting),
-            (false, false) => entry.global_level.push(setting),
+        match (model.user_id, model.business_id) {
+            (Some(_), Some(_)) => entry.user_business_level.push(setting),
+            (Some(_), None) => entry.user_level.push(setting),
+            (None, Some(_)) => entry.business_level.push(setting),
+            (None, None) => {
+                // Use the fallback context
+                match (user_id.is_some(), business_id.is_some()) {
+                    (true, true) => entry.user_business_level.push(setting),
+                    (true, false) => entry.user_level.push(setting),
+                    (false, true) => entry.business_level.push(setting),
+                    (false, false) => entry.global_level.push(setting),
+                }
+            }
         }
     }
 
@@ -351,7 +356,7 @@ pub async fn get_setting_value(
 ) -> Result<Vec<Settings>, anyhow::Error> {
     let data_models =
         fetch_setting_value_model(pool, key_list, business_id, user_id, fetch_multi_level).await?;
-    let data = get_setting_value_from_model(data_models);
+    let data = get_setting_value_from_model(data_models, user_id, business_id);
     Ok(data)
 }
 #[allow(dead_code)]

@@ -1,9 +1,13 @@
 use crate::{
     // routes::leave::utils::send_slack_notification_for_approved_leave,
-    routes::leave::utils::send_slack_notification_for_approved_leave,
+    routes::{
+        leave::utils::send_slack_notification_for_approved_leave,
+        web_socket::utils::{
+            delete_notifications_by_connection_id, fetch_notifications_by_connection_id,
+        },
+    },
     slack_client::SlackClient,
-    utils::{delete_notifications_by_connection_id, fetch_notifications_by_connection_id},
-    websocket_client::{Server, SessionExists},
+    websocket_client::{MessageToClient, Server, SessionExists},
 };
 use actix::Addr;
 use actix_web::web;
@@ -39,7 +43,7 @@ impl fmt::Display for PulsarTopic {
 // use tokio::sync::Mutex;
 #[derive(Debug, Deserialize, Serialize)]
 pub struct WSMessageData {
-    pub partition_key: String,
+    pub partition_key_list: Vec<String>,
 }
 
 impl SerializeMessage for WSMessageData {
@@ -47,7 +51,6 @@ impl SerializeMessage for WSMessageData {
         let payload = serde_json::to_vec(&input).map_err(|e| PulsarError::Custom(e.to_string()))?;
         Ok(producer::Message {
             payload,
-            partition_key: Some(input.partition_key),
             ..Default::default()
         })
     }
@@ -165,45 +168,64 @@ impl PulsarClient {
             while let Some(result) = consumer.try_next().await.transpose() {
                 match result {
                     Ok(msg) => {
-                        let partition_key = msg.metadata().partition_key();
-                        if websocket_client
-                            .send(SessionExists {
-                                id: partition_key.to_owned(),
-                            })
-                            .await
-                            .unwrap_or(false)
-                        {
-                            let mut transaction = pool
-                                .begin()
+                        let message: WSMessageData =
+                            serde_json::from_slice(&msg.payload.data).unwrap();
+
+                        let partition_key_list = message.partition_key_list;
+                        tracing::info!("noooo{:?}", partition_key_list);
+                        for partition_key in partition_key_list {
+                            if websocket_client
+                                .send(SessionExists {
+                                    id: partition_key.to_owned(),
+                                })
                                 .await
-                                .context("Failed to acquire a Postgres connection from the pool")
-                                .unwrap();
-                            if let Ok(notifications) = fetch_notifications_by_connection_id(
-                                &mut transaction,
-                                partition_key,
-                            )
-                            .await
+                                .unwrap_or(false)
                             {
-                                for notification in notifications.iter() {
-                                    websocket_client.do_send(notification.data.0.clone());
-                                }
-                                if let Err(a) = delete_notifications_by_connection_id(
+                                let mut transaction = pool
+                                    .begin()
+                                    .await
+                                    .context(
+                                        "Failed to acquire a Postgres connection from the pool",
+                                    )
+                                    .unwrap();
+                                tracing::info!("aaaaaaaa{}", partition_key);
+                                if let Ok(notifications) = fetch_notifications_by_connection_id(
                                     &mut transaction,
-                                    partition_key,
+                                    &partition_key,
                                 )
                                 .await
                                 {
-                                    eprintln!("Failed to deleted message: {:?}", a);
-                                }
-                            }
-                            transaction
-                                .commit()
-                                .await
-                                .context("Failed to commit SQL transaction to store a order")
-                                .unwrap();
+                                    if !notifications.is_empty() {
+                                        let mut message_list = vec![];
+                                        for notification in notifications.into_iter() {
+                                            message_list.push(notification.data);
+                                        }
 
-                            if let Err(e) = consumer.ack(&msg).await {
-                                eprintln!("Failed to acknowledge message: {:?}", e);
+                                        let msg = MessageToClient::new_with_key(
+                                            serde_json::to_value(message_list).unwrap(),
+                                            partition_key.to_owned(),
+                                        );
+                                        websocket_client.do_send(msg);
+                                        if let Err(a) = delete_notifications_by_connection_id(
+                                            &mut transaction,
+                                            &partition_key,
+                                        )
+                                        .await
+                                        {
+                                            eprintln!("Failed to deleted message: {:?}", a);
+                                        }
+                                    }
+                                }
+
+                                transaction
+                                    .commit()
+                                    .await
+                                    .context("Failed to commit SQL transaction to store a order")
+                                    .unwrap();
+
+                                if let Err(e) = consumer.ack(&msg).await {
+                                    eprintln!("Failed to acknowledge message: {:?}", e);
+                                }
                             }
                         }
                     }

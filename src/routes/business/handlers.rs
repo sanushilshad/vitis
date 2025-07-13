@@ -10,6 +10,7 @@ use uuid::Uuid;
 use crate::{
     email_client::{GenericEmailService, SmtpEmailClient},
     errors::GenericError,
+    pulsar_client::PulsarClient,
     routes::{
         setting::{
             schemas::{SettingKey, SettingsExt},
@@ -239,13 +240,19 @@ pub async fn list_business_req(
         ("x-business-id" = String, Header, description = "Business id"),
       )
 )]
-#[tracing::instrument(err, name = "user business association", skip(db_pool), fields())]
+#[tracing::instrument(
+    err,
+    name = "user business association",
+    skip(db_pool, producer_client),
+    fields()
+)]
 pub async fn user_business_association_req(
     req: BusinessUserAssociationRequest,
     db_pool: web::Data<PgPool>,
     user_account: UserAccount,
     business_account: BusinessAccount,
     websocket_srv: web::Data<Addr<Server>>,
+    producer_client: web::Data<PulsarClient>,
 ) -> Result<web::Json<GenericResponse<()>>, GenericError> {
     let role_id = req.role_id.to_string();
     let role_obj_task = get_role(&db_pool, &role_id);
@@ -314,12 +321,13 @@ pub async fn user_business_association_req(
         &websocket_srv,
         WebSocketActionType::UserBusinessAssociation,
         ProcessType::Deferred,
-        Some(req.user_id),
+        vec![req.user_id],
         format!(
             "{} Business is associated to you account by {}",
             business_account.display_name, user_account.display_name
         ),
         Some(business_account.id),
+        &producer_client,
     )
     .await
     .map_err(|e| GenericError::UnexpectedCustomError(e.to_string()))?;

@@ -17,8 +17,12 @@ use super::{
         FetchSettingEnumRequest, FetchSettingRequest, SettingData, SettingEnumData, SettingType,
     },
     utils::{
-        create_business_setting, create_global_setting, create_user_business_setting,
-        create_user_setting, fetch_setting, fetch_setting_enums, get_setting_value,
+        // create_business_setting, create_global_setting, create_user_business_setting,
+        // create_user_setting,
+        create_setting_with_scope,
+        fetch_setting,
+        fetch_setting_enums,
+        get_setting_value,
     },
 };
 
@@ -76,9 +80,16 @@ pub async fn create_business_config_req(
             invalid_keys_str
         )));
     }
-    create_business_setting(&pool, &body, user.id, business_account.id, &setting_map)
-        .await
-        .map_err(|e| GenericError::DatabaseError(e.to_string(), e))?;
+    create_setting_with_scope(
+        &pool,
+        &body.settings,
+        None,
+        Some(business_account.id),
+        user.id,
+        &setting_map,
+    )
+    .await
+    .map_err(|e| GenericError::DatabaseError(e.to_string(), e))?;
     Ok(web::Json(GenericResponse::success(
         "Sucessfully created Business config/s",
         (),
@@ -162,9 +173,16 @@ pub async fn create_user_config_req(
             invalid_keys_str
         )));
     }
-    create_user_setting(&pool, &body.settings, user_id, user.id, &setting_map)
-        .await
-        .map_err(|e| GenericError::DatabaseError(e.to_string(), e))?;
+    create_setting_with_scope(
+        &pool,
+        &body.settings,
+        Some(user_id),
+        None,
+        user.id,
+        &setting_map,
+    )
+    .await
+    .map_err(|e| GenericError::DatabaseError(e.to_string(), e))?;
     Ok(web::Json(GenericResponse::success(
         "Sucessfully created User config/s",
         (),
@@ -247,7 +265,7 @@ pub async fn fetch_user_config_req(
     } else {
         Some(user.id)
     };
-    let settings = get_setting_value(&pool, &body.keys, None, user_id, false)
+    let settings = get_setting_value(&pool, &body.keys, None, user_id, true)
         .await
         .map_err(|e| GenericError::DatabaseError(e.to_string(), e))?;
     let data = SettingData { settings };
@@ -354,7 +372,7 @@ pub async fn save_global_setting(
             invalid_keys_str
         )));
     }
-    create_global_setting(&pool, &body.settings, user.id, &setting_map)
+    create_setting_with_scope(&pool, &body.settings, None, None, user.id, &setting_map)
         .await
         .map_err(|e| GenericError::DatabaseError(e.to_string(), e))?;
     Ok(web::Json(GenericResponse::success(
@@ -509,12 +527,12 @@ pub async fn create_user_business_config_req(
             invalid_keys_str
         )));
     }
-    create_user_business_setting(
+    create_setting_with_scope(
         &pool,
-        &body,
+        &body.settings,
+        Some(user.id),
+        Some(business_account.id),
         user.id,
-        user.id,
-        business_account.id,
         &setting_map,
     )
     .await
