@@ -257,3 +257,15 @@ pub struct BulkNotificationData<'a> {
     pub connection_id: Vec<&'a str>,
     pub created_on: Vec<&'a DateTime<Utc>>,
 }
+
+#[derive(Debug, Serialize, Deserialize, Clone, ToSchema)]
+pub struct MobileNoInfo {
+    pub mobile_no: String,
+    pub international_dialing_code: String,
+}
+
+impl MobileNoInfo {
+    pub fn get_full_mobile_no(&self) -> String {
+        format!("{}{}", self.international_dialing_code, self.mobile_no)
+    }
+}

@@ -11,6 +11,7 @@ pub mod tests {
         update_otp, update_user, verify_otp, verify_password,
     };
 
+    use crate::schemas::MobileNoInfo;
     use crate::tests::tests::get_test_pool;
     use secrecy::SecretString;
     use sqlx::PgPool;
@@ -65,10 +66,14 @@ pub mod tests {
         let user_account = CreateUserAccount {
             username: username.to_string(),
             email: EmailObject::new(email.to_string()),
-            mobile_no: mobile_no.to_string(),
+            mobile_no_info: MobileNoInfo {
+                international_dialing_code: DUMMY_INTERNATIONAL_DIALING_CODE.to_string(),
+                mobile_no: mobile_no.to_string(),
+            },
+
             display_name: "Test User".to_string(),
             is_test_user: false,
-            international_dialing_code: DUMMY_INTERNATIONAL_DIALING_CODE.to_string(),
+
             password: SecretString::from(password),
         };
         let user_result = register_user(pool, &user_account).await?;
@@ -316,8 +321,11 @@ pub mod tests {
         let user_obj = user_obj_opt.unwrap();
         let edit_req = EditUserAccount {
             username: username_2.to_string(),
-            mobile_no: format!("{}{}", DUMMY_INTERNATIONAL_DIALING_CODE, mobile_no_2).to_string(),
-            // international_dialing_code: DUMMY_INTERNATIONAL_DIALING_CODE.to_string(),
+            mobile_no_info: MobileNoInfo {
+                mobile_no: mobile_no_2.to_owned(),
+                international_dialing_code: DUMMY_INTERNATIONAL_DIALING_CODE.to_owned(),
+            },
+
             email: EmailObject::new(email_2.to_string()),
             display_name: display_name_2.to_string(),
         };
@@ -330,7 +338,12 @@ pub mod tests {
         assert!(user_obj.username == username_2);
         assert!(user_obj.display_name == display_name_2);
         assert!(user_obj.email.get() == email_2);
-        assert!(&user_obj.mobile_no == complete_mobile_2);
+        eprintln!(
+            "First Mobile: {} , {}",
+            user_obj.mobile_no_info.get_full_mobile_no(),
+            complete_mobile_2
+        );
+        assert!(&user_obj.mobile_no_info.get_full_mobile_no() == complete_mobile_2);
         let mobile_vector = user_obj
             .vectors
             .iter()

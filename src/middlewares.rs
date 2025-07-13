@@ -162,7 +162,8 @@ where
                 get_header_value(&req, "x-business-id") // Convert HeaderValue to &str
                     .and_then(|value| Uuid::parse_str(value).ok())
             {
-                let business_account = if user_account.user_role != UserRoleType::Admin.to_string()
+                let business_account = if user_account.user_role
+                    != UserRoleType::Superadmin.to_string()
                 {
                     get_business_account(db_pool, user_account.id, business_id)
                         .await
@@ -188,7 +189,7 @@ where
                 let extracted_business_account = business_account.ok_or_else(|| {
                     GenericError::ValidationError("business Account doesn't exist".to_string())
                 })?;
-                
+
                 let error_message = validate_business_account_active(&extracted_business_account);
                 if let Some(message) = error_message {
                     let (request, _pl) = req.into_parts();

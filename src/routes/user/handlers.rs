@@ -218,7 +218,7 @@ pub async fn send_otp_req(
             whatsapp_client
                 .send_text(
                     TemplateType::Authentication,
-                    &user.mobile_no,
+                    &user.mobile_no_info.get_full_mobile_no(),
                     vec![&otp_clone],
                     true,
                 )

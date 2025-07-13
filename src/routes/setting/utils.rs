@@ -228,15 +228,37 @@ async fn fetch_setting_value_model(
 
     // Scope filters
     match (user_id, business_id) {
+        // (Some(user_id), Some(business_id)) => {
+        //     query.push(" AND (");
+        //     query.push("(sv.user_id = ");
+        //     query.push_bind(user_id);
+        //     query.push(" AND sv.business_id = ");
+        //     query.push_bind(business_id);
+        //     query.push(") OR (sv.user_id IS NULL AND sv.business_id = ");
+        //     query.push_bind(business_id);
+        //     query.push(") OR (sv.user_id IS NULL AND sv.business_id IS NULL))");
+
+        // }
         (Some(user_id), Some(business_id)) => {
             query.push(" AND (");
+
             query.push("(sv.user_id = ");
             query.push_bind(user_id);
             query.push(" AND sv.business_id = ");
             query.push_bind(business_id);
-            query.push(") OR (sv.user_id IS NULL AND sv.business_id = ");
+            query.push(")");
+
+            query.push(" OR (sv.user_id IS NULL AND sv.business_id = ");
             query.push_bind(business_id);
-            query.push(") OR (sv.user_id IS NULL AND sv.business_id IS NULL))");
+            query.push(")");
+
+            query.push(" OR (sv.business_id IS NULL AND sv.user_id = ");
+            query.push_bind(user_id);
+            query.push(")");
+
+            query.push(" OR (sv.user_id IS NULL AND sv.business_id IS NULL)");
+
+            query.push(")");
         }
         (Some(user_id), None) => {
             query.push(" AND (");
@@ -306,9 +328,9 @@ pub fn get_setting_value_from_model(
     data_models: Vec<SettingValueModel>,
     user_id: Option<Uuid>,
     business_id: Option<Uuid>,
+    fetch_multi_level: bool,
 ) -> Vec<Settings> {
     let mut settings_map: HashMap<String, Settings> = HashMap::new();
-
     for model in data_models.into_iter() {
         let entry = settings_map
             .entry(model.key.clone())
@@ -328,11 +350,12 @@ pub fn get_setting_value_from_model(
             id: model.id,
             value: model.value,
         };
-        match (model.user_id, model.business_id) {
-            (Some(_), Some(_)) => entry.user_business_level.push(setting),
-            (Some(_), None) => entry.user_level.push(setting),
-            (None, Some(_)) => entry.business_level.push(setting),
-            (None, None) => {
+        match (model.user_id, model.business_id, model.id) {
+            (Some(_), Some(_), _) => entry.user_business_level.push(setting),
+            (Some(_), None, _) => entry.user_level.push(setting),
+            (None, Some(_), _) => entry.business_level.push(setting),
+            (None, None, Some(_)) => entry.global_level.push(setting),
+            (None, None, _) => {
                 // Use the fallback context
                 match (user_id.is_some(), business_id.is_some()) {
                     (true, true) => entry.user_business_level.push(setting),
@@ -356,7 +379,8 @@ pub async fn get_setting_value(
 ) -> Result<Vec<Settings>, anyhow::Error> {
     let data_models =
         fetch_setting_value_model(pool, key_list, business_id, user_id, fetch_multi_level).await?;
-    let data = get_setting_value_from_model(data_models, user_id, business_id);
+    let data = get_setting_value_from_model(data_models, user_id, business_id, fetch_multi_level);
+
     Ok(data)
 }
 #[allow(dead_code)]

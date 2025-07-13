@@ -4,7 +4,7 @@ use std::future::{Ready, ready};
 use crate::email::{EmailObject, deserialize_subscriber_email};
 // use crate::routes::business::schemas::BasicBusinessAccount;
 use crate::errors::GenericError;
-use crate::schemas::{MaskingType, Status};
+use crate::schemas::{MaskingType, MobileNoInfo, Status};
 use crate::utils::pascal_to_snake_case;
 use actix_http::Payload;
 use actix_web::{FromRequest, HttpMessage, HttpRequest, web};
@@ -56,8 +56,7 @@ impl UserRoleType {
 #[serde(rename_all = "camelCase")]
 pub struct CreateUserAccount {
     pub username: String,
-    pub mobile_no: String,
-    pub international_dialing_code: String,
+    pub mobile_no_info: MobileNoInfo,
     #[schema(value_type = String)]
     pub password: SecretString,
     #[serde(deserialize_with = "deserialize_subscriber_email")]
@@ -76,11 +75,11 @@ pub struct CreateUserAccount {
 //         &self.mobile_no
 //     }
 // }
-impl CreateUserAccount {
-    pub fn get_full_mobile_no(&self) -> String {
-        format!("{}{}", self.international_dialing_code, self.mobile_no)
-    }
-}
+// impl CreateUserAccount {
+//     pub fn get_full_mobile_no(&self) -> String {
+//         format!("{}{}", self.international_dialing_code, self.mobile_no)
+//     }
+// }
 
 impl FromRequest for CreateUserAccount {
     type Error = GenericError;
@@ -208,8 +207,8 @@ pub struct AuthMechanism {
 #[allow(dead_code)]
 pub struct AccountRole {
     pub id: Uuid,
-    pub role_name: String,
-    pub role_status: Status,
+    pub name: String,
+    pub status: Status,
     pub is_deleted: bool,
 }
 
@@ -232,7 +231,7 @@ pub struct BulkAuthMechanismInsert {
 pub struct UserAccount {
     pub id: Uuid,
     pub username: String,
-    pub mobile_no: String,
+    pub mobile_no_info: MobileNoInfo,
     pub email: EmailObject,
     pub is_active: Status,
     pub display_name: String,
@@ -337,7 +336,7 @@ impl FromRequest for SendOTPRequest {
 #[serde(rename_all = "camelCase")]
 pub struct MinimalUserAccount {
     pub id: Uuid,
-    pub mobile_no: String,
+    pub mobile_no_info: MobileNoInfo,
     pub display_name: String,
 }
 
@@ -369,7 +368,7 @@ impl FromRequest for ListUserAccountRequest {
 #[serde(rename_all = "camelCase")]
 pub struct EditUserAccount {
     pub username: String,
-    pub mobile_no: String,
+    pub mobile_no_info: MobileNoInfo,
     // pub international_dialing_code: String,
     #[serde(deserialize_with = "deserialize_subscriber_email")]
     pub email: EmailObject,

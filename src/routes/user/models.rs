@@ -6,7 +6,10 @@ use uuid::Uuid;
 use super::schemas::{
     AccountRole, AuthMechanism, AuthenticationScope, MinimalUserAccount, UserAccount, UserVector,
 };
-use crate::{email::EmailObject, schemas::Status};
+use crate::{
+    email::EmailObject,
+    schemas::{MobileNoInfo, Status},
+};
 #[derive(Debug, FromRow)]
 pub struct AuthMechanismModel {
     pub id: Uuid,
@@ -45,10 +48,10 @@ pub struct UserAccountModel {
     pub is_active: Status,
     pub display_name: String,
     pub vectors: Json<Vec<UserVector>>,
-    // pub international_dialing_code: String,
+    pub international_dialing_code: String,
     pub is_test_user: bool,
     pub is_deleted: bool,
-    pub role_name: String,
+    pub name: String,
 }
 
 impl UserAccountModel {
@@ -56,7 +59,10 @@ impl UserAccountModel {
         let vectors_option: Vec<UserVector> = self.vectors.0;
         UserAccount {
             id: self.id,
-            mobile_no: self.mobile_no,
+            mobile_no_info: MobileNoInfo {
+                international_dialing_code: self.international_dialing_code,
+                mobile_no: self.mobile_no,
+            },
             username: self.username,
             email: EmailObject::new(self.email),
             is_active: self.is_active,
@@ -65,7 +71,7 @@ impl UserAccountModel {
             // international_dialing_code: self.international_dialing_code,
             is_test_user: self.is_test_user,
             is_deleted: self.is_deleted,
-            user_role: self.role_name,
+            user_role: self.name,
         }
     }
 }
@@ -74,8 +80,8 @@ impl UserAccountModel {
 #[derive(Debug, FromRow)]
 pub struct RoleModel {
     pub id: Uuid,
-    pub role_name: String,
-    pub role_status: Status,
+    pub name: String,
+    pub status: Status,
     pub created_on: DateTime<Utc>,
     pub created_by: String,
     pub is_deleted: bool,
@@ -85,8 +91,8 @@ impl RoleModel {
     pub fn int_schema(self) -> AccountRole {
         AccountRole {
             id: self.id,
-            role_name: self.role_name,
-            role_status: self.role_status,
+            name: self.name,
+            status: self.status,
             is_deleted: self.is_deleted,
         }
     }
@@ -96,6 +102,7 @@ impl RoleModel {
 pub struct MinimalUserAccountModel {
     pub id: Uuid,
     pub mobile_no: String,
+    pub international_dialing_code: String,
     pub display_name: String,
 }
 
@@ -103,7 +110,10 @@ impl MinimalUserAccountModel {
     pub fn into_schema(self) -> MinimalUserAccount {
         MinimalUserAccount {
             id: self.id,
-            mobile_no: self.mobile_no,
+            mobile_no_info: MobileNoInfo {
+                international_dialing_code: self.international_dialing_code,
+                mobile_no: self.mobile_no,
+            },
             display_name: self.display_name,
         }
     }

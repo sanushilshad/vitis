@@ -154,7 +154,7 @@ pub async fn create_business_account(
     let business_account_id =
         save_business_account(&mut transaction, user_account, create_business_obj).await?;
     if let Some(role_obj) = get_role(pool, &UserRoleType::Admin.to_lowercase_string()).await? {
-        if role_obj.is_deleted || role_obj.role_status == Status::Inactive {
+        if role_obj.is_deleted || role_obj.status == Status::Inactive {
             return Err(BusinessAccountError::InvalidRoleError(
                 "Role is deleted / Inactive".to_string(),
             ));

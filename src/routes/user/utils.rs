@@ -54,7 +54,7 @@ async fn get_auth_mechanism_model(username: &str,
 ) -> Result<Option<AuthMechanismModel>, anyhow::Error> {
     let row: Option<AuthMechanismModel> = sqlx::query_as!(AuthMechanismModel, 
         r#"SELECT a.id as id, user_id, auth_identifier, retry_count, secret, a.is_active as "is_active: Status", auth_scope as "auth_scope: AuthenticationScope", valid_upto from auth_mechanism
-        as a inner join user_account as b on a.user_id = b.id where (b.username = $1 OR b.mobile_no = $1 OR  b.email = $1)  AND auth_scope = $2"#,
+        as a inner join user_account as b on a.user_id = b.id where (b.username = $1 OR b.full_mobile_no = $1 OR  b.email = $1)  AND auth_scope = $2"#,
         username,
         scope as &AuthenticationScope,
         // auth_context as &AuthContextType
@@ -225,12 +225,12 @@ pub async fn fetch_user(
     let row: Option<UserAccountModel> = sqlx::query_as!(
         UserAccountModel,
         r#"SELECT 
-            ua.id, username, is_test_user, mobile_no, email, is_active as "is_active!:Status", 
+            ua.id, username, is_test_user, international_dialing_code, mobile_no, email, is_active as "is_active!:Status", 
             vectors as "vectors:sqlx::types::Json<Vec<UserVector>>", display_name, 
-            ua.is_deleted, r.role_name FROM user_account as ua
+            ua.is_deleted, r.name FROM user_account as ua
             INNER JOIN user_role ur ON ua.id = ur.user_id
             INNER JOIN role r ON ur.role_id = r.id
-        WHERE ua.email = ANY($1) OR ua.mobile_no = ANY($1) OR ua.id::text = ANY($1)
+        WHERE ua.email = ANY($1) OR ua.full_mobile_no = ANY($1) OR ua.id::text = ANY($1)
         "#,
         &val_list
     )
@@ -267,7 +267,7 @@ pub fn create_vector_from_create_account(
         },
         UserVector {
             key: VectorType::MobileNo,
-            value: user_account.get_full_mobile_no(),
+            value: user_account.mobile_no_info.get_full_mobile_no(),
             masking: MaskingType::NA,
             verified: false,
         },
@@ -286,20 +286,21 @@ pub async fn save_user(
     let vector_list = create_vector_from_create_account(user_account)?;
     let query = sqlx::query!(
         r#"
-        INSERT INTO user_account (id, username, email, mobile_no, created_by, created_on, display_name, vectors, is_active, is_test_user)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+        INSERT INTO user_account (id, username, email, full_mobile_no, created_by, created_on, display_name, vectors, is_active, is_test_user, mobile_no, international_dialing_code)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
         "#,
         user_id,
         &user_account.username,
         &user_account.email.get(),
-        &user_account.get_full_mobile_no(),
+        &user_account.mobile_no_info.get_full_mobile_no(),
         user_id,
         Utc::now(),
         &user_account.display_name,
         sqlx::types::Json(vector_list) as sqlx::types::Json<Vec<UserVector>>,
         Status::Active as Status,
         &user_account.is_test_user,
-        // &user_account.international_dialing_code,
+         &user_account.mobile_no_info.mobile_no,
+        &user_account.mobile_no_info.international_dialing_code,
     );
 
     transaction.execute(query).await.map_err(|e| {
@@ -318,7 +319,7 @@ pub async fn save_user(
 pub async fn get_role_model(pool: &PgPool, query: &str) -> Result<Option<RoleModel>, anyhow::Error> {
     let row: Option<RoleModel> = sqlx::query_as!(
         RoleModel,
-        r#"SELECT id, role_name, role_status as "role_status!:Status", created_on, created_by, is_deleted from role where role_name = $1 OR id::TEXT=$1"#,
+        r#"SELECT id, name, status as "status!:Status", created_on, created_by, is_deleted from role where name = $1 OR id::TEXT=$1"#,
         query
     )
     .fetch_optional(pool)
@@ -377,7 +378,7 @@ pub async fn hard_delete_user_account(
     pool: &PgPool,
     user_id: &str,
 ) -> Result<(), anyhow::Error> {
-    let _ = sqlx::query("DELETE FROM user_account WHERE id::text = $1 OR mobile_no = $1 OR username = $1")
+    let _ = sqlx::query("DELETE FROM user_account WHERE id::text = $1 OR full_mobile_no = $1 OR username = $1")
     .bind(user_id)
     .execute(pool)
     .await;
@@ -396,7 +397,7 @@ pub async fn soft_delete_user_account(
         SET is_deleted = true,
         deleted_on = $2,
         deleted_by = $3
-        WHERE id::text = $1 OR mobile_no = $1 OR username = $1
+        WHERE id::text = $1 OR full_mobile_no = $1 OR username = $1
         "#,
         user_id,
         Utc::now(),
@@ -472,7 +473,7 @@ pub async fn prepare_auth_mechanism_data_for_user_account(
     ];
     let auth_identifier: Vec<String> = vec![
         user_account.username.to_owned(),
-        user_account.get_full_mobile_no(),
+        user_account.mobile_no_info.get_full_mobile_no(),
         user_account.email.get().to_owned(),
     ];
     let secret = vec![password_hash.expose_secret().to_string()];
@@ -543,15 +544,15 @@ pub async fn register_user(
         .context("Failed to acquire a Postgres connection from the pool")?;
 
     if let Some(existing_user_obj) = fetch_user(
-        vec![user_account.email.get(), &user_account.mobile_no],
+        vec![user_account.email.get(), &user_account.mobile_no_info.get_full_mobile_no()],
         pool,
     )
     .await?
     {
-        if user_account.get_full_mobile_no() == existing_user_obj.mobile_no {
+        if user_account.mobile_no_info.get_full_mobile_no() == existing_user_obj.mobile_no {
             let message = format!(
                 "User Already exists with the given mobile number: {}",
-                user_account.mobile_no
+                user_account.mobile_no_info.get_full_mobile_no()
             );
             tracing::error!(message);
             return Err(UserRegistrationError::DuplicateMobileNo(message));
@@ -568,7 +569,7 @@ pub async fn register_user(
     let bulk_auth_data = prepare_auth_mechanism_data_for_user_account(uuid, user_account).await?;
     save_auth_mechanism(&mut transaction, bulk_auth_data).await?;
     if  let Some(role_obj) = get_role(pool, &UserRoleType::User.to_lowercase_string()).await?{
-        if role_obj.is_deleted || role_obj.role_status == Status::Inactive {
+        if role_obj.is_deleted || role_obj.status == Status::Inactive {
             return Err(UserRegistrationError::InvalidRoleError("Role is deleted / Inactive".to_string()))
         }
         save_user_role(&mut transaction, uuid, role_obj.id).await?;
@@ -589,16 +590,6 @@ pub async fn register_user(
 
 
 
-
-pub async fn _get_user_id_from_mobile(pool: &PgPool, username: &str) ->  Result<Option<Uuid>, anyhow::Error>{
-    let result = sqlx::query_scalar!(
-        "SELECT id FROM user_account WHERE mobile_no = $1",
-        username
-    )
-    .fetch_optional(pool)
-    .await?;
-    Ok(result)
-}
 
 
 
@@ -734,7 +725,7 @@ pub async fn fetch_minimal_user_list(
 ) -> Result<Vec<MinimalUserAccountModel>, anyhow::Error> {
     let mut query_builder = QueryBuilder::new(
         r#"
-        SELECT display_name, mobile_no, id
+        SELECT display_name, mobile_no, international_dialing_code, id
         FROM user_account
         WHERE is_deleted=false
         "#,
@@ -798,7 +789,7 @@ pub fn prepare_auth_mechanism_update(
     ];
     let auth_identifier: Vec<String> = vec![
         data.username.to_owned(),
-        data.mobile_no.to_owned(),
+        data.mobile_no_info.get_full_mobile_no(),
         data.email.get().to_owned(),
     ];
     let updated_on = vec![current_utc, current_utc, current_utc];
@@ -924,25 +915,29 @@ fn generate_updated_user_vectors(
 
 #[tracing::instrument(name = "update user account", skip(tx))]
 pub async fn update_user_account(tx: &mut Transaction<'_, Postgres>, data: &EditUserAccount, user_account: &UserAccount) -> Result<(), anyhow::Error>{
-    let vector_list: Vec<UserVector> = generate_updated_user_vectors(&user_account.vectors, &data.mobile_no, &data.email);
+    let vector_list: Vec<UserVector> = generate_updated_user_vectors(&user_account.vectors, &data.mobile_no_info.get_full_mobile_no(), &data.email);
     let query= sqlx::query!(
         r#"UPDATE user_account SET
             username = $1,
-            mobile_no = $2,
+            full_mobile_no = $2,
             email = $3,
             display_name = $4,
             vectors = $5,
             updated_on = $6,
-            updated_by = $7
-        WHERE id = $8"#,
+            updated_by = $7,
+            mobile_no = $8,
+            international_dialing_code = $9
+        WHERE id = $10"#,
         data.username,
         // data.international_dialing_code,
-        data.mobile_no,
+        data.mobile_no_info.get_full_mobile_no(),
         data.email.get(),
         data.display_name,
         sqlx::types::Json(vector_list) as sqlx::types::Json<Vec<UserVector>>,
         Utc::now(),
         user_account.id,
+        data.mobile_no_info.mobile_no,
+              data.mobile_no_info.international_dialing_code,
         user_account.id
     );
 
@@ -1066,6 +1061,7 @@ async fn fetch_user_account_models_by_business_account(
         SELECT 
             ua.id, 
             ua.mobile_no, 
+            ua.international_dialing_code,
             ua.display_name
         FROM business_user_relationship AS bur
             INNER JOIN user_account ua ON bur.user_id = ua.id
