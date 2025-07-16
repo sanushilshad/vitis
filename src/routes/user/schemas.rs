@@ -204,14 +204,6 @@ pub struct AuthMechanism {
     pub retry_count: Option<i32>, // pub auth_context: AuthContextType,
 }
 
-#[allow(dead_code)]
-pub struct AccountRole {
-    pub id: Uuid,
-    pub name: String,
-    pub status: Status,
-    pub is_deleted: bool,
-}
-
 #[derive(Debug, Serialize)]
 pub struct BulkAuthMechanismInsert {
     pub id: Vec<Uuid>,

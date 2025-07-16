@@ -34,7 +34,7 @@ use super::{
     tag = "Setting",
     request_body(content = CreateBusinessSettingRequest, description = "Request Body"),
     responses(
-        (status=200, description= "business Account created successfully", body= GenericResponse<TupleUnit>),
+        (status=200, description= "sucessfully created Business config/s", body= GenericResponse<TupleUnit>),
         (status=400, description= "Invalid Request body", body= GenericResponse<TupleUnit>),
         (status=401, description= "Invalid Token", body= GenericResponse<TupleUnit>),
 	    (status=403, description= "Insufficient Previlege", body= GenericResponse<TupleUnit>),
@@ -91,7 +91,7 @@ pub async fn create_business_config_req(
     .await
     .map_err(|e| GenericError::DatabaseError(e.to_string(), e))?;
     Ok(web::Json(GenericResponse::success(
-        "Sucessfully created Business config/s",
+        "sucessfully created Business config/s",
         (),
     )))
 }
@@ -104,7 +104,7 @@ pub async fn create_business_config_req(
     tag = "Setting",
     request_body(content = CreateUserSettingRequest, description = "Request Body"),
     responses(
-        (status=200, description= "business Account created successfully", body= GenericResponse<TupleUnit>),
+        (status=200, description= "sucessfully created User config/s", body= GenericResponse<TupleUnit>),
         (status=400, description= "Invalid Request body", body= GenericResponse<TupleUnit>),
         (status=401, description= "Invalid Token", body= GenericResponse<TupleUnit>),
 	    (status=403, description= "Insufficient Previlege", body= GenericResponse<TupleUnit>),
@@ -184,7 +184,7 @@ pub async fn create_user_config_req(
     .await
     .map_err(|e| GenericError::DatabaseError(e.to_string(), e))?;
     Ok(web::Json(GenericResponse::success(
-        "Sucessfully created User config/s",
+        "sucessfully created User config/s",
         (),
     )))
 }
@@ -197,7 +197,7 @@ pub async fn create_user_config_req(
     tag = "Setting",
     request_body(content = FetchSettingRequest, description = "Request Body"),
     responses(
-        (status=200, description= "business Account created successfully", body= GenericResponse<SettingData>),
+        (status=200, description= "sucessfully fetched business config/s", body= GenericResponse<SettingData>),
         (status=400, description= "Invalid Request body", body= GenericResponse<TupleUnit>),
         (status=401, description= "Invalid Token", body= GenericResponse<TupleUnit>),
 	    (status=403, description= "Insufficient Previlege", body= GenericResponse<TupleUnit>),
@@ -223,7 +223,7 @@ pub async fn list_business_config_req(
         .map_err(|e| GenericError::DatabaseError(e.to_string(), e))?;
     let data = SettingData { settings };
     Ok(web::Json(GenericResponse::success(
-        "Sucessfully fetched business config/s",
+        "sucessfully fetched business config/s",
         data,
     )))
 }
@@ -236,7 +236,7 @@ pub async fn list_business_config_req(
     tag = "Setting",
     request_body(content = FetchSettingRequest, description = "Request Body"),
     responses(
-        (status=200, description= "business Account created successfully", body= GenericResponse<SettingData>),
+        (status=200, description= "sucessfully listed user config/s", body= GenericResponse<SettingData>),
         (status=400, description= "Invalid Request body", body= GenericResponse<TupleUnit>),
         (status=401, description= "Invalid Token", body= GenericResponse<TupleUnit>),
 	    (status=403, description= "Insufficient Previlege", body= GenericResponse<TupleUnit>),
@@ -265,12 +265,12 @@ pub async fn list_user_config_req(
     } else {
         Some(user.id)
     };
-    let settings = get_setting_value(&pool, &body.keys, None, user_id, true)
+    let settings = get_setting_value(&pool, &body.keys, None, user_id, false)
         .await
         .map_err(|e| GenericError::DatabaseError(e.to_string(), e))?;
     let data = SettingData { settings };
     Ok(web::Json(GenericResponse::success(
-        "Sucessfully fetched user config/s",
+        "sucessfully listed user config/s",
         data,
     )))
 }
@@ -283,7 +283,7 @@ pub async fn list_user_config_req(
     tag = "Setting",
     request_body(content = FetchSettingRequest, description = "Request Body"),
     responses(
-        (status=200, description= "business Account created successfully", body= GenericResponse<SettingData>),
+        (status=200, description= "sucessfully fetched allowed config/s", body= GenericResponse<SettingData>),
         (status=400, description= "Invalid Request body", body= GenericResponse<TupleUnit>),
         (status=401, description= "Invalid Token", body= GenericResponse<TupleUnit>),
 	    (status=403, description= "Insufficient Previlege", body= GenericResponse<TupleUnit>),
@@ -308,7 +308,7 @@ pub async fn list_global_setting(
         .map_err(|e| GenericError::DatabaseError(e.to_string(), e))?;
     let data = SettingData { settings };
     Ok(web::Json(GenericResponse::success(
-        "Sucessfully fetched allowed config/s",
+        "sucessfully fetched allowed config/s",
         data,
     )))
 }
@@ -321,7 +321,7 @@ pub async fn list_global_setting(
     tag = "Setting",
     request_body(content = CreateGlobalSettingRequest, description = "Request Body"),
     responses(
-        (status=200, description= "business Account created successfully", body= GenericResponse<TupleUnit>),
+        (status=200, description= "sucessfully created global config/s", body= GenericResponse<TupleUnit>),
         (status=400, description= "Invalid Request body", body= GenericResponse<TupleUnit>),
         (status=401, description= "Invalid Token", body= GenericResponse<TupleUnit>),
 	    (status=403, description= "Insufficient Previlege", body= GenericResponse<TupleUnit>),
@@ -376,7 +376,7 @@ pub async fn save_global_setting(
         .await
         .map_err(|e| GenericError::DatabaseError(e.to_string(), e))?;
     Ok(web::Json(GenericResponse::success(
-        "Sucessfully created Global config/s",
+        "sucessfully created global config/s",
         (),
     )))
 }
@@ -389,7 +389,7 @@ pub async fn save_global_setting(
     tag = "Setting",
     request_body(content = ListSettingEnumRequest, description = "Request Body"),
     responses(
-        (status=200, description= "business Account created successfully", body= GenericResponse<Vec<SettingEnumData>>),
+        (status=200, description= "sucessfully fetched allowed config enums", body= GenericResponse<Vec<SettingEnumData>>),
         (status=400, description= "Invalid Request body", body= GenericResponse<TupleUnit>),
         (status=401, description= "Invalid Token", body= GenericResponse<TupleUnit>),
 	    (status=403, description= "Insufficient Previlege", body= GenericResponse<TupleUnit>),
@@ -413,7 +413,7 @@ pub async fn list_config_enums(
         .await
         .map_err(|e| GenericError::DatabaseError("Something went fetching enums".to_string(), e))?;
     Ok(web::Json(GenericResponse::success(
-        "Sucessfully fetched allowed config enums",
+        "sucessfully fetched allowed config enums",
         data,
     )))
 }
@@ -426,7 +426,7 @@ pub async fn list_config_enums(
     tag = "Setting",
     request_body(content = FetchSettingRequest, description = "Request Body"),
     responses(
-        (status=200, description= "business Account created successfully", body= GenericResponse<SettingData>),
+        (status=200, description= "sucessfully fetched business config/s", body= GenericResponse<SettingData>),
         (status=400, description= "Invalid Request body", body= GenericResponse<TupleUnit>),
         (status=401, description= "Invalid Token", body= GenericResponse<TupleUnit>),
 	    (status=403, description= "Insufficient Previlege", body= GenericResponse<TupleUnit>),
@@ -463,7 +463,7 @@ pub async fn list_user_business_config_req(
     .map_err(|e| GenericError::DatabaseError(e.to_string(), e))?;
     let data = SettingData { settings };
     Ok(web::Json(GenericResponse::success(
-        "Sucessfully fetched business config/s",
+        "sucessfully fetched business config/s",
         data,
     )))
 }
@@ -476,7 +476,7 @@ pub async fn list_user_business_config_req(
     tag = "Setting",
     request_body(content = CreateBusinessSettingRequest, description = "Request Body"),
     responses(
-        (status=200, description= "business Account created successfully", body= GenericResponse<TupleUnit>),
+        (status=200, description= "sucessfully created User-Business config/s", body= GenericResponse<TupleUnit>),
         (status=400, description= "Invalid Request body", body= GenericResponse<TupleUnit>),
         (status=401, description= "Invalid Token", body= GenericResponse<TupleUnit>),
 	    (status=403, description= "Insufficient Previlege", body= GenericResponse<TupleUnit>),
@@ -538,7 +538,7 @@ pub async fn create_user_business_config_req(
     .await
     .map_err(|e| GenericError::DatabaseError(e.to_string(), e))?;
     Ok(web::Json(GenericResponse::success(
-        "Sucessfully created User-Business config/s",
+        "sucessfully created User-Business config/s",
         (),
     )))
 }

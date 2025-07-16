@@ -4,7 +4,7 @@ use sqlx::{FromRow, types::Json};
 use uuid::Uuid;
 
 use super::schemas::{
-    AccountRole, AuthMechanism, AuthenticationScope, MinimalUserAccount, UserAccount, UserVector,
+    AuthMechanism, AuthenticationScope, MinimalUserAccount, UserAccount, UserVector,
 };
 use crate::{
     email::EmailObject,
@@ -72,28 +72,6 @@ impl UserAccountModel {
             is_test_user: self.is_test_user,
             is_deleted: self.is_deleted,
             user_role: self.name,
-        }
-    }
-}
-
-#[allow(dead_code)]
-#[derive(Debug, FromRow)]
-pub struct RoleModel {
-    pub id: Uuid,
-    pub name: String,
-    pub status: Status,
-    pub created_on: DateTime<Utc>,
-    pub created_by: String,
-    pub is_deleted: bool,
-}
-
-impl RoleModel {
-    pub fn int_schema(self) -> AccountRole {
-        AccountRole {
-            id: self.id,
-            name: self.name,
-            status: self.status,
-            is_deleted: self.is_deleted,
         }
     }
 }

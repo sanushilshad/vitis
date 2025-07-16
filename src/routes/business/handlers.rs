@@ -12,13 +12,14 @@ use crate::{
     errors::GenericError,
     pulsar_client::PulsarClient,
     routes::{
+        role::utils::get_role,
         setting::{
             schemas::{SettingKey, SettingsExt},
             utils::get_setting_value,
         },
         user::{
             schemas::{MinimalUserAccount, UserAccount},
-            utils::{fetch_user_account_by_business_account, get_role, get_user},
+            utils::{fetch_user_account_by_business_account, get_user},
         },
         web_socket::{schemas::ProcessType, utils::send_notification},
     },
@@ -170,7 +171,7 @@ pub async fn business_permission_validation(
     }
 
     Ok(web::Json(GenericResponse::success(
-        "Successfully validated permissions.",
+        "Successfully verified permissions.",
         permission_list,
     )))
 }
@@ -183,7 +184,7 @@ pub async fn business_permission_validation(
     summary = "business Account List API",
     // request_body(content = BusinessAccountListReq, description = "Request Body"),
     responses(
-        (status=200, description= "Sucessfully fetched business data.", body= GenericResponse<Vec<BasicBusinessAccount>>),
+        (status=200, description= "sucessfully fetched all associated business accounts.", body= GenericResponse<Vec<BasicBusinessAccount>>),
         (status=400, description= "Invalid Request body", body= GenericResponse<TupleUnit>),
         (status=401, description= "Invalid Token", body= GenericResponse<TupleUnit>),
 	    (status=403, description= "Insufficient Previlege", body= GenericResponse<TupleUnit>),
@@ -213,7 +214,7 @@ pub async fn list_business_req(
             .map_err(|e| GenericError::DatabaseError(e.to_string(), e))?
     };
     Ok(web::Json(GenericResponse::success(
-        "Sucessfully fetched all associated business accounts.",
+        "sucessfully fetched all associated business accounts.",
         business_obj,
     )))
 }
@@ -226,7 +227,7 @@ pub async fn list_business_req(
     summary = "Use business Account Association API",
     request_body(content = BusinessUserAssociationRequest, description = "Request Body"),
     responses(
-        (status=200, description= "Sucessfully fetched business data.", body= GenericResponse<TupleUnit>),
+        (status=200, description= "user already associated with business", body= GenericResponse<TupleUnit>),
         (status=400, description= "Invalid Request body", body= GenericResponse<TupleUnit>),
         (status=401, description= "Invalid Token", body= GenericResponse<TupleUnit>),
 	    (status=403, description= "Insufficient Previlege", body= GenericResponse<TupleUnit>),
@@ -288,7 +289,7 @@ pub async fn user_business_association_req(
 
     if assocating_user.is_some() {
         return Err(GenericError::ValidationError(
-            "User already associated with business".to_owned(),
+            "user already associated with business".to_owned(),
         ));
     }
     associate_user_to_business(
@@ -345,7 +346,7 @@ pub async fn user_business_association_req(
     summary = "List User Accounts API by business id",
 
     responses(
-        (status=200, description= "Successfully updated user.", body= GenericResponse<Vec<MinimalUserAccount>>),
+        (status=200, description= "successfully fetched user.", body= GenericResponse<Vec<MinimalUserAccount>>),
         (status=400, description= "Invalid Request body", body= GenericResponse<TupleUnit>),
         (status=401, description= "Invalid Token", body= GenericResponse<TupleUnit>),
 	    (status=403, description= "Insufficient Previlege", body= GenericResponse<TupleUnit>),
@@ -373,7 +374,7 @@ pub async fn business_user_list_req(
         })?;
 
     Ok(web::Json(GenericResponse::success(
-        "Successfully fetched users.",
+        "successfully fetched users.",
         data,
     )))
 }
@@ -386,7 +387,7 @@ pub async fn business_user_list_req(
     summary = "List User Accounts API by business id",
     request_body(content = BusinessInviteRequest, description = "Request Body"),
     responses(
-        (status=200, description= "Successfully updated user.", body= GenericResponse<TupleUnit>),
+        (status=200, description= "successfully send invite links.", body= GenericResponse<TupleUnit>),
         (status=400, description= "Invalid Request body", body= GenericResponse<TupleUnit>),
         (status=401, description= "Invalid Token", body= GenericResponse<TupleUnit>),
 	    (status=403, description= "Insufficient Previlege", body= GenericResponse<TupleUnit>),
@@ -497,20 +498,20 @@ pub async fn business_user_invite_request(
         .await
         .context("Failed to commit SQL transaction to store a new user account.")?;
     Ok(web::Json(GenericResponse::success(
-        "Successfully send invite links.",
+        "successfully send invite links.",
         (),
     )))
 }
 
 #[utoipa::path(
-    post,
+    get,
     path = "/business/invite/list",
     tag = "Business Account",
     description = "API for listing invite request to user for business association",
     summary = "List Business User Invite Request API",
 
     responses(
-        (status=200, description= "Successfully updated user.", body= GenericResponse<Vec<UserBusinessInvitation>>),
+        (status=200, description= "successfully fetched invite links.", body= GenericResponse<Vec<UserBusinessInvitation>>),
         (status=400, description= "Invalid Request body", body= GenericResponse<TupleUnit>),
         (status=401, description= "Invalid Token", body= GenericResponse<TupleUnit>),
 	    (status=403, description= "Insufficient Previlege", body= GenericResponse<TupleUnit>),
@@ -541,7 +542,7 @@ pub async fn list_business_user_invite(
     .await
     .map_err(|e| GenericError::DatabaseError("Failed to fetch business invite".to_string(), e))?;
     Ok(web::Json(GenericResponse::success(
-        "Successfully fetched invite links.",
+        "successfully fetched invite links.",
         data,
     )))
 }
@@ -554,7 +555,7 @@ pub async fn list_business_user_invite(
     summary = "Accept Business User Invite Request API",
 
     responses(
-        (status=200, description= "Successfully updated user.", body= GenericResponse<TupleUnit>),
+        (status=200, description= "successfully associated user to business.", body= GenericResponse<TupleUnit>),
         (status=400, description= "Invalid Request body", body= GenericResponse<TupleUnit>),
         (status=401, description= "Invalid Token", body= GenericResponse<TupleUnit>),
 	    (status=403, description= "Insufficient Previlege", body= GenericResponse<TupleUnit>),
@@ -620,7 +621,7 @@ pub async fn verify_business_user_invite(
         ));
     }
     Ok(web::Json(GenericResponse::success(
-        "Successfully associated user to business.",
+        "successfully associated user to business.",
         (),
     )))
 }
@@ -633,7 +634,7 @@ pub async fn verify_business_user_invite(
     summary = "Accept Business User Invite Request API",
 
     responses(
-        (status=200, description= "Successfully updated user.", body= GenericResponse<TupleUnit>),
+        (status=200, description= "successfully deleted invite.", body= GenericResponse<TupleUnit>),
         (status=400, description= "Invalid Request body", body= GenericResponse<TupleUnit>),
         (status=401, description= "Invalid Token", body= GenericResponse<TupleUnit>),
 	    (status=403, description= "Insufficient Previlege", body= GenericResponse<TupleUnit>),
@@ -676,7 +677,7 @@ pub async fn delete_business_user_invite(
         ));
     }
     Ok(web::Json(GenericResponse::success(
-        "Successfully deleted invite.",
+        "successfully deleted invite.",
         (),
     )))
 }
@@ -689,7 +690,7 @@ pub async fn delete_business_user_invite(
     summary = "Use business Account Disassociation API",
     request_body(content = UserBusinessDeassociationRequest, description = "Request Body"),
     responses(
-        (status=200, description= "Sucessfully fetched business data.", body= GenericResponse<TupleUnit>),
+        (status=200, description= "sucessfully disassociated user from business account.", body= GenericResponse<TupleUnit>),
         (status=400, description= "Invalid Request body", body= GenericResponse<TupleUnit>),
         (status=401, description= "Invalid Token", body= GenericResponse<TupleUnit>),
 	    (status=403, description= "Insufficient Previlege", body= GenericResponse<TupleUnit>),
@@ -728,7 +729,7 @@ pub async fn user_business_deassociation_req(
             )
         })?;
     Ok(web::Json(GenericResponse::success(
-        "Sucessfully disassociated user from business account.",
+        "sucessfully disassociated user from business account.",
         (),
     )))
 }
@@ -740,7 +741,7 @@ pub async fn user_business_deassociation_req(
     description = "API for deleting  business account",
     summary = "Business Account Deletion API",
     responses(
-        (status=200, description= "Sucessfully fetched business data.", body= GenericResponse<TupleUnit>),
+        (status=200, description= "sucessfully deleted  business account.", body= GenericResponse<TupleUnit>),
         (status=400, description= "Invalid Request body", body= GenericResponse<TupleUnit>),
         (status=401, description= "Invalid Token", body= GenericResponse<TupleUnit>),
 	    (status=403, description= "Insufficient Previlege", body= GenericResponse<TupleUnit>),
@@ -769,7 +770,7 @@ pub async fn business_account_deletion_req(
             )
         })?;
     Ok(web::Json(GenericResponse::success(
-        "Sucessfully deleted  business account.",
+        "sucessfully deleted  business account.",
         (),
     )))
 }
@@ -781,7 +782,7 @@ pub async fn business_account_deletion_req(
     description = "API for updating  business account",
     summary = "Business Account Updation API",
     responses(
-        (status=200, description= "Sucessfully fetched business data.", body= GenericResponse<TupleUnit>),
+        (status=200, description= "sucessfully updated business account.", body= GenericResponse<TupleUnit>),
         (status=400, description= "Invalid Request body", body= GenericResponse<TupleUnit>),
         (status=401, description= "Invalid Token", body= GenericResponse<TupleUnit>),
 	    (status=403, description= "Insufficient Previlege", body= GenericResponse<TupleUnit>),
@@ -812,7 +813,7 @@ pub async fn business_account_updation_req(
         })?;
 
     Ok(web::Json(GenericResponse::success(
-        "Sucessfully updated business account.",
+        "sucessfully updated business account.",
         (),
     )))
 }

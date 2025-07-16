@@ -173,6 +173,8 @@ pub enum PermissionType {
     DisassociateBusinessSelf,
     #[serde(rename = "disassociate:user-business")]
     DisassociateBusiness,
+    #[serde(rename = "create:business-role")]
+    CreateBusinessRole,
 }
 
 impl fmt::Display for PermissionType {
@@ -204,6 +206,7 @@ impl fmt::Display for PermissionType {
             PermissionType::UpdateBusiness => "update:business",
             PermissionType::DisassociateBusinessSelf => "disassociate:user-business:self",
             PermissionType::DisassociateBusiness => "disassociate:user-business",
+            PermissionType::CreateBusinessRole => "reate:business-role",
         };
 
         write!(f, "{}", display_str)
@@ -259,6 +262,7 @@ pub struct BulkNotificationData<'a> {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, ToSchema)]
+#[serde(rename_all = "camelCase")]
 pub struct MobileNoInfo {
     pub mobile_no: String,
     pub international_dialing_code: String,

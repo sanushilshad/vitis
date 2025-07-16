@@ -14,6 +14,7 @@ use tera::{Context as TeraContext, Tera};
 use crate::configuration::Jwt;
 use crate::email::EmailObject;
 use crate::email_client::{GenericEmailService, SmtpEmailClient};
+use crate::routes::role::utils::get_role;
 use crate::routes::setting::schemas::{SettingKey, Settings, SettingsExt};
 // use crate::routes::business::utils::get_basic_business_account_by_user_id;
 use crate::routes::user::errors::UserRegistrationError;
@@ -22,8 +23,8 @@ use crate::schemas::{  MaskingType, Status};
 use crate::utils::{spawn_blocking_with_tracing, to_title_case};
 use sqlx::{Transaction, Postgres, Executor};
 use super::errors::AuthError;
-use super::models::{AuthMechanismModel, MinimalUserAccountModel, UserAccountModel, RoleModel};
-use super::schemas::{AccountRole, AuthData, AuthMechanism, AuthenticateRequest, AuthenticationScope, BulkAuthMechanismInsert, BulkAuthMechanismUpdate, CreateUserAccount, EditUserAccount, JWTClaims, MinimalUserAccount, EmailOTPContext, UserRoleType, UserAccount, UserVector, VectorType};
+use super::models::{AuthMechanismModel, MinimalUserAccountModel, UserAccountModel};
+use super::schemas::{ AuthData, AuthMechanism, AuthenticateRequest, AuthenticationScope, BulkAuthMechanismInsert, BulkAuthMechanismUpdate, CreateUserAccount, EditUserAccount, JWTClaims, MinimalUserAccount, EmailOTPContext, UserRoleType, UserAccount, UserVector, VectorType};
 use anyhow::anyhow;
 
 #[tracing::instrument(
@@ -314,32 +315,6 @@ pub async fn save_user(
 }
 
 
-// test case not needed
-#[tracing::instrument(name = "get_role_model_by_type", skip(pool))]
-pub async fn get_role_model(pool: &PgPool, query: &str) -> Result<Option<RoleModel>, anyhow::Error> {
-    let row: Option<RoleModel> = sqlx::query_as!(
-        RoleModel,
-        r#"SELECT id, name, status as "status!:Status", created_on, created_by, is_deleted from role where name = $1 OR id::TEXT=$1"#,
-        query
-    )
-    .fetch_optional(pool)
-    .await?;
-
-    Ok(row)
-}
-
-
-// test case not needed
-#[tracing::instrument(name = "get_role", skip(pool))]
-pub async fn get_role(pool: &PgPool,  query: &str) -> Result<Option<AccountRole>, anyhow::Error> {
-    let role_model = get_role_model(pool, query).await?;
-    match role_model {
-        Some(role) => {
-            Ok(Some(role.int_schema()))
-        }
-        None => Ok(None),
-    }
-}
 
 // test case not needed
 #[tracing::instrument(name = "save user account role", skip(transaction))]
@@ -745,14 +720,11 @@ pub async fn fetch_minimal_user_list(
         query_builder.push(")");
     }
     if let Some(ids) = id_list {
-        if !ids.is_empty() {
-            query_builder.push(" AND id IN (");
-            let mut separated = query_builder.separated(", ");
-            for id in ids {
-                separated.push_bind(id);
-            }
-            query_builder.push(")");
-        }
+    if !ids.is_empty() {
+        query_builder.push(" AND id = ANY(");
+        query_builder.push_bind(ids);
+        query_builder.push(")");
+    }
     }
     let query = query_builder.build_query_as::<MinimalUserAccountModel>();
     let rows = query.fetch_all(pool).await.map_err(|e| { 

@@ -63,7 +63,7 @@ use super::utils::{
     path = "/leave/request/list",
     request_body(content = FetchLeaveRequest, description = "Request Body"),
     responses(
-        (status=200, description= "project Account created successfully", body= GenericResponse<Vec<LeaveRequestData>>),
+        (status=200, description= "sucessfully fetched leave request", body= GenericResponse<Vec<LeaveRequestData>>),
         (status=400, description= "Invalid Request body", body= GenericResponse<TupleUnit>),
         (status=401, description= "Invalid Token", body= GenericResponse<TupleUnit>),
 	    (status=403, description= "Insufficient Previlege", body= GenericResponse<TupleUnit>),
@@ -130,7 +130,7 @@ pub async fn leave_request_fetch_req(
         )
     })?;
     Ok(web::Json(GenericResponse::success(
-        "Sucessfully fetched leave request",
+        "sucessfully fetched leave request",
         leave,
     )))
 }
@@ -143,7 +143,7 @@ pub async fn leave_request_fetch_req(
     path = "/leave/type/create",
     request_body(content = LeaveTypeCreationRequest, description = "Request Body"),
     responses(
-        (status=200, description= "project Account created successfully", body= GenericResponse<TupleUnit>),
+        (status=200, description= "sucessfully saved leave type", body= GenericResponse<TupleUnit>),
         (status=400, description= "Invalid Request body", body= GenericResponse<TupleUnit>),
         (status=401, description= "Invalid Token", body= GenericResponse<TupleUnit>),
 	    (status=403, description= "Insufficient Previlege", body= GenericResponse<TupleUnit>),
@@ -190,7 +190,7 @@ pub async fn leave_type_create_req(
         .await
         .context("Failed to commit SQL transaction to store a save leave type.")?;
     Ok(web::Json(GenericResponse::success(
-        "Sucessfully saved leave type",
+        "sucessfully saved leave type",
         (),
     )))
 }
@@ -203,7 +203,7 @@ pub async fn leave_type_create_req(
     path = "/leave/type/list",
     request_body(content = LeaveTypeFetchRequest, description = "Request Body"),
     responses(
-        (status=200, description= "project Account created successfully", body= GenericResponse<Vec<LeaveTypeData>>),
+        (status=200, description= "sucessfully fetched leave type", body= GenericResponse<Vec<LeaveTypeData>>),
         (status=400, description= "Invalid Request body", body= GenericResponse<TupleUnit>),
         (status=401, description= "Invalid Token", body= GenericResponse<TupleUnit>),
 	    (status=403, description= "Insufficient Previlege", body= GenericResponse<TupleUnit>),
@@ -235,7 +235,7 @@ pub async fn leave_type_list_req(
         })?;
 
     Ok(web::Json(GenericResponse::success(
-        "Sucessfully fetched leave type",
+        "sucessfully fetched leave type",
         leave_type_list,
     )))
 }
@@ -248,7 +248,7 @@ pub async fn leave_type_list_req(
     path = "/leave/type/delete",
     // request_body(content = FetchLeaveRequest, description = "Request Body"),
     responses(
-        (status=200, description= "project Account created successfully", body= GenericResponse<TupleUnit>),
+        (status=200, description= "sucessfully deleted leave type", body= GenericResponse<TupleUnit>),
         (status=400, description= "Invalid Request body", body= GenericResponse<TupleUnit>),
         (status=401, description= "Invalid Token", body= GenericResponse<TupleUnit>),
 	    (status=403, description= "Insufficient Previlege", body= GenericResponse<TupleUnit>),
@@ -297,7 +297,7 @@ pub async fn leave_type_delete_req(
     })?;
 
     Ok(web::Json(GenericResponse::success(
-        "Sucessfully deleted leave type",
+        "sucessfully deleted leave type",
         (),
     )))
 }
@@ -310,7 +310,7 @@ pub async fn leave_type_delete_req(
     path = "/leave/group/create",
     request_body(content = LeaveGroupCreationRequest, description = "Request Body"),
     responses(
-        (status=200, description= "project Account created successfully", body= GenericResponse<TupleUnit>),
+        (status=200, description= "sucessfully saved leave group", body= GenericResponse<TupleUnit>),
         (status=400, description= "Invalid Request body", body= GenericResponse<TupleUnit>),
         (status=401, description= "Invalid Token", body= GenericResponse<TupleUnit>),
 	    (status=403, description= "Insufficient Previlege", body= GenericResponse<TupleUnit>),
@@ -342,7 +342,7 @@ pub async fn leave_group_create_req(
             )
         })?;
     Ok(web::Json(GenericResponse::success(
-        "Sucessfully saved leave group",
+        "sucessfully saved leave group",
         (),
     )))
 }
@@ -355,7 +355,7 @@ pub async fn leave_group_create_req(
     path = "/leave/group/delete",
     // request_body(content = FetchLeaveRequest, description = "Request Body"),
     responses(
-        (status=200, description= "project Account created successfully", body= GenericResponse<TupleUnit>),
+        (status=200, description= "sucessfully deleted leave group", body= GenericResponse<TupleUnit>),
         (status=400, description= "Invalid Request body", body= GenericResponse<TupleUnit>),
         (status=401, description= "Invalid Token", body= GenericResponse<TupleUnit>),
 	    (status=403, description= "Insufficient Previlege", body= GenericResponse<TupleUnit>),
@@ -407,7 +407,7 @@ pub async fn leave_group_delete_req(
         })?;
 
     Ok(web::Json(GenericResponse::success(
-        "Sucessfully deleted leave group",
+        "sucessfully deleted leave group",
         (),
     )))
 }
@@ -420,7 +420,7 @@ pub async fn leave_group_delete_req(
     path = "/leave/group/list",
     request_body(content = FetchLeaveRequest, description = "Request Body"),
     responses(
-        (status=200, description= "project Account created successfully", body= GenericResponse<Vec<LeaveGroup>>),
+        (status=200, description= "sucessfully fetched leave groups", body= GenericResponse<Vec<LeaveGroup>>),
         (status=400, description= "Invalid Request body", body= GenericResponse<TupleUnit>),
         (status=401, description= "Invalid Token", body= GenericResponse<TupleUnit>),
 	    (status=403, description= "Insufficient Previlege", body= GenericResponse<TupleUnit>),
@@ -452,7 +452,7 @@ pub async fn leave_group_list_req(
         })?;
 
     Ok(web::Json(GenericResponse::success(
-        "Sucessfully fetched leave groups",
+        "sucessfully fetched leave groups",
         leave_group_list,
     )))
 }
@@ -465,7 +465,7 @@ pub async fn leave_group_list_req(
     path = "/leave/user/association/save",
     request_body(content = CreateLeaveUserAssociationRequest, description = "Request Body"),
     responses(
-        (status=200, description= "project Account created successfully", body= GenericResponse<TupleUnit>),
+        (status=200, description= "sucessfully associated user to leave", body= GenericResponse<TupleUnit>),
         (status=400, description= "Invalid Request body", body= GenericResponse<TupleUnit>),
         (status=401, description= "Invalid Token", body= GenericResponse<TupleUnit>),
 	    (status=403, description= "Insufficient Previlege", body= GenericResponse<TupleUnit>),
@@ -530,7 +530,7 @@ pub async fn create_leave_user_association_req(
         })?;
 
     Ok(web::Json(GenericResponse::success(
-        "Sucessfully associated user to leave",
+        "sucessfully associated user to leave",
         (),
     )))
 }
@@ -543,7 +543,7 @@ pub async fn create_leave_user_association_req(
     path = "/leave/user/association/list",
     request_body(content = ListLeaveUserAssociationRequest, description = "Request Body"),
     responses(
-        (status=200, description= "project Account created successfully", body= GenericResponse<Vec<UserLeave>>),
+        (status=200, description= "sucessfully fetched user leaves", body= GenericResponse<Vec<UserLeave>>),
         (status=400, description= "Invalid Request body", body= GenericResponse<TupleUnit>),
         (status=401, description= "Invalid Token", body= GenericResponse<TupleUnit>),
 	    (status=403, description= "Insufficient Previlege", body= GenericResponse<TupleUnit>),
@@ -593,7 +593,7 @@ pub async fn list_leave_user_association_req(
         )
     })?;
     Ok(web::Json(GenericResponse::success(
-        "Sucessfully fetched user leaves",
+        "sucessfully fetched user leaves",
         data,
     )))
 }
@@ -605,7 +605,7 @@ pub async fn list_leave_user_association_req(
     summary = "Delete Leave User Association API",
     path = "/leave/user/association/delete",
     responses(
-        (status=200, description= "project Account created successfully", body= GenericResponse<TupleUnit>),
+        (status=200, description= "sucessfully deleted user leaves", body= GenericResponse<TupleUnit>),
         (status=400, description= "Invalid Request body", body= GenericResponse<TupleUnit>),
         (status=401, description= "Invalid Token", body= GenericResponse<TupleUnit>),
 	    (status=403, description= "Insufficient Previlege", body= GenericResponse<TupleUnit>),
@@ -643,7 +643,7 @@ pub async fn delete_leave_user_association_req(
             )
         })?;
     Ok(web::Json(GenericResponse::success(
-        "Sucessfully deleted user leaves",
+        "sucessfully deleted user leaves",
         (),
     )))
 }
@@ -656,7 +656,7 @@ pub async fn delete_leave_user_association_req(
     path = "/leave/request/create",
     request_body(content = CreateLeaveRequest, description = "Request Body"),
     responses(
-        (status=200, description= "project Account created successfully", body= GenericResponse<TupleUnit>),
+        (status=200, description= "sucessfully created leave request", body= GenericResponse<TupleUnit>),
         (status=400, description= "Invalid Request body", body= GenericResponse<TupleUnit>),
         (status=401, description= "Invalid Token", body= GenericResponse<TupleUnit>),
 	    (status=403, description= "Insufficient Previlege", body= GenericResponse<TupleUnit>),
@@ -829,7 +829,7 @@ pub async fn create_leave_req(
         .context("Failed to commit SQL transaction to store a new user account.")?;
 
     Ok(web::Json(GenericResponse::success(
-        "Sucessfully created leave request",
+        "sucessfully created leave request",
         (),
     )))
 }
@@ -841,7 +841,7 @@ pub async fn create_leave_req(
     summary = "Leave Request Deletion API",
     path = "/leave/request/delete",
     responses(
-        (status=200, description= "project Account created successfully", body= GenericResponse<TupleUnit>),
+        (status=200, description= "sucessfully deleted leave request", body= GenericResponse<TupleUnit>),
         (status=400, description= "Invalid Request body", body= GenericResponse<TupleUnit>),
         (status=401, description= "Invalid Token", body= GenericResponse<TupleUnit>),
 	    (status=403, description= "Insufficient Previlege", body= GenericResponse<TupleUnit>),
@@ -893,7 +893,7 @@ pub async fn leave_request_deletion_req(
         GenericError::UnexpectedCustomError("something went wrong while deleting leave".to_string())
     })?;
     Ok(web::Json(GenericResponse::success(
-        "Sucessfully deleted leave request",
+        "sucessfully deleted leave request",
         (),
     )))
 }
@@ -906,7 +906,7 @@ pub async fn leave_request_deletion_req(
     path = "/leave/request/status/update",
     request_body(content = UpdateLeaveStatusRequest, description = "Request Body"),
     responses(
-        (status=200, description= "project Account created successfully", body= GenericResponse<TupleUnit>),
+        (status=200, description= "sucessfully updated leave request status", body= GenericResponse<TupleUnit>),
         (status=400, description= "Invalid Request body", body= GenericResponse<TupleUnit>),
         (status=401, description= "Invalid Token", body= GenericResponse<TupleUnit>),
 	    (status=403, description= "Insufficient Previlege", body= GenericResponse<TupleUnit>),
@@ -1116,7 +1116,7 @@ pub async fn update_leave_status_req(
         .context("Failed to commit SQL transaction to store a new user account.")?;
 
     Ok(web::Json(GenericResponse::success(
-        "Sucessfully updated leave request status",
+        "sucessfully updated leave request status",
         (),
     )))
 }
@@ -1129,7 +1129,7 @@ pub async fn update_leave_status_req(
     path = "/leave/period/create",
     request_body(content = LeavePeriodCreationRequest, description = "Request Body"),
     responses(
-        (status=200, description= "project Account created successfully", body= GenericResponse<TupleUnit>),
+        (status=200, description= "sucessfully saved leave period", body= GenericResponse<TupleUnit>),
         (status=400, description= "Invalid Request body", body= GenericResponse<TupleUnit>),
         (status=401, description= "Invalid Token", body= GenericResponse<TupleUnit>),
 	    (status=403, description= "Insufficient Previlege", body= GenericResponse<TupleUnit>),
@@ -1188,7 +1188,7 @@ pub async fn leave_period_create_req(
             )
         })?;
     Ok(web::Json(GenericResponse::success(
-        "Sucessfully saved leave period",
+        "sucessfully saved leave period",
         (),
     )))
 }
@@ -1201,7 +1201,7 @@ pub async fn leave_period_create_req(
     path = "/leave/period/list",
     request_body(content = LeaveTypeFetchRequest, description = "Request Body"),
     responses(
-        (status=200, description= "project Account created successfully", body= GenericResponse<Vec<LeavePeriodData>>),
+        (status=200, description= "sucessfully fetched leave period", body= GenericResponse<Vec<LeavePeriodData>>),
         (status=400, description= "Invalid Request body", body= GenericResponse<TupleUnit>),
         (status=401, description= "Invalid Token", body= GenericResponse<TupleUnit>),
 	    (status=403, description= "Insufficient Previlege", body= GenericResponse<TupleUnit>),
@@ -1233,7 +1233,7 @@ pub async fn leave_period_list_req(
         })?;
 
     Ok(web::Json(GenericResponse::success(
-        "Sucessfully fetched leave period",
+        "sucessfully fetched leave period",
         leave_type_list,
     )))
 }
@@ -1246,7 +1246,7 @@ pub async fn leave_period_list_req(
     path = "/leave/period/delete",
     // request_body(content = FetchLeaveRequest, description = "Request Body"),
     responses(
-        (status=200, description= "project Account created successfully", body= GenericResponse<TupleUnit>),
+        (status=200, description= "sucessfully deleted leave period", body= GenericResponse<TupleUnit>),
         (status=400, description= "Invalid Request body", body= GenericResponse<TupleUnit>),
         (status=401, description= "Invalid Token", body= GenericResponse<TupleUnit>),
 	    (status=403, description= "Insufficient Previlege", body= GenericResponse<TupleUnit>),
@@ -1297,7 +1297,7 @@ pub async fn leave_period_delete_req(
         })?;
 
     Ok(web::Json(GenericResponse::success(
-        "Sucessfully deleted leave period",
+        "sucessfully deleted leave period",
         (),
     )))
 }

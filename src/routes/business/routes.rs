@@ -68,7 +68,7 @@ pub fn business_routes(cfg: &mut web::ServiceConfig) {
         )
         .route(
             "/invite/list",
-            web::post()
+            web::get()
                 .to(list_business_user_invite)
                 .wrap(BusinessPermissionValidation {
                     permission_list: vec![PermissionType::SendBusinessInvite.to_string()],

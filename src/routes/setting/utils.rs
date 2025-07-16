@@ -328,7 +328,6 @@ pub fn get_setting_value_from_model(
     data_models: Vec<SettingValueModel>,
     user_id: Option<Uuid>,
     business_id: Option<Uuid>,
-    fetch_multi_level: bool,
 ) -> Vec<Settings> {
     let mut settings_map: HashMap<String, Settings> = HashMap::new();
     for model in data_models.into_iter() {
@@ -379,7 +378,7 @@ pub async fn get_setting_value(
 ) -> Result<Vec<Settings>, anyhow::Error> {
     let data_models =
         fetch_setting_value_model(pool, key_list, business_id, user_id, fetch_multi_level).await?;
-    let data = get_setting_value_from_model(data_models, user_id, business_id, fetch_multi_level);
+    let data = get_setting_value_from_model(data_models, user_id, business_id);
 
     Ok(data)
 }

@@ -260,7 +260,7 @@ The API Docmentation can be found at `https://{{domain}}/docs/` after running th
 * [x] Create business edit API. (Ongoing)
 
 
-## MILESTONE 4 (14/17) LEAVE:
+## MILESTONE 4 (17/17) LEAVE:
 * [x] Add leave type creation / edit API.
 * [x] Add leave  type fetch API.
 * [x] Add leave  type deletion API.
@@ -280,29 +280,25 @@ The API Docmentation can be found at `https://{{domain}}/docs/` after running th
 * [x] Add leave period deletion API.
 
 
+## MILESTONE 6 (7/7) (ROLE AND PERMISSION MANAGEMENT):
+* [*] Create Role Save + Update API. (In-progress)
+* [*] Create Role fetch API. (In-progress)
+* [*] Create Role Delete API.
+* [*] Create role permissions list API.
+* [*] Create Permission list API.
+* [*] Create role permissions assigment API.
+* [*] Create role permissions assigment delete API.
 
 
-## MILESTONE 6 (2/7) (ROLE AND PERMISSION MANAGEMENT):
+## MILESTONE 7 (2/5) GENERIC 
 * [x] Add Cluster ID for setting.
 * [x] Allow bulk send of websocket.
-* [ ] Create Role fetch API.
 * [ ] Move Slack + Personal Email Credential to Setting.
-* [ ] Create role permissions assigment API.
-* [ ] Create Permission fetch API.
-* [ ] Create role permissions assigment edit API.
+* [ ] Set the setting_type of html string to html
+* [ ] Set the setting_type of  passwords to secret and mask it before sending to UI.
+* [ ] Fix Sinch Implementation.
 
-
-## MILESTONE 6 DEPARTMENT:
-* [x] Department Creation.
-* [x] Department-User Association.
-* [ ] Department Deletion.
-* [ ] Department Edit.
-
-
-
-
-
-## MILESTONE 5 DEPARTMENT:
+## MILESTONE 9 DEPARTMENT:
 * [ ] Department Creation.
 * [ ] Department-User Association.
 * [ ] Department Deletion.
@@ -313,14 +309,13 @@ The API Docmentation can be found at `https://{{domain}}/docs/` after running th
 
 
 
-
-## MILESTONE 7  (0/3) (ON-CALL MANAGEMENT):
+## MILESTONE 10  (0/3) (ON-CALL MANAGEMENT):
 * [ ] Create On-call creation API.
 * [ ] Create On-call fetch API.
 * [ ] Create On-call history fetch API.
 
 
-## MILESTONE 8 (0/7) (TASK MANAGEMENT):
+## MILESTONE 11 (0/7) (TASK MANAGEMENT):
 * [ ] Create project task assignment API.
 * [ ] Create project task unassignment API.
 * [ ] Create project task status update API.
@@ -330,15 +325,15 @@ The API Docmentation can be found at `https://{{domain}}/docs/` after running th
 * [ ] Create project task edit API.
 
 
-## MILESTONE 9 (QA LIVE BUILD MILESTONE):
+## MILESTONE 12 (QA LIVE BUILD MILESTONE):
 * [ ] In-progress
 
 
-## MILESTONE 10 (Expense Management):
+## MILESTONE 13 (Expense Management):
 * [ ] In-progress
 
 
-## MILESTONE 10 (Monthly Payment Management):
+## MILESTONE 14 (Monthly Payment Management):
 * [ ] In-progress
 
 

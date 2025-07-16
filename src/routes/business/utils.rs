@@ -7,10 +7,10 @@ use super::{
 };
 use crate::email::EmailObject;
 use crate::routes::business::models::UserBusinessInvitationModel;
+use crate::routes::role::utils::get_role;
 use crate::routes::user::schemas::{
     AuthenticationScope, BulkAuthMechanismInsert, UserAccount, UserRoleType, UserVector, VectorType,
 };
-use crate::routes::user::utils::get_role;
 use crate::schemas::{MaskingType, Status};
 use anyhow::Context;
 use anyhow::anyhow;
@@ -323,7 +323,7 @@ pub async fn validate_user_business_permission(
 ) -> Result<Vec<String>, anyhow::Error> {
     let permission_list = sqlx::query_scalar!(
         r#"
-        SELECT  p.permission_name
+        SELECT  p.name
         FROM business_user_relationship bur
         INNER JOIN role_permission rp ON bur.role_id = rp.role_id
         INNER JOIN permission p ON rp.permission_id = p.id
@@ -331,7 +331,7 @@ pub async fn validate_user_business_permission(
           AND bur.business_id = $2
           AND rp.is_deleted = FALSE
           AND p.is_deleted = FALSE
-          AND p.permission_name = ANY($3::text[])
+          AND p.name = ANY($3::text[])
         "#,
         user_id,
         business_id,
@@ -400,14 +400,14 @@ pub async fn validate_user_permission(
 ) -> Result<Vec<String>, anyhow::Error> {
     let permission_list = sqlx::query_scalar!(
         r#"
-        SELECT  p.permission_name
+        SELECT  p.name
         FROM user_role bur
         INNER JOIN role_permission rp ON bur.role_id = rp.role_id
         INNER JOIN permission p ON rp.permission_id = p.id
         WHERE bur.user_id = $1
           AND rp.is_deleted = FALSE
           AND p.is_deleted = FALSE
-          AND p.permission_name = ANY($2::text[])
+          AND p.name = ANY($2::text[])
         "#,
         user_id,
         action_list

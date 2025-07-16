@@ -4,6 +4,8 @@ use crate::openapi::ApiDoc;
 use crate::routes::business::routes::business_routes;
 // use crate::routes::department::routes::department_routes;
 use crate::routes::leave::routes::leave_routes;
+use crate::routes::permission::routes::permission_routes;
+use crate::routes::role::routes::role_routes;
 use crate::routes::setting::routes::setting_routes;
 use crate::routes::user::routes::user_routes;
 use crate::routes::web_socket::routes::web_socket_routes;
@@ -48,6 +50,22 @@ pub fn routes(cfg: &mut web::ServiceConfig) {
             web::scope("/leave")
                 .configure(leave_routes)
                 .wrap(BusinessAccountValidation)
+                .wrap(RequireAuth {
+                    allow_deleted_user: false,
+                })
+                .wrap(HeaderValidation),
+        )
+        .service(
+            web::scope("/role")
+                .configure(role_routes)
+                .wrap(RequireAuth {
+                    allow_deleted_user: false,
+                })
+                .wrap(HeaderValidation),
+        )
+        .service(
+            web::scope("/permission")
+                .configure(permission_routes)
                 .wrap(RequireAuth {
                     allow_deleted_user: false,
                 })

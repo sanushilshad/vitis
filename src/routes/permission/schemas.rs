@@ -6,23 +6,32 @@ use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 use uuid::Uuid;
 
-use crate::{errors::GenericError, schemas::Status};
+use crate::errors::GenericError;
 
-#[derive(Deserialize, Debug, ToSchema)]
+#[derive(Debug, ToSchema, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct CreateRoleData {
-    pub id: Option<Uuid>,
+pub struct Permission {
+    pub id: Uuid,
     pub name: String,
+    pub description: Option<String>,
 }
 
-#[derive(Deserialize, Debug, ToSchema)]
+#[derive(Deserialize, Debug, ToSchema, PartialEq)]
+pub enum PermissionLevel {
+    Global,
+    User,
+    Business,
+    Department,
+}
+
+#[derive(Debug, Deserialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
-#[allow(dead_code)]
-pub struct CreateBusinessRoleRequest {
-    pub data: Vec<CreateRoleData>,
+pub struct PermissionRoleAssociationRequest {
+    pub permission_id_list: Vec<Uuid>,
+    pub role_id: Uuid,
 }
 
-impl FromRequest for CreateBusinessRoleRequest {
+impl FromRequest for PermissionRoleAssociationRequest {
     type Error = GenericError;
     type Future = LocalBoxFuture<'static, Result<Self, Self::Error>>;
 
@@ -38,22 +47,11 @@ impl FromRequest for CreateBusinessRoleRequest {
     }
 }
 
-#[derive(Debug, ToSchema, Serialize, Clone)]
-#[serde(rename_all = "camelCase")]
-pub struct AccountRole {
-    pub id: Uuid,
-    pub name: String,
-    pub status: Status,
-    pub is_deleted: bool,
-    pub is_editable: bool,
-}
-
 #[derive(Debug)]
-pub struct BulkRoleInsert<'a> {
+pub struct BulkPermissionInsert {
     pub id: Vec<Uuid>,
-    pub name: Vec<&'a str>,
+    pub role_id: Vec<Uuid>,
+    pub permission_id: Vec<Uuid>,
     pub created_on: Vec<DateTime<Utc>>,
     pub created_by: Vec<Uuid>,
-    pub business_id: Vec<Option<Uuid>>,
-    pub is_editable: Vec<bool>,
 }

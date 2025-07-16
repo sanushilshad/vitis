@@ -2,7 +2,8 @@
 CREATE TABLE IF NOT EXISTS role (
   id uuid PRIMARY KEY,
   name TEXT NOT NULL,
-  status status NOT NULL,
+  status status DEFAULT 'active'::status NOT NULL,
+  is_editable BOOLEAN NOT NULL default false,
   created_on TIMESTAMPTZ NOT NULL,
   business_id  uuid,
   department_id uuid,
@@ -39,8 +40,12 @@ ALTER TABLE user_role ADD CONSTRAINT user_role_pk UNIQUE (user_id, role_id);
 
 CREATE TABLE IF NOT EXISTS permission (
   id uuid PRIMARY KEY,
-  permission_name TEXT NOT NULL,
-  permission_description TEXT,
+  name TEXT NOT NULL,
+  description TEXT,
+  is_business BOOLEAN,
+  is_user BOOLEAN,
+  is_department BOOLEAN,
+  is_global BOOLEAN,
   created_on TIMESTAMPTZ,
   updated_on TIMESTAMPTZ,
   deleted_on TIMESTAMPTZ,
@@ -55,10 +60,8 @@ CREATE TABLE IF NOT EXISTS role_permission (
   role_id uuid,
   permission_id uuid,
   created_on TIMESTAMPTZ,
-  updated_on TIMESTAMPTZ,
   deleted_on TIMESTAMPTZ,
   created_by uuid,
-  updated_by uuid,
   deleted_by uuid,
   is_deleted BOOLEAN NOT NULL DEFAULT false
 );

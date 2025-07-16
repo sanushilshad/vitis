@@ -6,38 +6,31 @@ use crate::{
 use actix_web::web;
 
 use super::handlers::{
-    delete_business_role_req, list_business_role_req, list_role_permission_list_req,
-    save_business_role_req,
+    associate_permissions_to_role, disassociate_permissions_to_role, list_business_permissions,
 };
-pub fn role_routes(cfg: &mut web::ServiceConfig) {
-    cfg.route(
-        "/business/save",
-        web::post()
-            .to(save_business_role_req)
-            .wrap(BusinessAccountValidation),
-    );
+pub fn permission_routes(cfg: &mut web::ServiceConfig) {
     cfg.route(
         "/business/list",
-        web::get()
-            .to(list_business_role_req)
+        web::post()
+            .to(list_business_permissions)
             .wrap(BusinessPermissionValidation {
                 permission_list: vec![PermissionType::CreateBusinessRole.to_string()],
             })
             .wrap(BusinessAccountValidation),
     );
     cfg.route(
-        "/business/delete/{id}",
+        "/business-role/associate",
+        web::post()
+            .to(associate_permissions_to_role)
+            .wrap(BusinessPermissionValidation {
+                permission_list: vec![PermissionType::CreateBusinessRole.to_string()],
+            })
+            .wrap(BusinessAccountValidation),
+    );
+    cfg.route(
+        "/business-role/disassociate",
         web::delete()
-            .to(delete_business_role_req)
-            .wrap(BusinessPermissionValidation {
-                permission_list: vec![PermissionType::CreateBusinessRole.to_string()],
-            })
-            .wrap(BusinessAccountValidation),
-    );
-    cfg.route(
-        "/business-permission/list/{id}",
-        web::get()
-            .to(list_role_permission_list_req)
+            .to(disassociate_permissions_to_role)
             .wrap(BusinessPermissionValidation {
                 permission_list: vec![PermissionType::CreateBusinessRole.to_string()],
             })

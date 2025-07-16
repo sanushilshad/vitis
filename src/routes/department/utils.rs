@@ -259,7 +259,7 @@ pub async fn validate_user_department_permission(
 ) -> Result<Vec<String>, anyhow::Error> {
     let permission_list = sqlx::query_scalar!(
         r#"
-        SELECT  p.permission_name
+        SELECT  p.name
         FROM department_user_relationship bur
         INNER JOIN role_permission rp ON bur.role_id = rp.role_id
         INNER JOIN permission p ON rp.permission_id = p.id
@@ -267,7 +267,7 @@ pub async fn validate_user_department_permission(
           AND bur.department_id = $2
           AND rp.is_deleted = FALSE
           AND p.is_deleted = FALSE
-          AND p.permission_name = ANY($3::text[])
+          AND p.name = ANY($3::text[])
         "#,
         user_id,
         department_id,

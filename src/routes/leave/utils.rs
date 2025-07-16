@@ -663,7 +663,7 @@ pub async fn prepare_bulk_leave_type_data<'a>(
     leave_type_data: &'a Vec<LeaveTypeCreationData>,
     business_id: Uuid,
     created_by: Uuid,
-) -> Result<Option<BulkLeaveTypeInsert<'a>>, anyhow::Error> {
+) -> Option<BulkLeaveTypeInsert<'a>> {
     let current_utc = Utc::now();
     let mut label_list = vec![];
     let mut created_on_list = vec![];
@@ -671,7 +671,7 @@ pub async fn prepare_bulk_leave_type_data<'a>(
     let mut business_id_list = vec![];
     let mut created_by_list = vec![];
     if leave_type_data.is_empty() {
-        return Ok(None);
+        return None;
     }
     for leave_data in leave_type_data.iter() {
         created_on_list.push(current_utc);
@@ -684,13 +684,13 @@ pub async fn prepare_bulk_leave_type_data<'a>(
         label_list.push(leave_data.label.as_ref());
         business_id_list.push(business_id);
     }
-    Ok(Some(BulkLeaveTypeInsert {
+    Some(BulkLeaveTypeInsert {
         id: id_list,
         label: label_list,
         created_on: created_on_list,
         created_by: created_by_list,
         business_id: business_id_list,
-    }))
+    })
 }
 
 // test case not needed
@@ -741,7 +741,7 @@ pub async fn save_leave_type(
     created_by: Uuid,
     business_id: Uuid,
 ) -> Result<(), anyhow::Error> {
-    let bulk_data = prepare_bulk_leave_type_data(leave_type_data, business_id, created_by).await?;
+    let bulk_data = prepare_bulk_leave_type_data(leave_type_data, business_id, created_by).await;
     if let Some(data) = bulk_data {
         let map = save_leave_type_to_database(transaction, data).await?;
         save_leave_type_period_relationship(

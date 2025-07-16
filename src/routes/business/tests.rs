@@ -15,10 +15,11 @@ pub mod tests {
         validate_user_business_permission,
     };
 
+    use crate::routes::role::utils::get_role;
     use crate::routes::user::schemas::UserRoleType;
     use crate::routes::user::tests::tests::setup_user;
     use crate::routes::user::utils::{
-        fetch_user_account_by_business_account, get_role, get_user, hard_delete_business_account,
+        fetch_user_account_by_business_account, get_user, hard_delete_business_account,
         hard_delete_user_account,
     };
 

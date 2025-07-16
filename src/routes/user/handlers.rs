@@ -73,7 +73,7 @@ pub async fn register_user_account_req(
     summary = "Authentication API",
     request_body(content = AuthenticateRequest, description = "Request Body"),
     responses(
-        (status=200, description= "Authenticate User", body= GenericResponse<AuthData>),
+        (status=200, description= "authenticated User", body= GenericResponse<AuthData>),
         (status=400, description= "Invalid Request body", body= GenericResponse<TupleUnit>),
         (status=401, description= "Invalid Token", body= GenericResponse<TupleUnit>),
 	    (status=403, description= "Insufficient Previlege", body= GenericResponse<TupleUnit>),
@@ -120,7 +120,7 @@ pub async fn authenticate_req(
 
     let auth_obj = get_auth_data(user_account, &secret_obj.jwt)?;
     Ok(web::Json(GenericResponse::success(
-        "Successfully Authenticated User",
+        "successfully authenticated User",
         auth_obj,
     )))
 }
@@ -163,7 +163,7 @@ pub async fn fetch_user_req(
     summary = "Send OTP API",
     request_body(content = SendOTPRequest, description = "Request Body"),
     responses(
-        (status=200, description= "Sucessfully send data.", body= GenericResponse<TupleUnit>),
+        (status=200, description= "sucessfully send data.", body= GenericResponse<TupleUnit>),
         (status=400, description= "Invalid Request body", body= GenericResponse<TupleUnit>),
         (status=401, description= "Invalid Token", body= GenericResponse<TupleUnit>),
 	    (status=403, description= "Insufficient Previlege", body= GenericResponse<TupleUnit>),
@@ -235,7 +235,7 @@ pub async fn send_otp_req(
         })?;
 
     Ok(web::Json(GenericResponse::success(
-        "Sucessfully send data.",
+        "sucessfully send data.",
         (),
     )))
 }
@@ -248,7 +248,7 @@ pub async fn send_otp_req(
     summary = "Delete User Account API",
     request_body(content = SendOTPRequest, description = "Request Body"),
     responses(
-        (status=200, description= "Successfully deleted user.", body= GenericResponse<TupleUnit>),
+        (status=200, description= "successfully deleted user.", body= GenericResponse<TupleUnit>),
         (status=400, description= "Invalid Request body", body= GenericResponse<TupleUnit>),
         (status=401, description= "Invalid Token", body= GenericResponse<TupleUnit>),
 	    (status=403, description= "Insufficient Previlege", body= GenericResponse<TupleUnit>),
@@ -295,7 +295,7 @@ pub async fn delete_user(
     }
 
     Ok(web::Json(GenericResponse::success(
-        "Successfully deleted user.",
+        "successfully deleted user.",
         (),
     )))
 }
@@ -338,7 +338,7 @@ pub async fn reactivate_user_req(
             GenericError::DatabaseError("Failed to reactivate deleted user".to_string(), e)
         })?;
     Ok(web::Json(GenericResponse::success(
-        "Successfully reactivated user.",
+        "successfully reactivated user.",
         (),
     )))
 }
@@ -351,7 +351,7 @@ pub async fn reactivate_user_req(
     summary = "List User Accounts API",
     request_body(content = ListUserAccountRequest, description = "Request Body"),
     responses(
-        (status=200, description= "Successfully updated user.", body= GenericResponse<Vec<MinimalUserAccount>>),
+        (status=200, description= "Successfully fetched user.", body= GenericResponse<Vec<MinimalUserAccount>>),
         (status=400, description= "Invalid Request body", body= GenericResponse<TupleUnit>),
         (status=401, description= "Invalid Token", body= GenericResponse<TupleUnit>),
 	    (status=403, description= "Insufficient Previlege", body= GenericResponse<TupleUnit>),
@@ -378,7 +378,7 @@ pub async fn user_list_req(
         })?;
 
     Ok(web::Json(GenericResponse::success(
-        "Successfully fetched users.",
+        "successfully fetched users.",
         data,
     )))
 }
@@ -391,7 +391,7 @@ pub async fn user_list_req(
     summary = "List User Accounts API",
     request_body(content = EditUserAccount, description = "Request Body"),
     responses(
-        (status=200, description= "Sucessfully fetched user data.", body= GenericResponse<TupleUnit>),
+        (status=200, description= "sucessfully updated user.", body= GenericResponse<TupleUnit>),
         (status=400, description= "Invalid Request body", body= GenericResponse<TupleUnit>),
         (status=401, description= "Invalid Token", body= GenericResponse<TupleUnit>),
 	    (status=403, description= "Insufficient Previlege", body= GenericResponse<TupleUnit>),
@@ -414,7 +414,7 @@ pub async fn user_update_req(
         .await
         .map_err(|e| GenericError::UnexpectedCustomError(e.to_string()))?;
     Ok(web::Json(GenericResponse::success(
-        "Successfully updated user.",
+        "successfully updated user.",
         (),
     )))
 }
@@ -427,7 +427,7 @@ pub async fn user_update_req(
     summary = "Password Reset API",
     request_body(content = PasswordResetReq, description = "Request Body"),
     responses(
-        (status=200, description= "Sucessfully fetched user data.", body= GenericResponse<TupleUnit>),
+        (status=200, description= "successfully updated password.", body= GenericResponse<TupleUnit>),
         (status=400, description= "Invalid Request body", body= GenericResponse<TupleUnit>),
 	    (status=403, description= "Insufficient Previlege", body= GenericResponse<TupleUnit>),
 	    (status=410, description= "Data not found", body= GenericResponse<TupleUnit>),
@@ -448,7 +448,7 @@ pub async fn reset_password_req(
         .await
         .map_err(GenericError::UnexpectedError)?;
     Ok(web::Json(GenericResponse::success(
-        "Successfully updated password.",
+        "successfully updated password.",
         (),
     )))
 }
