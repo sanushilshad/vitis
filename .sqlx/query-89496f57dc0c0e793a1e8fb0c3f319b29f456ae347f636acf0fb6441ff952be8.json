@@ -1,0 +1,40 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        SELECT \n            l_r.id, \n            lp.label as period, \n            ulr.user_id,\n            lt.label as type\n        FROM \n            leave_request AS l_r\n        INNER JOIN \n            user_leave_relationship AS ulr \n            ON l_r.user_leave_id = ulr.id\n        INNER JOIN \n            leave_type AS lt \n            ON ulr.leave_type_id = lt.id\n        INNER JOIN \n            leave_type_period_relationship AS ltpr\n            ON ltpr.leave_type_id = lt.id\n        INNER JOIN \n            leave_period AS lp\n            ON lp.id = ltpr.leave_period_id\n        WHERE \n            l_r.is_deleted = false\n            AND l_r.date = $1\n        FOR UPDATE\n        ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 1,
+        "name": "period",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 2,
+        "name": "user_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 3,
+        "name": "type",
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Timestamptz"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "89496f57dc0c0e793a1e8fb0c3f319b29f456ae347f636acf0fb6441ff952be8"
+}

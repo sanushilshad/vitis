@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT id, role_name, role_status as \"role_status!:Status\", created_on, created_by, is_deleted from role where role_name  = $1",
+  "query": "SELECT id, is_editable,  name, status as \"status!:Status\", created_on, created_by, is_deleted from role where name = $1 OR id::TEXT=$1",
   "describe": {
     "columns": [
       {
@@ -10,12 +10,17 @@
       },
       {
         "ordinal": 1,
-        "name": "role_name",
-        "type_info": "Text"
+        "name": "is_editable",
+        "type_info": "Bool"
       },
       {
         "ordinal": 2,
-        "name": "role_status!:Status",
+        "name": "name",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 3,
+        "name": "status!:Status",
         "type_info": {
           "Custom": {
             "name": "status",
@@ -31,17 +36,17 @@
         }
       },
       {
-        "ordinal": 3,
+        "ordinal": 4,
         "name": "created_on",
         "type_info": "Timestamptz"
       },
       {
-        "ordinal": 4,
+        "ordinal": 5,
         "name": "created_by",
         "type_info": "Uuid"
       },
       {
-        "ordinal": 5,
+        "ordinal": 6,
         "name": "is_deleted",
         "type_info": "Bool"
       }
@@ -57,8 +62,9 @@
       false,
       false,
       false,
+      false,
       false
     ]
   },
-  "hash": "58191b0e1b58476293884e6a6baaa15eb86efe6dcc278fd4434775cbe870f580"
+  "hash": "afc985a1840bcb371e27f3ae0ce231dbe8cef116fecaa88b11406b83a38768c0"
 }

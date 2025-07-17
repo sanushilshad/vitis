@@ -1,0 +1,26 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        UPDATE leave_request\n        SET\n        alert_status = $1\n        Where id = ANY($2)\n        ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        {
+          "Custom": {
+            "name": "alert_status",
+            "kind": {
+              "Enum": [
+                "pending",
+                "success",
+                "failed"
+              ]
+            }
+          }
+        },
+        "UuidArray"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "9aff3ec9c85c5732c224aed81f49532c1d58e28395dfac22bc4acc843b31714a"
+}

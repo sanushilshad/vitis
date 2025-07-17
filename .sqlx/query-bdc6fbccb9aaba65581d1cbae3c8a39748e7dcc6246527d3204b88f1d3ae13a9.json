@@ -1,0 +1,20 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        INSERT INTO setting_value(id, user_id, business_id, setting_id, value, created_by, created_on)\n            SELECT * FROM UNNEST($1::uuid[], $2::uuid[], $3::uuid[], $4::uuid[], $5::text[], $6::uuid[], $7::timestamp[])\n            ON CONFLICT (setting_id, user_id, business_id) DO UPDATE\n            SET value = EXCLUDED.value,\n            updated_by = EXCLUDED.created_by,\n            updated_on =EXCLUDED.created_on\n\n        ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "UuidArray",
+        "UuidArray",
+        "UuidArray",
+        "UuidArray",
+        "TextArray",
+        "UuidArray",
+        "TimestampArray"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "bdc6fbccb9aaba65581d1cbae3c8a39748e7dcc6246527d3204b88f1d3ae13a9"
+}

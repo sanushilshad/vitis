@@ -1,0 +1,40 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        SELECT \n            ua.id, \n            ua.mobile_no, \n            ua.international_dialing_code,\n            ua.display_name\n        FROM business_user_relationship AS bur\n            INNER JOIN user_account ua ON bur.user_id = ua.id\n        WHERE bur.business_id = $1\n        ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 1,
+        "name": "mobile_no",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 2,
+        "name": "international_dialing_code",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 3,
+        "name": "display_name",
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "356b105d2de46e2d22c591fec5fcd2fb807a368ba051501b69b7ce4b11753c6c"
+}

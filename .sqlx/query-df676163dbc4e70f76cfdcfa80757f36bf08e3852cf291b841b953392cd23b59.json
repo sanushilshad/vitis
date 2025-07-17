@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        UPDATE business_account_invitation_request\n        SET verified = TRUE,\n        updated_by = $1,\n        updated_on = $2\n        WHERE id = $3\n        ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Timestamptz",
+        "Uuid"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "df676163dbc4e70f76cfdcfa80757f36bf08e3852cf291b841b953392cd23b59"
+}

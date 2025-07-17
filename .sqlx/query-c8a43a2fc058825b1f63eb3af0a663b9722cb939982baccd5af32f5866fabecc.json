@@ -1,0 +1,17 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        UPDATE user_leave_relationship\n        SET\n        used_count = used_count + $1,\n        updated_on = $2,\n        updated_by = $3\n        WHERE id = $4\n        ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Numeric",
+        "Timestamptz",
+        "Uuid",
+        "Uuid"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "c8a43a2fc058825b1f63eb3af0a663b9722cb939982baccd5af32f5866fabecc"
+}

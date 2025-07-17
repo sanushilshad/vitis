@@ -1,0 +1,32 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        INSERT INTO leave_type (id, created_by, created_on, label, business_id)\n        SELECT * FROM UNNEST($1::uuid[], $2::uuid[], $3::TIMESTAMP[],  $4::TEXT[], $5::uuid[]) \n        ON CONFLICT (id) DO UPDATE\n        SET label = EXCLUDED.label,\n        updated_by = EXCLUDED.created_by,\n        updated_on = EXCLUDED.created_on\n        RETURNING id, label\n        ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 1,
+        "name": "label",
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "UuidArray",
+        "UuidArray",
+        "TimestampArray",
+        "TextArray",
+        "UuidArray"
+      ]
+    },
+    "nullable": [
+      false,
+      false
+    ]
+  },
+  "hash": "2458e34bcf97885387ee904d1291b56c542e95c7eda1acf2fc7a41c55f9f7b74"
+}

@@ -1,0 +1,43 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n    INSERT INTO leave_request (id, created_by, created_on, leave_period_id, date, status, reason, email_message_id, cc, receiver_id, user_leave_id)\n    SELECT * FROM UNNEST(\n        $1::uuid[], \n        $2::uuid[], \n        $3::timestamptz[], \n        $4::uuid[], \n        $5::timestamptz[], \n        $6::leave_status[], \n        $7::text[], \n        $8::text[], \n        $9::jsonb[], \n        $10::uuid[],\n        $11::uuid[]\n    ) ON CONFLICT DO NOTHING\n    ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "UuidArray",
+        "UuidArray",
+        "TimestamptzArray",
+        "UuidArray",
+        "TimestamptzArray",
+        {
+          "Custom": {
+            "name": "leave_status[]",
+            "kind": {
+              "Array": {
+                "Custom": {
+                  "name": "leave_status",
+                  "kind": {
+                    "Enum": [
+                      "approved",
+                      "rejected",
+                      "cancelled",
+                      "requested"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        "TextArray",
+        "TextArray",
+        "JsonbArray",
+        "UuidArray",
+        "UuidArray"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "db6747163ca2993f97de27ea35c63b04db13727513ac64e981962f2740d50652"
+}

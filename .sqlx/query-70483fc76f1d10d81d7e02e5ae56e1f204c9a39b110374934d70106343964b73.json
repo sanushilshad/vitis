@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n        INSERT INTO user_account (id, username, email, mobile_no, created_by, created_on, display_name, vectors, is_active, is_test_user, international_dialing_code)\n        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)\n        ",
+  "query": "\n        INSERT INTO user_account (id, username, email, full_mobile_no, created_by, created_on, display_name, vectors, is_active, is_test_user, mobile_no, international_dialing_code)\n        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)\n        ",
   "describe": {
     "columns": [],
     "parameters": {
@@ -27,10 +27,11 @@
           }
         },
         "Bool",
+        "Text",
         "Text"
       ]
     },
     "nullable": []
   },
-  "hash": "990eb2b42c348459d7ce3fc2dd7486cde82d9ae734c21a7cab9d5d8cd4fa1fed"
+  "hash": "70483fc76f1d10d81d7e02e5ae56e1f204c9a39b110374934d70106343964b73"
 }

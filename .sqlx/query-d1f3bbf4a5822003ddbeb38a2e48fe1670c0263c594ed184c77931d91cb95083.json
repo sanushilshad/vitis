@@ -1,0 +1,23 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE user_account SET\n            username = $1,\n            full_mobile_no = $2,\n            email = $3,\n            display_name = $4,\n            vectors = $5,\n            updated_on = $6,\n            updated_by = $7,\n            mobile_no = $8,\n            international_dialing_code = $9\n        WHERE id = $10",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text",
+        "Text",
+        "Text",
+        "Jsonb",
+        "Timestamptz",
+        "Uuid",
+        "Text",
+        "Text",
+        "Uuid"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "d1f3bbf4a5822003ddbeb38a2e48fe1670c0263c594ed184c77931d91cb95083"
+}

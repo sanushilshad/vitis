@@ -1,0 +1,19 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        INSERT INTO leave_period (id, created_by, created_on, label, business_id, value)\n        SELECT * FROM UNNEST($1::uuid[], $2::uuid[], $3::TIMESTAMP[],  $4::TEXT[], $5::uuid[], $6::decimal[]) \n        ON CONFLICT (id) DO UPDATE\n        SET label = EXCLUDED.label,\n        updated_by = EXCLUDED.created_by,\n        updated_on = EXCLUDED.created_on\n        ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "UuidArray",
+        "UuidArray",
+        "TimestampArray",
+        "TextArray",
+        "UuidArray",
+        "NumericArray"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "56d31f8c07c8c11e706d4df59d905064360fcfe58fb17e873c58a5b59d112f34"
+}

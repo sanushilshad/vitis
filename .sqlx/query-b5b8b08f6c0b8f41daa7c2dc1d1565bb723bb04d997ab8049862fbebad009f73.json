@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        UPDATE user_account \n        SET is_deleted = true,\n        deleted_on = $2,\n        deleted_by = $3\n        WHERE id::text = $1 OR full_mobile_no = $1 OR username = $1\n        ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Timestamptz",
+        "Uuid"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "b5b8b08f6c0b8f41daa7c2dc1d1565bb723bb04d997ab8049862fbebad009f73"
+}

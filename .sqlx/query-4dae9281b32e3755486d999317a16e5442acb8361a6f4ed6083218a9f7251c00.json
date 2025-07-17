@@ -1,0 +1,20 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        INSERT INTO business_user_relationship (id, user_id, business_id, role_id, created_by, created_on, verified)\n        VALUES ($1, $2, $3, $4, $5, $6, $7)\n        ON CONFLICT(user_id, business_id) DO NOTHING\n        ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid",
+        "Uuid",
+        "Uuid",
+        "Uuid",
+        "Timestamptz",
+        "Bool"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "4dae9281b32e3755486d999317a16e5442acb8361a6f4ed6083218a9f7251c00"
+}

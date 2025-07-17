@@ -1,0 +1,18 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        INSERT INTO leave_type_period_relationship(id, created_by, created_on, leave_type_id, leave_period_id)\n        SELECT * FROM UNNEST($1::uuid[], $2::uuid[], $3::TIMESTAMP[],  $4::uuid[], $5::uuid[]) \n        ON CONFLICT (leave_type_id, leave_period_id) DO NOTHING\n        ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "UuidArray",
+        "UuidArray",
+        "TimestampArray",
+        "UuidArray",
+        "UuidArray"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "bddc2e3e782fe9c46e6bd4d24cf803c7b69bac70bee3e403555d01dce05129b0"
+}

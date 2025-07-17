@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT a.id as id, user_id, auth_identifier, retry_count, secret, a.is_active as \"is_active: Status\", auth_scope as \"auth_scope: AuthenticationScope\", valid_upto from auth_mechanism\n        as a inner join user_account as b on a.user_id = b.id where (b.username = $1 OR b.mobile_no = $1 OR  b.email = $1)  AND auth_scope = $2",
+  "query": "SELECT a.id as id, user_id, auth_identifier, retry_count, secret, a.is_active as \"is_active: Status\", auth_scope as \"auth_scope: AuthenticationScope\", valid_upto from auth_mechanism\n        as a inner join user_account as b on a.user_id = b.id where (b.username = $1 OR b.full_mobile_no = $1 OR  b.email = $1)  AND auth_scope = $2",
   "describe": {
     "columns": [
       {
@@ -109,5 +109,5 @@
       true
     ]
   },
-  "hash": "5dabc31d219878ec87aedaa2d78c40d17c6a827dad2ee3e1fc1252469aa126f5"
+  "hash": "ff68ba0fba9b90a707c87a756dcc275138868646f19a739d5e85b4a61fefca5d"
 }

@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        UPDATE role\n        SET\n        is_deleted=true, \n        deleted_by = $1,\n        deleted_on = $2\n        Where id = $3\n        ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Timestamptz",
+        "Uuid"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "5b06b618532601ae035543ecc2d0fa4023f0abff85e832e89a42756f4c3c49e9"
+}

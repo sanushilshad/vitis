@@ -90,8 +90,6 @@ export EMAIL__TIMEOUT_MILLISECONDS=10000
 export EMAIL__PERSONAL__BASE_URL="smtp.gmail.com"
 export EMAIL__PERSONAL__MESSAGE_ID_SUFFIX="mail.gmail.com"
 
-```
-
 ## PULSAR VARIABLE
 export PULSAR__TOPIC="sanu"
 export PULSAR__CONSUMER="test_consumer"
@@ -104,6 +102,7 @@ export SLACK__BASE_URL="https://hooks.slack.com/services"
 export SLACK__CHANNEL__LEAVE=""
 export SLACK__TIMEOUT_MILLISECONDS=600000
 
+```
 
 
 - In order to verify SQL queries at compile time, set the below config in `.env` file:

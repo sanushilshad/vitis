@@ -1,0 +1,71 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        SELECT \n            ba.id, \n            ba.display_name,\n            ba.email,\n            ba.vectors as \"vectors:sqlx::types::Json<Vec<UserVector>>\",\n            ba.is_active as \"is_active!:Status\",\n            bur.verified, \n            ba.is_deleted\n        FROM business_user_relationship AS bur\n        INNER JOIN business_account AS ba ON bur.business_id = ba.id\n        WHERE bur.user_id = $1\n          AND bur.business_id = $2\n        ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 1,
+        "name": "display_name",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 2,
+        "name": "email",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 3,
+        "name": "vectors:sqlx::types::Json<Vec<UserVector>>",
+        "type_info": "Jsonb"
+      },
+      {
+        "ordinal": 4,
+        "name": "is_active!:Status",
+        "type_info": {
+          "Custom": {
+            "name": "status",
+            "kind": {
+              "Enum": [
+                "active",
+                "inactive",
+                "pending",
+                "archived"
+              ]
+            }
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "verified",
+        "type_info": "Bool"
+      },
+      {
+        "ordinal": 6,
+        "name": "is_deleted",
+        "type_info": "Bool"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      true,
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "14bbd8ff9b84a1e238772ec68975f8b7f5a67e40f8318c9ffa1c11aa11f1f674"
+}

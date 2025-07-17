@@ -1,0 +1,17 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        INSERT INTO pending_notification (id, data, connection_id,  created_on)\n        SELECT * FROM UNNEST($1::uuid[], $2::jsonb[], $3::text[],  $4::TIMESTAMP[]) \n        ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "UuidArray",
+        "JsonbArray",
+        "TextArray",
+        "TimestampArray"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "c1239b2451dd20b7a073d92d270cb30d25e88c5654d92d979d0bd5412e65592a"
+}
