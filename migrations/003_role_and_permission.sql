@@ -16,7 +16,7 @@ CREATE TABLE IF NOT EXISTS role (
 );
 
 ALTER TABLE role ADD CONSTRAINT fk_role_business_id FOREIGN KEY (business_id) REFERENCES business_account(id) ON DELETE CASCADE;
-ALTER TABLE role ADD CONSTRAINT unique_role_name UNIQUE NULLS NOT DISTINCT(business_id, department_id, name);
+-- ALTER TABLE role ADD CONSTRAINT unique_role_name UNIQUE NULLS NOT DISTINCT(business_id, department_id, name);
 
 ALTER TABLE role ADD CONSTRAINT unique_role_name UNIQUE (role_name);
 ALTER TABLE setting_value ADD CONSTRAINT fk_business_id FOREIGN KEY (business_id) REFERENCES business_account(id) ON DELETE CASCADE;
@@ -45,7 +45,6 @@ CREATE TABLE IF NOT EXISTS permission (
   is_business BOOLEAN,
   is_user BOOLEAN,
   is_department BOOLEAN,
-  is_global BOOLEAN,
   created_on TIMESTAMPTZ,
   updated_on TIMESTAMPTZ,
   deleted_on TIMESTAMPTZ,

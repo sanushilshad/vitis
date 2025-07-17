@@ -421,6 +421,12 @@ where
                     )
                 })?
                 .to_owned();
+            // tracing::info!(
+            //     "user_id: {:?}, business_id: {:?}, permission_list: {:?}",
+            //     user_account.id,
+            //     business_account.id,
+            //     permission_list
+            // );
             let permission_list = validate_user_business_permission(
                 db_pool,
                 user_account.id,

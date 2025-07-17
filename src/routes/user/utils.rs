@@ -991,7 +991,7 @@ pub async fn send_email_otp(email_client:  web::Data<SmtpEmailClient>, user: &Us
     let receiver = to_title_case(&user.display_name);
     let sender = to_title_case("Vitis");
     let context_data = EmailOTPContext {
-        name: &sender,
+        sender: &sender,
         otp,
         receiver: &receiver,
     };

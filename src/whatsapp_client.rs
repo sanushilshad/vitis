@@ -173,6 +173,7 @@ impl SinchTextMessagePayload {
 #[derive(Debug)]
 pub struct WhatsAppClient {
     base_url: String,
+    auth_url: String,
     username: String,
     password: String,
     http_client: Client,
@@ -182,12 +183,14 @@ pub struct WhatsAppClient {
 impl WhatsAppClient {
     pub fn new(
         base_url: String,
+        auth_url: String,
         username: String,
         password: String,
         timeout: std::time::Duration,
     ) -> Self {
         Self {
             base_url,
+            auth_url,
             username,
             password,
             http_client: Client::builder().timeout(timeout).build().unwrap(),
@@ -198,13 +201,13 @@ impl WhatsAppClient {
     async fn authenticate(&self) -> Result<String, anyhow::Error> {
         let form = [
             ("grant_type", "password"),
-            ("client_id", "ipmessaging-client"),
+            ("client_id", "conv-api"),
             ("username", &self.username),
             ("password", &self.password),
         ];
         let url = format!(
-            "{}/auth/realms/ipmessaging/protocol/openid-connect/token",
-            self.base_url
+            "{}/realms/prepaid/protocol/ openid-connect/token ",
+            self.auth_url
         );
         let res = self
             .http_client

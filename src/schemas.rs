@@ -206,7 +206,7 @@ impl fmt::Display for PermissionType {
             PermissionType::UpdateBusiness => "update:business",
             PermissionType::DisassociateBusinessSelf => "disassociate:user-business:self",
             PermissionType::DisassociateBusiness => "disassociate:user-business",
-            PermissionType::CreateBusinessRole => "reate:business-role",
+            PermissionType::CreateBusinessRole => "create:business-role",
         };
 
         write!(f, "{}", display_str)

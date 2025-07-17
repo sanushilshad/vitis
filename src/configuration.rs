@@ -139,6 +139,7 @@ pub struct SlackChannel {
 #[derive(Debug, Deserialize, Clone)]
 pub struct WhatsAppConfig {
     pub base_url: String,
+    pub auth_url: String,
     pub username: String,
     pub password: String,
     pub timeout_milliseconds: u64,
@@ -147,7 +148,13 @@ pub struct WhatsAppConfig {
 impl WhatsAppConfig {
     pub fn client(self) -> WhatsAppClient {
         let timeout = self.timeout();
-        WhatsAppClient::new(self.base_url, self.username, self.password, timeout)
+        WhatsAppClient::new(
+            self.base_url,
+            self.auth_url,
+            self.username,
+            self.password,
+            timeout,
+        )
     }
     fn timeout(&self) -> std::time::Duration {
         std::time::Duration::from_millis(self.timeout_milliseconds)

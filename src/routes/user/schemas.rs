@@ -395,7 +395,7 @@ impl FromRequest for EditUserAccount {
 
 #[derive(Serialize)]
 pub struct EmailOTPContext<'a> {
-    pub name: &'a str,
+    pub sender: &'a str,
     pub otp: &'a str,
     pub receiver: &'a str,
 }

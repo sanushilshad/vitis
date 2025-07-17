@@ -85,6 +85,7 @@ pub async fn save_user_business_relation(
         r#"
         INSERT INTO business_user_relationship (id, user_id, business_id, role_id, created_by, created_on, verified)
         VALUES ($1, $2, $3, $4, $5, $6, $7)
+        ON CONFLICT(user_id, business_id) DO NOTHING
         "#,
         user_role_id,
         user_id,
