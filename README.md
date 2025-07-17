@@ -280,13 +280,13 @@ The API Docmentation can be found at `https://{{domain}}/docs/` after running th
 
 
 ## MILESTONE 6 (7/7) (ROLE AND PERMISSION MANAGEMENT):
-* [*] Create Role Save + Update API. (In-progress)
-* [*] Create Role fetch API. (In-progress)
-* [*] Create Role Delete API.
-* [*] Create role permissions list API.
-* [*] Create Permission list API.
-* [*] Create role permissions assigment API.
-* [*] Create role permissions assigment delete API.
+* [x] Create Role Save + Update API. (In-progress)
+* [x] Create Role fetch API. (In-progress)
+* [x] Create Role Delete API.
+* [x] Create role permissions list API.
+* [x] Create Permission list API.
+* [x] Create role permissions assigment API.
+* [x] Create role permissions assigment delete API.
 
 
 ## MILESTONE 7 (2/5) GENERIC 
