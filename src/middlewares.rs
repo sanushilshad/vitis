@@ -5,6 +5,11 @@ use crate::routes::business::utils::{
     fetch_business_account_model_by_id, get_business_account, validate_business_account_active,
     validate_user_business_permission, validate_user_permission,
 };
+use crate::routes::department::schemas::DepartmentAccount;
+use crate::routes::department::utils::{
+    fetch_department_account_model_by_id, get_department_account,
+    validate_department_account_active, validate_user_department_permission,
+};
 use crate::routes::user::schemas::{UserAccount, UserRoleType};
 use crate::routes::user::utils::get_user;
 use crate::schemas::{AllowedPermission, RequestMetaData, Status};
@@ -694,6 +699,232 @@ where
     fn new_transform(&self, service: S) -> Self::Future {
         ready(Ok(ReadReqResMiddleware2 {
             service: Rc::new(RefCell::new(service)),
+        }))
+    }
+}
+
+pub struct DepartmentPermissionMiddleware<S> {
+    service: Rc<S>,
+    pub permission_list: Vec<String>,
+}
+impl<S> Service<ServiceRequest> for DepartmentPermissionMiddleware<S>
+where
+    S: Service<ServiceRequest, Response = ServiceResponse<actix_web::body::BoxBody>, Error = Error>
+        + 'static,
+{
+    type Response = ServiceResponse<actix_web::body::BoxBody>;
+    type Error = Error;
+    type Future = LocalBoxFuture<'static, Result<Self::Response, Error>>;
+
+    forward_ready!(service);
+
+    /// Handles incoming requests.
+    fn call(&self, req: ServiceRequest) -> Self::Future {
+        let srv = Rc::clone(&self.service);
+
+        let permission_list = self.permission_list.clone();
+
+        Box::pin(async move {
+            let db_pool = req.app_data::<web::Data<PgPool>>().unwrap();
+            let user_account = req
+                .extensions()
+                .get::<UserAccount>()
+                .ok_or_else(|| {
+                    GenericError::ValidationError("User Account doesn't exist".to_string())
+                })?
+                .to_owned();
+            let business_account = req
+                .extensions()
+                .get::<BusinessAccount>()
+                .ok_or_else(|| {
+                    GenericError::ValidationError(
+                        "Business Account Account doesn't exist".to_string(),
+                    )
+                })?
+                .to_owned();
+
+            let department_account = req
+                .extensions()
+                .get::<DepartmentAccount>()
+                .ok_or_else(|| {
+                    GenericError::ValidationError(
+                        "Department Account Account doesn't exist".to_string(),
+                    )
+                })?
+                .to_owned();
+
+            let permission_list = validate_user_department_permission(
+                db_pool,
+                user_account.id,
+                business_account.id,
+                department_account.id,
+                &permission_list,
+            )
+            .await
+            .map_err(|e| {
+                GenericError::DatabaseError(
+                    "Something went wrong while fetching permission".to_owned(),
+                    e,
+                )
+            })?;
+            if permission_list.is_empty() {
+                let (request, _pl) = req.into_parts();
+                return Ok(ServiceResponse::from_err(
+                    GenericError::InsufficientPrevilegeError(
+                        "User doesn't have sufficient permission for the given action".to_owned(),
+                    ),
+                    request,
+                ));
+            }
+
+            req.extensions_mut()
+                .insert::<AllowedPermission>(AllowedPermission { permission_list });
+
+            let res = srv.call(req).await?;
+            Ok(res)
+        })
+    }
+}
+
+// Middleware factory for business account validation.
+pub struct DepartmentPermissionValidation {
+    pub permission_list: Vec<String>,
+}
+
+impl<S> Transform<S, ServiceRequest> for DepartmentPermissionValidation
+where
+    S: Service<ServiceRequest, Response = ServiceResponse<actix_web::body::BoxBody>, Error = Error>
+        + 'static,
+{
+    type Response = ServiceResponse<actix_web::body::BoxBody>;
+    type Error = Error;
+    type Transform = DepartmentPermissionMiddleware<S>;
+    type InitError = ();
+    type Future = Ready<Result<Self::Transform, Self::InitError>>;
+
+    /// Creates and returns a new AuthMiddleware wrapped in a Result.
+    fn new_transform(&self, service: S) -> Self::Future {
+        // Wrap the AuthMiddleware instance in a Result and return it.
+        ready(Ok(DepartmentPermissionMiddleware {
+            service: Rc::new(service),
+            permission_list: self.permission_list.clone(),
+        }))
+    }
+}
+
+//Middleware to validate the business account
+pub struct DepartmentAccountMiddleware<S> {
+    service: Rc<S>,
+}
+impl<S> Service<ServiceRequest> for DepartmentAccountMiddleware<S>
+where
+    S: Service<ServiceRequest, Response = ServiceResponse<actix_web::body::BoxBody>, Error = Error>
+        + 'static,
+{
+    type Response = ServiceResponse<actix_web::body::BoxBody>;
+    type Error = Error;
+    type Future = LocalBoxFuture<'static, Result<Self::Response, Error>>;
+
+    forward_ready!(service);
+
+    /// Handles incoming requests.
+    #[instrument(skip(self), name = "business Account Middleware", fields(path = %req.path()))]
+    fn call(&self, req: ServiceRequest) -> Self::Future {
+        let srv = Rc::clone(&self.service);
+
+        Box::pin(async move {
+            let db_pool = req.app_data::<web::Data<PgPool>>().unwrap();
+            let user_account = req
+                .extensions()
+                .get::<UserAccount>()
+                .ok_or_else(|| {
+                    GenericError::ValidationError("User Account doesn't exist".to_string())
+                })?
+                .to_owned();
+
+            let business_account = req
+                .extensions()
+                .get::<BusinessAccount>()
+                .ok_or_else(|| {
+                    GenericError::ValidationError("Business Account doesn't exist".to_string())
+                })?
+                .to_owned();
+
+            if let Some(department_id) =
+                get_header_value(&req, "x-department-id") // Convert HeaderValue to &str
+                    .and_then(|value| Uuid::parse_str(value).ok())
+            {
+                let department_account = if user_account.user_role
+                    != UserRoleType::Superadmin.to_string()
+                {
+                    get_department_account(
+                        db_pool,
+                        user_account.id,
+                        business_account.id,
+                        department_id,
+                    )
+                    .await
+                    .map_err(|e| {
+                        GenericError::DatabaseError(
+                            "Something went wrong while fetching department account".to_string(),
+                            e,
+                        )
+                    })?
+                } else {
+                    fetch_department_account_model_by_id(db_pool, Some(department_id))
+                        .await
+                        .map_err(|e| {
+                            GenericError::DatabaseError(
+                                "Something went wrong while fetching  account".to_string(),
+                                e,
+                            )
+                        })?
+                        .into_iter()
+                        .next()
+                        .map(|model| model.into_schema())
+                };
+                let extracted_department_account = department_account.ok_or_else(|| {
+                    GenericError::ValidationError("Department Account doesn't exist".to_string())
+                })?;
+
+                let error_message =
+                    validate_department_account_active(&extracted_department_account);
+                if let Some(message) = error_message {
+                    let (request, _pl) = req.into_parts();
+                    let json_error = GenericError::ValidationError(message);
+                    return Ok(ServiceResponse::from_err(json_error, request));
+                }
+                req.extensions_mut()
+                    .insert::<DepartmentAccount>(extracted_department_account);
+            } else {
+                let (request, _pl) = req.into_parts();
+                return Ok(ServiceResponse::from_err(
+                    GenericError::ValidationError("Please set x-department-id".to_string()),
+                    request,
+                ));
+            }
+
+            let res = srv.call(req).await?;
+            Ok(res)
+        })
+    }
+}
+
+pub struct DepartmentAccountValidation;
+
+impl<S> Transform<S, ServiceRequest> for DepartmentAccountValidation
+where
+    S: Service<ServiceRequest, Response = ServiceResponse<actix_web::body::BoxBody>, Error = Error>
+        + 'static,
+{
+    type Response = ServiceResponse<actix_web::body::BoxBody>;
+    type Error = Error;
+    type Transform = DepartmentAccountMiddleware<S>;
+    type InitError = ();
+    type Future = Ready<Result<Self::Transform, Self::InitError>>;
+    fn new_transform(&self, service: S) -> Self::Future {
+        ready(Ok(DepartmentAccountMiddleware {
+            service: Rc::new(service),
         }))
     }
 }

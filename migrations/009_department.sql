@@ -1,7 +1,7 @@
 
 CREATE TABLE IF NOT EXISTS department_account (
   id uuid PRIMARY KEY,
-  name TEXT NOT NULL,
+  display_name TEXT NOT NULL,
   is_active status DEFAULT 'active'::status NOT NULL,
   created_by  uuid NOT NULL,
   created_on TIMESTAMPTZ NOT NULL,
@@ -33,4 +33,4 @@ ALTER TABLE business_user_department_relationship ADD CONSTRAINT "fk_user_id" FO
 ALTER TABLE business_user_department_relationship ADD CONSTRAINT "fk_department_id" FOREIGN KEY ("department_id") REFERENCES department_account ("id") ON DELETE CASCADE;
 ALTER TABLE business_user_department_relationship ADD CONSTRAINT "fk_business_id" FOREIGN KEY ("business_id") REFERENCES business_account ("id") ON DELETE CASCADE;
 ALTER TABLE business_user_department_relationship ADD CONSTRAINT "fk_role_id" FOREIGN KEY ("role_id") REFERENCES role ("id") ON DELETE CASCADE;
-ALTER TABLE business_user_department_relationship ADD CONSTRAINT user_department_role UNIQUE (user_id, department_id, business_id, role_id);
+ALTER TABLE business_user_department_relationship ADD CONSTRAINT user_department_role UNIQUE (user_id, department_id, business_id);

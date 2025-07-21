@@ -31,6 +31,9 @@ INSERT INTO permission(id, name, description, created_on, created_by,  is_busine
 INSERT INTO permission(id, name, description, created_on, created_by,  is_business, is_department, is_user)VALUES(uuid_generate_v4(), 'create:user-setting:self', 'create user setting self', CURRENT_TIMESTAMP, '00000000-0000-0000-0000-000000000000'::uuid, false, false, true);
 INSERT INTO permission(id, name, description, created_on, created_by,  is_business, is_department, is_user)VALUES(uuid_generate_v4(), 'create:business-setting:self', 'create business setting self', CURRENT_TIMESTAMP, '00000000-0000-0000-0000-000000000000'::uuid, true, false, false);
 INSERT INTO permission(id, name, description, created_on, created_by,  is_business, is_department, is_user)VALUES(uuid_generate_v4(), 'create:business-setting', 'create business setting', CURRENT_TIMESTAMP, '00000000-0000-0000-0000-000000000000'::uuid, true, false, false);
+INSERT INTO permission(id, name, description, created_on, created_by,  is_business, is_department, is_user)VALUES(uuid_generate_v4(), 'create:department-setting:self', 'create department setting self', CURRENT_TIMESTAMP, '00000000-0000-0000-0000-000000000000'::uuid, false, true, false);
+INSERT INTO permission(id, name, description, created_on, created_by,  is_business, is_department, is_user)VALUES(uuid_generate_v4(), 'create:department-setting', 'create department setting', CURRENT_TIMESTAMP, '00000000-0000-0000-0000-000000000000'::uuid, false, true, false);
+
 INSERT INTO permission(id, name, description, created_on, created_by,  is_business, is_department, is_user)VALUES(uuid_generate_v4(), 'create:global-setting', 'create global setting', CURRENT_TIMESTAMP, '00000000-0000-0000-0000-000000000000'::uuid, false, false, true);
 INSERT INTO permission(id, name, description, created_on, created_by,  is_business, is_department, is_user)VALUES(uuid_generate_v4(), 'create:user-business-setting', 'create User-Business setting', CURRENT_TIMESTAMP, '00000000-0000-0000-0000-000000000000'::uuid, true, false, false);
 INSERT INTO permission(id, name, description, created_on, created_by,  is_business, is_department, is_user)VALUES(uuid_generate_v4(), 'send:business-invite', 'send business invite', CURRENT_TIMESTAMP, '00000000-0000-0000-0000-000000000000'::uuid, true, false, false);
@@ -40,6 +43,8 @@ INSERT INTO permission(id, name, description, created_on, created_by,  is_busine
 INSERT INTO permission(id, name, description, created_on, created_by,  is_business, is_department, is_user)VALUES(uuid_generate_v4(), 'disassociate:user-business:self', 'disassociate business', CURRENT_TIMESTAMP, '00000000-0000-0000-0000-000000000000'::uuid, true, false, false);
 
 INSERT INTO permission(id, name, description, created_on, created_by,  is_business, is_department, is_user)VALUES(uuid_generate_v4(), 'create:business-role', 'create business role', CURRENT_TIMESTAMP, '00000000-0000-0000-0000-000000000000'::uuid, true, false, false);
+
+INSERT INTO permission(id, name, description, created_on, created_by,  is_business, is_department, is_user)VALUES(uuid_generate_v4(), 'create:department', 'Create Department', CURRENT_TIMESTAMP, '00000000-0000-0000-0000-000000000000'::uuid, true, false, true);
 
 
 WITH superadmin_role AS (SELECT "id" FROM "role" WHERE "name" = 'superadmin' LIMIT 1) INSERT INTO "role_permission" ("id", "role_id", "permission_id", "created_on", "created_by") SELECT uuid_generate_v4(), superadmin_role."id" AS "role_id", "permission"."id" AS "permission_id", NOW(), '00000000-0000-0000-0000-000000000000'::uuid  FROM superadmin_role, "permission" WHERE "permission"."name" NOT LIKE '%:self';
@@ -51,7 +56,7 @@ WITH user_role AS (SELECT "id" FROM "role" WHERE "name" = 'user' LIMIT 1) INSERT
 -- INSERT INTO  role(id, name, role_status, created_on, created_by) VALUES(uuid_generate_v4(), 'lead', 'active'::status, CURRENT_TIMESTAMP, '00000000-0000-0000-0000-000000000000'::uuid);
 
 -- INSERT INTO permission(id, name, description, created_on, created_by)VALUES(uuid_generate_v4(), 'associate:user-department', 'User Department Association', CURRENT_TIMESTAMP, '00000000-0000-0000-0000-000000000000'::uuid);
--- INSERT INTO permission(id, name, description, created_on, created_by)VALUES(uuid_generate_v4(), 'create:department', 'Create Department', CURRENT_TIMESTAMP, '00000000-0000-0000-0000-000000000000'::uuid);
+
 
 -- WITH lead_role AS (SELECT "id" FROM "role" WHERE "name" = 'lead' LIMIT 1) INSERT INTO "role_permission" ("id", "role_id", "permission_id", "created_on", "created_by")SELECT uuid_generate_v4(), lead_role."id" AS "role_id", "permission"."id" AS "permission_id", NOW(),'00000000-0000-0000-0000-000000000000'::uuid FROM lead_role, "permission" WHERE "permission"."name" NOT LIKE '%:self' AND "permission"."name"  NOT IN ('create:department', 'create:global-setting', 'create:project-setting',  'list:leave-request');
 -- WITH developer_role AS (SELECT "id" FROM "role" WHERE "name" = 'developer' LIMIT 1) INSERT INTO "role_permission" ("id", "role_id", "permission_id", "created_on", "created_by") SELECT uuid_generate_v4(), developer_role."id" AS "role_id", "permission"."id" AS "permission_id", NOW(), '00000000-0000-0000-0000-000000000000'::uuid FROM developer_role, "permission" WHERE "permission"."name" IN ('create:user-setting:self', 'create:leave-request:self', 'update:leave-request-status', 'list:leave-request:self');

@@ -175,6 +175,11 @@ pub enum PermissionType {
     DisassociateBusiness,
     #[serde(rename = "create:business-role")]
     CreateBusinessRole,
+
+    #[serde(rename = "create:department-setting")]
+    CreateDepartmentSetting,
+    #[serde(rename = "create:department-setting:self")]
+    CreateDepartmentSettingSelf,
 }
 
 impl fmt::Display for PermissionType {
@@ -207,6 +212,8 @@ impl fmt::Display for PermissionType {
             PermissionType::DisassociateBusinessSelf => "disassociate:user-business:self",
             PermissionType::DisassociateBusiness => "disassociate:user-business",
             PermissionType::CreateBusinessRole => "create:business-role",
+            PermissionType::CreateDepartmentSettingSelf => "create:department-setting:self",
+            PermissionType::CreateDepartmentSetting => "create:department-setting",
         };
 
         write!(f, "{}", display_str)

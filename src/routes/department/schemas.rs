@@ -15,7 +15,7 @@ use anyhow::anyhow;
 #[derive(Deserialize, Debug, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct CreateDepartmentAccount {
-    pub name: String,
+    pub display_name: String,
     pub is_test_account: bool,
     pub international_dialing_code: String,
 }
@@ -93,7 +93,7 @@ pub struct BasicDepartmentAccount {
 #[serde(rename_all = "camelCase")]
 pub struct DepartmentAccount {
     pub id: Uuid,
-    pub name: String,
+    pub display_name: String,
     pub is_active: Status,
     pub is_deleted: bool,
     pub verified: bool,

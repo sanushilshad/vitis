@@ -1,10 +1,15 @@
 use anyhow::Context;
 use chrono::Utc;
-use sqlx::{Execute, Executor, PgPool, Postgres, QueryBuilder, Transaction};
+use sqlx::{Executor, PgPool, Postgres, Transaction};
 use uuid::Uuid;
 
 use crate::{
-    routes::{department::models::UserDepartmentRelationAccountModel, user::schemas::UserAccount},
+    routes::{
+        business::schemas::BusinessAccount,
+        department::models::UserDepartmentRelationAccountModel,
+        role::utils::get_role,
+        user::schemas::{UserAccount, UserRoleType},
+    },
     schemas::Status,
 };
 
@@ -21,11 +26,11 @@ pub async fn save_department_account(
     create_department_obj: &CreateDepartmentAccount,
 ) -> Result<uuid::Uuid, DepartmentAccountError> {
     let department_account_id = Uuid::new_v4();
-    let department_name = create_department_obj.name.clone(); // Assuming this maps to `name`
+    let department_name = create_department_obj.display_name.clone(); // Assuming this maps to `name`
 
     let query = sqlx::query!(
         r#"
-        INSERT INTO department_account (id, name, created_by, created_on)
+        INSERT INTO department_account (id, display_name, created_by, created_on)
         VALUES ($1, $2, $3, $4)
         "#,
         department_account_id,
@@ -48,17 +53,19 @@ pub async fn save_department_account(
 pub async fn save_user_department_relation(
     transaction: &mut Transaction<'_, Postgres>,
     user_id: Uuid,
+    business_id: Uuid,
     department_id: Uuid,
     role_id: Uuid,
 ) -> Result<uuid::Uuid, DepartmentAccountError> {
     let user_role_id = Uuid::new_v4();
     let query = sqlx::query!(
         r#"
-        INSERT INTO department_user_relationship (id, user_id, department_id, role_id, created_by, created_on)
-        VALUES ($1, $2, $3, $4, $5, $6)
+        INSERT INTO business_user_department_relationship (id, user_id, business_id, department_id, role_id, created_by, created_on)
+        VALUES ($1, $2, $3, $4, $5, $6, $7)
         "#,
         user_role_id,
         user_id,
+        business_id,
         department_id,
         role_id,
         user_id,
@@ -79,6 +86,7 @@ pub async fn save_user_department_relation(
 pub async fn create_department_account(
     pool: &PgPool,
     user_account: &UserAccount,
+    business_account: &BusinessAccount,
     create_department_obj: &CreateDepartmentAccount,
 ) -> Result<uuid::Uuid, DepartmentAccountError> {
     let mut transaction = pool
@@ -87,26 +95,23 @@ pub async fn create_department_account(
         .context("Failed to acquire a Postgres connection from the pool")?;
     let department_account_id =
         save_department_account(&mut transaction, user_account, create_department_obj).await?;
-    // if let Some(role_obj) = get_role(pool, &RoleType::Admin).await? {
-    //     if role_obj.is_deleted || role_obj.role_status == Status::Inactive {
-    //         return Err(DepartmentAccountError::InvalidRoleError(
-    //             "Role is deleted / Inactive".to_string(),
-    //         ));
-    //     }
-    //     save_user_department_relation(
-    //         &mut transaction,
-    //         user_account.id,
-    //         department_account_id,
-    //         role_obj.id,
-    //     )
-    //     .await?;
-    // } else {
-    //     tracing::info!("Invalid role for department account");
-    // }
-
-    // let bulk_auth_data =
-    //     prepare_auth_mechanism_data_for_department_account(user_account.id, create_department_obj);
-    // save_auth_mechanism(&mut transaction, bulk_auth_data).await?;
+    if let Some(role_obj) = get_role(pool, &UserRoleType::Admin.to_lowercase_string()).await? {
+        if role_obj.is_deleted || role_obj.status == Status::Inactive {
+            return Err(DepartmentAccountError::InvalidRoleError(
+                "Role is deleted / Inactive".to_string(),
+            ));
+        }
+        save_user_department_relation(
+            &mut transaction,
+            user_account.id,
+            business_account.id,
+            department_account_id,
+            role_obj.id,
+        )
+        .await?;
+    } else {
+        tracing::info!("Invalid role for department account");
+    }
 
     transaction
         .commit()
@@ -119,24 +124,28 @@ pub async fn create_department_account(
 pub async fn fetch_department_account_models_by_user_account(
     pool: &PgPool,
     user_id: Uuid,
+    business_id: Uuid,
 ) -> Result<Vec<DepartmentAccountModel>, anyhow::Error> {
-    let mut query_builder = QueryBuilder::new(
+    let rows = sqlx::query_as!(
+        DepartmentAccountModel,
         r#"
         SELECT
-            ba.id, ba.name,
-            ba.is_active,
+            ba.id,
+            ba.display_name,
+            ba.is_active as "is_active!:Status",
             ba.is_deleted,
             bur.verified
-        FROM department_user_relationship as bur
-            INNER JOIN department_account ba ON bur.department_id = ba.id
-        WHERE bur.user_id = "#,
-    );
+        FROM business_user_department_relationship bur
+        INNER JOIN department_account ba ON bur.department_id = ba.id
+        WHERE bur.user_id = $1
+          AND bur.business_id = $2
+        "#,
+        user_id,
+        business_id
+    )
+    .fetch_all(pool)
+    .await?;
 
-    query_builder.push_bind(user_id);
-
-    let query = query_builder.build_query_as::<DepartmentAccountModel>();
-
-    let rows = query.fetch_all(pool).await?;
     Ok(rows)
 }
 
@@ -151,7 +160,7 @@ pub async fn fetch_department_account_model_by_id(
         r#"
         SELECT
             id,
-            name,
+            display_name,
             is_active,
             is_deleted,
             TRUE AS verified
@@ -174,44 +183,44 @@ pub async fn fetch_department_account_model_by_id(
 #[tracing::instrument(name = "Get department Account By User Id", skip(pool))]
 pub async fn fetch_associated_department_account_model(
     user_id: Uuid,
-    department_account_id: Uuid,
+    department_id: Uuid,
+    business_id: Uuid,
     pool: &PgPool,
 ) -> Result<Option<UserDepartmentRelationAccountModel>, anyhow::Error> {
-    use sqlx::QueryBuilder;
-
-    let mut query_builder = QueryBuilder::new(
+    let row = sqlx::query_as!(
+        UserDepartmentRelationAccountModel,
         r#"
         SELECT
-            ba.id, ba.name,
-            ba.is_active,
-            bur.verified, ba.is_deleted
-        FROM department_user_relationship as bur
-            INNER JOIN department_account ba ON bur.department_id = ba.id
-        WHERE bur.user_id = "#,
-    );
+            ba.id,
+            ba.display_name,
+            ba.is_active as "is_active!:Status",
+            ba.is_deleted,
+            bur.verified
+        FROM business_user_department_relationship AS bur
+        INNER JOIN department_account ba ON bur.department_id = ba.id
+        WHERE bur.user_id = $1
+          AND bur.department_id = $2
+          AND bur.business_id = $3
+        "#,
+        user_id,
+        department_id,
+        business_id
+    )
+    .fetch_optional(pool)
+    .await?;
 
-    query_builder.push_bind(user_id);
-    query_builder.push(" AND bur.department_id = ");
-    query_builder.push_bind(department_account_id);
-
-    let query = query_builder.build_query_as::<UserDepartmentRelationAccountModel>();
-    let query_string = query.sql();
-    println!(
-        "Generated SQL query for user_id {} and department_id {}: {}",
-        user_id, department_account_id, query_string
-    );
-    let row = query.fetch_optional(pool).await?;
     Ok(row)
 }
-
 #[tracing::instrument(name = "Get department Account by department id", skip(pool))]
 pub async fn get_department_account(
     pool: &PgPool,
     user_id: Uuid,
-    department_account_id: Uuid,
+    business_id: Uuid,
+    department_id: Uuid,
 ) -> Result<Option<DepartmentAccount>, anyhow::Error> {
     let department_account_model =
-        fetch_associated_department_account_model(user_id, department_account_id, pool).await?;
+        fetch_associated_department_account_model(user_id, department_id, business_id, pool)
+            .await?;
     match department_account_model {
         Some(model) => {
             let department_account = model.into_schema();
@@ -224,10 +233,11 @@ pub async fn get_department_account(
 #[tracing::instrument(name = "Get Basic department account by user id")]
 pub async fn get_basic_department_accounts_by_user_id(
     user_id: Uuid,
+    business_id: Uuid,
     pool: &PgPool,
 ) -> Result<Vec<BasicDepartmentAccount>, anyhow::Error> {
     let department_account_models =
-        fetch_department_account_models_by_user_account(pool, user_id).await?;
+        fetch_department_account_models_by_user_account(pool, user_id, business_id).await?;
     let department_account_list = department_account_models
         .into_iter()
         .map(|e| e.into_basic_schema())
@@ -254,23 +264,26 @@ pub fn validate_department_account_active(department_obj: &DepartmentAccount) ->
 pub async fn validate_user_department_permission(
     pool: &PgPool,
     user_id: Uuid,
+    business_account: Uuid,
     department_id: Uuid,
     action_list: &Vec<String>,
 ) -> Result<Vec<String>, anyhow::Error> {
     let permission_list = sqlx::query_scalar!(
         r#"
         SELECT  p.name
-        FROM department_user_relationship bur
+        FROM business_user_department_relationship bur
         INNER JOIN role_permission rp ON bur.role_id = rp.role_id
         INNER JOIN permission p ON rp.permission_id = p.id
         WHERE bur.user_id = $1
           AND bur.department_id = $2
+          AND bur.business_id = $3
           AND rp.is_deleted = FALSE
           AND p.is_deleted = FALSE
-          AND p.name = ANY($3::text[])
+          AND p.name = ANY($4::text[])
         "#,
         user_id,
         department_id,
+        business_account,
         action_list
     )
     .fetch_all(pool)
@@ -301,18 +314,20 @@ pub async fn get_basic_department_accounts(
 pub async fn associate_user_to_department(
     pool: &PgPool,
     user_id: Uuid,
+    business_id: Uuid,
     department_id: Uuid,
     role_id: Uuid,
     created_by: Uuid,
 ) -> Result<(), anyhow::Error> {
     let _ = sqlx::query!(
         r#"
-        INSERT INTO department_user_relationship
-        (id, user_id, department_id, role_id, verified, created_on, created_by)
-        VALUES ($1, $2, $3, $4, $5, $6, $7)
+        INSERT INTO business_user_department_relationship
+        (id, user_id, business_id, department_id, role_id, verified, created_on, created_by)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
         "#,
         Uuid::new_v4(),
         user_id,
+        business_id,
         department_id,
         role_id,
         false,

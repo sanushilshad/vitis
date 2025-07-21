@@ -289,14 +289,22 @@ The API Docmentation can be found at `https://{{domain}}/docs/` after running th
 * [x] Create role permissions assigment delete API.
 
 
-## MILESTONE 7 DEPARTMENT:
-* [ ] Department Creation.
-* [ ] Department-User Association.
+## MILESTONE 7 DEPARTMENT (6/14):
+* [x] Department Creation.
+* [x] Department Fetch.
+* [x] Department List.
+* [x] Department-User Association.
+* [x] Deparment Account Validation Middlware.
+* [x] Department Account Permission MIddleware.
+* [ ] Department-User Disassociation.
 * [ ] Department Deletion.
 * [ ] Department Edit.
 * [ ] Create Role fetch API for department.
 * [ ] Save Role API for department.
 * [ ] Delete Role API for department.
+* [ ] Save Department setting.
+* [ ] Fetch Department setting.
+
 
 ## MILESTONE 8 (2/5) GENERIC 
 * [x] Add Cluster ID for setting.
