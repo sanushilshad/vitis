@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        UPDATE department_account SET is_deleted = true, deleted_by=$1,\n         deleted_on=$2 WHERE id = $3\n        ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Timestamptz",
+        "Uuid"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "b71051b39fc9ae32b51c42607f14495ff43b347977537c7b76d0d08e50a1cd72"
+}
