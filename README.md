@@ -289,7 +289,7 @@ The API Docmentation can be found at `https://{{domain}}/docs/` after running th
 * [x] Create role permissions assigment delete API.
 
 
-## MILESTONE 7 DEPARTMENT (9/14):
+## MILESTONE 7 DEPARTMENT (9/12):
 * [x] Department Creation.
 * [x] Department Fetch.
 * [x] Department List.
@@ -302,8 +302,6 @@ The API Docmentation can be found at `https://{{domain}}/docs/` after running th
 * [ ] Create Role fetch API for department.
 * [ ] Save Role API for department.
 * [ ] Delete Role API for department.
-* [ ] Save Department setting.
-* [ ] Fetch Department setting.
 
 
 ## MILESTONE 8 (2/5) GENERIC 
