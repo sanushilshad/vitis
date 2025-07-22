@@ -1,5 +1,6 @@
 use actix::Addr;
 use actix_web::web;
+use chrono::Utc;
 use sqlx::PgPool;
 use utoipa::TupleUnit;
 
@@ -19,13 +20,14 @@ use crate::{
 use super::{
     schemas::{
         BasicDepartmentAccount, CreateDepartmentAccount, DepartmentAccount, DepartmentFetchRequest,
-        DepartmentPermissionRequest, DepartmentUserAssociationRequest,
+        DepartmentPermissionRequest, DepartmentUserAssociationRequest, UpdateDepartmentAccount,
         UserDepartmentDeassociationRequest,
     },
     utils::{
         associate_user_to_department, create_department_account,
         delete_user_department_relationship, get_basic_department_accounts,
         get_basic_department_accounts_by_user_id, get_department_account,
+        soft_delete_department_account, update_department_account,
         validate_user_department_permission,
     },
     // utils::{
@@ -369,6 +371,94 @@ pub async fn user_department_deassociation_req(
         })?;
     Ok(web::Json(GenericResponse::success(
         "sucessfully disassociated user from department account.",
+        (),
+    )))
+}
+
+#[utoipa::path(
+    delete,
+    path = "/department/delete",
+    tag = "Department Account",
+    description = "API for deleting  department account",
+    summary = "Department Account Deletion API",
+    responses(
+        (status=200, description= "sucessfully deleted department account.", body= GenericResponse<TupleUnit>),
+        (status=400, description= "Invalid Request body", body= GenericResponse<TupleUnit>),
+        (status=401, description= "Invalid Token", body= GenericResponse<TupleUnit>),
+	    (status=403, description= "Insufficient Previlege", body= GenericResponse<TupleUnit>),
+	    (status=410, description= "Data not found", body= GenericResponse<TupleUnit>),
+        (status=500, description= "Internal Server Error", body= GenericResponse<TupleUnit>)
+    ),
+    params(
+        ("Authorization" = String, Header, description = "JWT token"),
+        ("x-request-id" = String, Header, description = "Request id"),
+        ("x-device-id" = String, Header, description = "Device id"),
+        ("x-business-id" = String, Header, description = "Business id"),
+        ("x-department-id" = String, Header, description = "id of department account"), 
+      )
+)]
+#[tracing::instrument(err, name = "user department disassociation", skip(pool), fields())]
+pub async fn department_account_deletion_req(
+    pool: web::Data<PgPool>,
+    user_account: UserAccount,
+    business_account: BusinessAccount,
+    department_account: DepartmentAccount,
+) -> Result<web::Json<GenericResponse<()>>, GenericError> {
+    soft_delete_department_account(&pool, department_account.id, user_account.id, Utc::now())
+        .await
+        .map_err(|e| {
+            GenericError::DatabaseError(
+                "Something went wrong while deleting department account".to_owned(),
+                e,
+            )
+        })?;
+    Ok(web::Json(GenericResponse::success(
+        "sucessfully deleted  department account.",
+        (),
+    )))
+}
+
+#[utoipa::path(
+    patch,
+    path = "/department/update",
+    tag = "Department Account",
+    description = "API for updating  department account",
+    summary = "Department Account Updation API",
+    responses(
+        (status=200, description= "sucessfully updated department account.", body= GenericResponse<TupleUnit>),
+        (status=400, description= "Invalid Request body", body= GenericResponse<TupleUnit>),
+        (status=401, description= "Invalid Token", body= GenericResponse<TupleUnit>),
+	    (status=403, description= "Insufficient Previlege", body= GenericResponse<TupleUnit>),
+	    (status=410, description= "Data not found", body= GenericResponse<TupleUnit>),
+        (status=500, description= "Internal Server Error", body= GenericResponse<TupleUnit>)
+    ),
+    params(
+        ("Authorization" = String, Header, description = "JWT token"),
+        ("x-request-id" = String, Header, description = "Request id"),
+        ("x-device-id" = String, Header, description = "Device id"),
+        ("x-business-id" = String, Header, description = "Business id"),
+        ("x-department-id" = String, Header, description = "id of department account"), 
+      )
+)]
+#[tracing::instrument(err, name = "user department updation", skip(pool), fields())]
+pub async fn department_account_updation_req(
+    pool: web::Data<PgPool>,
+    user_account: UserAccount,
+    business_account: BusinessAccount,
+    department_account: DepartmentAccount,
+    req: UpdateDepartmentAccount,
+) -> Result<web::Json<GenericResponse<()>>, GenericError> {
+    update_department_account(&pool, &req, &department_account, user_account.id)
+        .await
+        .map_err(|e| {
+            GenericError::DatabaseError(
+                "Something went wrong while updating department".to_owned(),
+                e,
+            )
+        })?;
+
+    Ok(web::Json(GenericResponse::success(
+        "sucessfully updated department account.",
         (),
     )))
 }

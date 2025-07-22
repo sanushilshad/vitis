@@ -807,7 +807,7 @@ pub async fn business_account_updation_req(
         .await
         .map_err(|e| {
             GenericError::DatabaseError(
-                "Something went wrong while disassociating user from business".to_owned(),
+                "Something went wrong while updating business account".to_owned(),
                 e,
             )
         })?;

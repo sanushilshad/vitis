@@ -47,9 +47,11 @@ INSERT INTO permission(id, name, description, created_on, created_by,  is_busine
 INSERT INTO permission(id, name, description, created_on, created_by,  is_business, is_department, is_user)VALUES(uuid_generate_v4(), 'create:department', 'Create Department', CURRENT_TIMESTAMP, '00000000-0000-0000-0000-000000000000'::uuid, true, false, false);
 INSERT INTO permission(id, name, description, created_on, created_by,  is_business, is_department, is_user)VALUES(uuid_generate_v4(), 'disassociate:user-department:self', 'Disassociate Department Self', CURRENT_TIMESTAMP, '00000000-0000-0000-0000-000000000000'::uuid, false, true, false);
 INSERT INTO permission(id, name, description, created_on, created_by,  is_business, is_department, is_user)VALUES(uuid_generate_v4(), 'disassociate:user-department', 'Disassociate Department', CURRENT_TIMESTAMP, '00000000-0000-0000-0000-000000000000'::uuid, false, true, false);
+INSERT INTO permission(id, name, description, created_on, created_by,  is_business, is_department, is_user)VALUES(uuid_generate_v4(), 'delete:department', 'Delete Department', CURRENT_TIMESTAMP, '00000000-0000-0000-0000-000000000000'::uuid, false, true, false);
+INSERT INTO permission(id, name, description, created_on, created_by,  is_business, is_department, is_user)VALUES(uuid_generate_v4(), 'update:department', 'update Department', CURRENT_TIMESTAMP, '00000000-0000-0000-0000-000000000000'::uuid, false, true, false);
 
 
-
+delete:department
 
 WITH superadmin_role AS (SELECT "id" FROM "role" WHERE "name" = 'superadmin' LIMIT 1) INSERT INTO "role_permission" ("id", "role_id", "permission_id", "created_on", "created_by") SELECT uuid_generate_v4(), superadmin_role."id" AS "role_id", "permission"."id" AS "permission_id", NOW(), '00000000-0000-0000-0000-000000000000'::uuid  FROM superadmin_role, "permission" WHERE "permission"."name" NOT LIKE '%:self';
 WITH admin_role AS (SELECT "id" FROM "role" WHERE "name" = 'admin' LIMIT 1) INSERT INTO "role_permission" ("id", "role_id", "permission_id", "created_on", "created_by")SELECT uuid_generate_v4(), admin_role."id" AS "role_id", "permission"."id" AS "permission_id", NOW(),'00000000-0000-0000-0000-000000000000'::uuid FROM admin_role, "permission" WHERE  "permission"."name" NOT LIKE '%:self'  AND "permission"."name"  NOT IN ('create:global-setting', 'create:user-business-setting', 'list:user-business', 'list:users');

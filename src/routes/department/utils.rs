@@ -16,7 +16,9 @@ use uuid::Uuid;
 use super::{
     errors::DepartmentAccountError,
     models::DepartmentAccountModel,
-    schemas::{BasicDepartmentAccount, CreateDepartmentAccount, DepartmentAccount},
+    schemas::{
+        BasicDepartmentAccount, CreateDepartmentAccount, DepartmentAccount, UpdateDepartmentAccount,
+    },
 };
 
 #[tracing::instrument(name = "create user department relation", skip(transaction))]
@@ -379,6 +381,59 @@ pub async fn delete_user_department_relationship(
             e
         );
         anyhow!(e).context("Failed to delete from business_user_department_relationship")
+    })?;
+
+    Ok(())
+}
+
+#[tracing::instrument(name = "deleted department account", skip(pool))]
+pub async fn soft_delete_department_account(
+    pool: &PgPool,
+    department_id: Uuid,
+    deleted_by: Uuid,
+    deleted_on: chrono::DateTime<Utc>,
+) -> Result<(), anyhow::Error> {
+    let query = sqlx::query!(
+        r#"
+        UPDATE department_account SET is_deleted = true, deleted_by=$1,
+         deleted_on=$2 WHERE id = $3
+        "#,
+        deleted_by,
+        deleted_on,
+        department_id
+    );
+
+    query.execute(pool).await.map_err(|e| {
+        tracing::error!("Failed to delete department_account: {:?}", e);
+        anyhow!(e).context("Failed to delete from department_account")
+    })?;
+
+    Ok(())
+}
+
+#[tracing::instrument(name = "update department account", skip(pool))]
+pub async fn update_department_account(
+    pool: &PgPool,
+    data: &UpdateDepartmentAccount,
+    department_account: &DepartmentAccount,
+
+    created_by: Uuid,
+) -> Result<(), anyhow::Error> {
+    let query = sqlx::query!(
+        r#"UPDATE department_account SET
+            display_name = $1,
+            updated_on = $2,
+            updated_by = $3
+        WHERE id = $4"#,
+        data.display_name,
+        Utc::now(),
+        created_by,
+        department_account.id
+    );
+
+    pool.execute(query).await.map_err(|e| {
+        tracing::error!("Failed to execute user update query: {:?}", e);
+        anyhow::anyhow!("Something went wrong while updating department details.")
     })?;
 
     Ok(())

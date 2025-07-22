@@ -8,8 +8,9 @@ use crate::{
 };
 
 use super::handlers::{
-    fetch_department_req, list_department_req, register_department_account_req,
-    user_department_association_req, user_department_deassociation_req,
+    department_account_deletion_req, department_account_updation_req, fetch_department_req,
+    list_department_req, register_department_account_req, user_department_association_req,
+    user_department_deassociation_req,
 };
 
 // use crate::middlewares::{departmentAccountValidation, departmentPermissionValidation};
@@ -38,11 +39,29 @@ pub fn department_routes(cfg: &mut web::ServiceConfig) {
         "/user/disassociate",
         web::post()
             .to(user_department_deassociation_req)
-            .wrap(BusinessPermissionValidation {
+            .wrap(DepartmentPermissionValidation {
                 permission_list: vec![
                     PermissionType::DisassociateDepartment.to_string(),
                     PermissionType::DisassociateDepartmentSelf.to_string(),
                 ],
+            })
+            .wrap(DepartmentAccountValidation),
+    )
+    .route(
+        "/delete",
+        web::delete()
+            .to(department_account_deletion_req)
+            .wrap(DepartmentPermissionValidation {
+                permission_list: vec![PermissionType::DeleteDepartment.to_string()],
+            })
+            .wrap(DepartmentAccountValidation),
+    )
+    .route(
+        "/update",
+        web::patch()
+            .to(department_account_updation_req)
+            .wrap(DepartmentPermissionValidation {
+                permission_list: vec![PermissionType::UpdateDepartment.to_string()],
             })
             .wrap(DepartmentAccountValidation),
     );
