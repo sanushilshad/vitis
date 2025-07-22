@@ -1,8 +1,3 @@
-use anyhow::Context;
-use chrono::Utc;
-use sqlx::{Executor, PgPool, Postgres, Transaction};
-use uuid::Uuid;
-
 use crate::{
     routes::{
         business::schemas::BusinessAccount,
@@ -12,6 +7,11 @@ use crate::{
     },
     schemas::Status,
 };
+use anyhow::Context;
+use anyhow::anyhow;
+use chrono::Utc;
+use sqlx::{Executor, PgPool, Postgres, Transaction};
+use uuid::Uuid;
 
 use super::{
     errors::DepartmentAccountError,
@@ -353,5 +353,33 @@ pub async fn hard_delete_department_account(
         .bind(project_id)
         .execute(pool)
         .await;
+    Ok(())
+}
+
+#[tracing::instrument(name = "delete user department relationship", skip(pool))]
+pub async fn delete_user_department_relationship(
+    pool: &PgPool,
+    user_id: Uuid,
+    business_id: Uuid,
+    department_id: Uuid,
+) -> Result<(), anyhow::Error> {
+    let query = sqlx::query!(
+        r#"
+        DELETE FROM business_user_department_relationship
+        WHERE user_id = $1 AND business_id = $2 AND department_id = $3
+        "#,
+        user_id,
+        business_id,
+        department_id
+    );
+
+    query.execute(pool).await.map_err(|e| {
+        tracing::error!(
+            "Failed to delete business_user_department relationship: {:?}",
+            e
+        );
+        anyhow!(e).context("Failed to delete from business_user_department_relationship")
+    })?;
+
     Ok(())
 }

@@ -12,7 +12,7 @@ use crate::{
         user::schemas::{UserAccount, UserRoleType},
         web_socket::{schemas::ProcessType, utils::send_notification},
     },
-    schemas::{GenericResponse, RequestMetaData},
+    schemas::{AllowedPermission, GenericResponse, PermissionType, RequestMetaData},
     websocket_client::{Server, WebSocketActionType},
 };
 
@@ -20,9 +20,11 @@ use super::{
     schemas::{
         BasicDepartmentAccount, CreateDepartmentAccount, DepartmentAccount, DepartmentFetchRequest,
         DepartmentPermissionRequest, DepartmentUserAssociationRequest,
+        UserDepartmentDeassociationRequest,
     },
     utils::{
-        associate_user_to_department, create_department_account, get_basic_department_accounts,
+        associate_user_to_department, create_department_account,
+        delete_user_department_relationship, get_basic_department_accounts,
         get_basic_department_accounts_by_user_id, get_department_account,
         validate_user_department_permission,
     },
@@ -313,6 +315,60 @@ pub async fn user_department_association_req(
     .map_err(|e| GenericError::UnexpectedCustomError(e.to_string()))?;
     Ok(web::Json(GenericResponse::success(
         "sucessfully associated user with department account.",
+        (),
+    )))
+}
+
+#[utoipa::path(
+    post,
+    path = "/department/user/disassociate",
+    tag = "Department Account",
+    description = "API for disassociating user froms business account",
+    summary = "Use business Account Disassociation API",
+    request_body(content = UserDepartmentDeassociationRequest, description = "Request Body"),
+    responses(
+        (status=200, description= "sucessfully disassociated user from department account.", body= GenericResponse<TupleUnit>),
+        (status=400, description= "Invalid Request body", body= GenericResponse<TupleUnit>),
+        (status=401, description= "Invalid Token", body= GenericResponse<TupleUnit>),
+	    (status=403, description= "Insufficient Previlege", body= GenericResponse<TupleUnit>),
+	    (status=410, description= "Data not found", body= GenericResponse<TupleUnit>),
+        (status=500, description= "Internal Server Error", body= GenericResponse<TupleUnit>)
+    ),
+    params(
+        ("Authorization" = String, Header, description = "JWT token"),
+        ("x-request-id" = String, Header, description = "Request id"),
+        ("x-device-id" = String, Header, description = "Device id"),
+        ("x-business-id" = String, Header, description = "Business id"),
+        ("x-department-id" = String, Header, description = "id of department account"),    
+      )
+)]
+#[tracing::instrument(err, name = "user business disassociation", skip(pool), fields())]
+pub async fn user_department_deassociation_req(
+    req: UserDepartmentDeassociationRequest,
+    pool: web::Data<PgPool>,
+    user_account: UserAccount,
+    business_account: BusinessAccount,
+    department_account: DepartmentAccount,
+    permissions: AllowedPermission,
+) -> Result<web::Json<GenericResponse<()>>, GenericError> {
+    let user_id = req
+        .id
+        .filter(|_| {
+            !permissions
+                .permission_list
+                .contains(&PermissionType::DisassociateBusiness.to_string())
+        })
+        .unwrap_or(user_account.id);
+    delete_user_department_relationship(&pool, user_id, business_account.id, department_account.id)
+        .await
+        .map_err(|e| {
+            GenericError::DatabaseError(
+                "Something went wrong while disassociating user from department".to_owned(),
+                e,
+            )
+        })?;
+    Ok(web::Json(GenericResponse::success(
+        "sucessfully disassociated user from department account.",
         (),
     )))
 }

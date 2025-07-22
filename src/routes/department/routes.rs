@@ -9,7 +9,7 @@ use crate::{
 
 use super::handlers::{
     fetch_department_req, list_department_req, register_department_account_req,
-    user_department_association_req,
+    user_department_association_req, user_department_deassociation_req,
 };
 
 // use crate::middlewares::{departmentAccountValidation, departmentPermissionValidation};
@@ -31,6 +31,18 @@ pub fn department_routes(cfg: &mut web::ServiceConfig) {
             .to(user_department_association_req)
             .wrap(DepartmentPermissionValidation {
                 permission_list: vec![PermissionType::AssociateUserDepartment.to_string()],
+            })
+            .wrap(DepartmentAccountValidation),
+    )
+    .route(
+        "/user/disassociate",
+        web::post()
+            .to(user_department_deassociation_req)
+            .wrap(BusinessPermissionValidation {
+                permission_list: vec![
+                    PermissionType::DisassociateDepartment.to_string(),
+                    PermissionType::DisassociateDepartmentSelf.to_string(),
+                ],
             })
             .wrap(DepartmentAccountValidation),
     );

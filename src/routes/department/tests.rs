@@ -6,9 +6,10 @@ pub mod tests {
     use crate::routes::business::utils::get_business_account;
     use crate::routes::department::schemas::{CreateDepartmentAccount, DepartmentAccount};
     use crate::routes::department::utils::{
-        associate_user_to_department, create_department_account, get_basic_department_accounts,
-        get_basic_department_accounts_by_user_id, get_department_account,
-        hard_delete_department_account, validate_department_account_active,
+        associate_user_to_department, create_department_account,
+        delete_user_department_relationship, fetch_associated_department_account_model,
+        get_basic_department_accounts, get_basic_department_accounts_by_user_id,
+        get_department_account, hard_delete_department_account, validate_department_account_active,
         validate_user_department_permission,
     };
 
@@ -319,6 +320,46 @@ pub mod tests {
             hard_delete_department_account(&pool, department_id),
             hard_delete_business_account(&pool, business_id),
             hard_delete_user_account(&pool, &final_mobile_no),
+        );
+
+        assert!(delete_dep_res.is_ok());
+        assert!(delete_business_res.is_ok());
+        assert!(delete_user_res.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_user_department_disassociation() {
+        let pool = get_test_pool().await;
+
+        let mobile_no = "12345618930";
+
+        let user_res = setup_user(
+            &pool,
+            "testuser58",
+            "testuser58@example.com",
+            mobile_no,
+            "testuser@123",
+        )
+        .await;
+
+        let business_res = setup_business(&pool, mobile_no, "business@example.com").await;
+        let user_id = user_res.unwrap();
+        let business_id = business_res.unwrap();
+        let department_res = setup_department(&pool, mobile_no, business_id).await;
+        let department_id = department_res.unwrap();
+        let delete_association =
+            delete_user_department_relationship(&pool, user_id, business_id, department_id).await;
+        assert!(delete_association.is_ok());
+        let fetch_association =
+            fetch_associated_department_account_model(user_id, department_id, business_id, &pool)
+                .await;
+        assert!(fetch_association.is_ok());
+        assert!(fetch_association.unwrap().is_none());
+        let delete_mobile = format!("{}{}", DUMMY_INTERNATIONAL_DIALING_CODE, mobile_no);
+        let (delete_dep_res, delete_business_res, delete_user_res) = join!(
+            hard_delete_department_account(&pool, department_id),
+            hard_delete_business_account(&pool, business_id),
+            hard_delete_user_account(&pool, &delete_mobile),
         );
 
         assert!(delete_dep_res.is_ok());
