@@ -21,23 +21,32 @@ pub mod tests {
     use sqlx::PgPool;
     use tokio::join;
     use uuid::Uuid;
-    pub async fn create_and_fetch_business_role_id(
+    pub async fn create_and_fetch_role_id(
         pool: &PgPool,
         role_name: &str,
         business_id: Uuid,
+        department_id: Option<Uuid>,
         user_id: Uuid,
     ) -> Result<AccountRole, anyhow::Error> {
         let data = vec![CreateRoleData {
             id: None,
             name: "Manager".to_string(),
         }];
-        let role_res = save_role(&pool, &data, Some(business_id), None, user_id, Utc::now()).await;
+        let role_res = save_role(
+            &pool,
+            &data,
+            Some(business_id),
+            department_id,
+            user_id,
+            Utc::now(),
+        )
+        .await;
         assert!(role_res.is_ok());
 
         let roles_res_by_name = get_roles(
             &pool,
             Some(business_id),
-            None,
+            department_id,
             None,
             Some(vec![role_name]),
             false,
@@ -128,8 +137,7 @@ pub mod tests {
         let user_id: uuid::Uuid = user_res.unwrap();
         let business_res = setup_business(&pool, mobile_no, "business@example.com").await;
         let business_id = business_res.unwrap();
-        let role_res =
-            create_and_fetch_business_role_id(&pool, "Manager", business_id, user_id).await;
+        let role_res = create_and_fetch_role_id(&pool, "Manager", business_id, None, user_id).await;
         let role = role_res.unwrap();
 
         let delete_res = soft_delete_role(&pool, role.id, user_id, Utc::now()).await;
@@ -253,7 +261,8 @@ pub mod tests {
         let department_res = setup_department(&pool, mobile_no, business_id).await;
         let department_id = department_res.unwrap();
         let role_res =
-            create_and_fetch_business_role_id(&pool, "Manager", business_id, user_id).await;
+            create_and_fetch_role_id(&pool, "Manager", business_id, Some(department_id), user_id)
+                .await;
         let role = role_res.unwrap();
 
         let delete_res = soft_delete_role(&pool, role.id, user_id, Utc::now()).await;

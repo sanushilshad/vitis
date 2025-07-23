@@ -9,8 +9,9 @@ use crate::{
 use actix_web::web;
 
 use super::handlers::{
-    associate_permissions_to_role, disassociate_permissions_to_role, list_business_permissions,
-    list_department_permissions,
+    associate_permissions_to_business_role, associate_permissions_to_department_role,
+    disassociate_permissions_to_business_role, disassociate_permissions_to_department_role,
+    list_business_permissions, list_department_permissions,
 };
 pub fn permission_routes(cfg: &mut web::ServiceConfig) {
     cfg.route(
@@ -25,7 +26,7 @@ pub fn permission_routes(cfg: &mut web::ServiceConfig) {
     cfg.route(
         "/business-role/associate",
         web::post()
-            .to(associate_permissions_to_role)
+            .to(associate_permissions_to_business_role)
             .wrap(BusinessPermissionValidation {
                 permission_list: vec![PermissionType::CreateBusinessRole.to_string()],
             })
@@ -34,7 +35,7 @@ pub fn permission_routes(cfg: &mut web::ServiceConfig) {
     cfg.route(
         "/business-role/disassociate",
         web::delete()
-            .to(disassociate_permissions_to_role)
+            .to(disassociate_permissions_to_business_role)
             .wrap(BusinessPermissionValidation {
                 permission_list: vec![PermissionType::CreateBusinessRole.to_string()],
             })
@@ -48,6 +49,27 @@ pub fn permission_routes(cfg: &mut web::ServiceConfig) {
             .wrap(DepartmentPermissionValidation {
                 permission_list: vec![PermissionType::CreateDepartmentRole.to_string()],
             })
-            .wrap(DepartmentAccountValidation),
+            .wrap(DepartmentAccountValidation)
+            .wrap(BusinessAccountValidation),
+    );
+    cfg.route(
+        "/department-role/associate",
+        web::post()
+            .to(associate_permissions_to_department_role)
+            .wrap(DepartmentPermissionValidation {
+                permission_list: vec![PermissionType::CreateDepartmentRole.to_string()],
+            })
+            .wrap(DepartmentAccountValidation)
+            .wrap(BusinessAccountValidation),
+    );
+    cfg.route(
+        "/department-role/disassociate",
+        web::delete()
+            .to(disassociate_permissions_to_department_role)
+            .wrap(DepartmentPermissionValidation {
+                permission_list: vec![PermissionType::CreateDepartmentRole.to_string()],
+            })
+            .wrap(DepartmentAccountValidation)
+            .wrap(BusinessAccountValidation),
     );
 }

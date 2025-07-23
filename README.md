@@ -289,7 +289,7 @@ The API Docmentation can be found at `https://{{domain}}/docs/` after running th
 * [x] Create business role permissions assigment delete API.
 
 
-## MILESTONE 7 (12/15) (DEPARTMENT MANAGEMENT):
+## MILESTONE 7 (15/15) (DEPARTMENT MANAGEMENT):
 * [x] Department Creation.
 * [x] Department Fetch.
 * [x] Department List.
@@ -303,8 +303,8 @@ The API Docmentation can be found at `https://{{domain}}/docs/` after running th
 * [x] Create Role fetch API for department.
 * [x] Delete Role API for department.
 * [x] Create Permission list API.
-* [ ] Create role permissions assigment API.
-* [ ] Create role permissions assigment delete API.
+* [x] Create role permissions assigment API.
+* [x] Create role permissions assigment delete API.
 
 ## MILESTONE 8 (2/5) GENERIC 
 * [x] Add Cluster ID for setting.
