@@ -54,7 +54,27 @@ pub fn role_routes(cfg: &mut web::ServiceConfig) {
         web::post()
             .to(save_business_role_req)
             .wrap(DepartmentPermissionValidation {
-                permission_list: vec![PermissionType::CreateBusinessRole.to_string()],
+                permission_list: vec![PermissionType::CreateDepartmentRole.to_string()],
+            })
+            .wrap(DepartmentAccountValidation)
+            .wrap(BusinessAccountValidation),
+    );
+    cfg.route(
+        "/department/list",
+        web::get()
+            .to(list_business_role_req)
+            .wrap(DepartmentPermissionValidation {
+                permission_list: vec![PermissionType::CreateDepartmentRole.to_string()],
+            })
+            .wrap(DepartmentAccountValidation)
+            .wrap(BusinessAccountValidation),
+    );
+    cfg.route(
+        "/department/delete/{id}",
+        web::delete()
+            .to(delete_business_role_req)
+            .wrap(DepartmentPermissionValidation {
+                permission_list: vec![PermissionType::CreateDepartmentRole.to_string()],
             })
             .wrap(DepartmentAccountValidation)
             .wrap(BusinessAccountValidation),

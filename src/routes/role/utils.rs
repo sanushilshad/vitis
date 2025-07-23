@@ -232,7 +232,6 @@ pub async fn save_role(
 #[tracing::instrument(name = "soft deleted role", skip(pool))]
 pub async fn soft_delete_role(
     pool: &PgPool,
-    business_id: Uuid,
     role_id: Uuid,
     deleted_by: Uuid,
     deleted_on: DateTime<Utc>,

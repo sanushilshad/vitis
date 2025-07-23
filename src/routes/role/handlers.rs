@@ -8,6 +8,7 @@ use crate::{
     errors::GenericError,
     routes::{
         business::schemas::BusinessAccount,
+        department::schemas::DepartmentAccount,
         permission::{schemas::Permission, utils::fetch_permissions_for_role},
         user::schemas::UserAccount,
     },
@@ -177,7 +178,7 @@ pub async fn delete_business_role_req(
     if roles.is_empty() {
         return Err(GenericError::ValidationError("Invalid Role ID".to_string()));
     }
-    soft_delete_role(&pool, business_account.id, role_id, user.id, Utc::now())
+    soft_delete_role(&pool, role_id, user.id, Utc::now())
         .await
         .map_err(|e| GenericError::DatabaseError(e.to_string(), e))?;
     Ok(web::Json(GenericResponse::success(
@@ -306,6 +307,107 @@ pub async fn save_department_role_req(
     .map_err(|e| GenericError::UnexpectedCustomError(e.to_string()))?;
     Ok(web::Json(GenericResponse::success(
         "sucessfully created business roles",
+        (),
+    )))
+}
+
+#[utoipa::path(
+    get,
+    description = "API for listing roles specific to department.",
+    summary = "Department Roles Listing API",
+    path = "/role/department/list",
+    tag = "Role",
+    // request_body(content = CreateBusinessSettingRequest, description = "Request Body"),
+    responses(
+        (status=200, description= "sucessfully listed business roles", body= GenericResponse<Vec<AccountRole>>),
+        (status=400, description= "Invalid Request body", body= GenericResponse<TupleUnit>),
+        (status=401, description= "Invalid Token", body= GenericResponse<TupleUnit>),
+	    (status=403, description= "Insufficient Previlege", body= GenericResponse<TupleUnit>),
+	    (status=410, description= "Data not found", body= GenericResponse<TupleUnit>),
+        (status=500, description= "Internal Server Error", body= GenericResponse<TupleUnit>)
+    ),
+    params(
+        ("Authorization" = String, Header, description = "JWT token"),
+        ("x-business-id" = String, Header, description = "id of business_account"),
+        ("x-request-id" = String, Header, description = "Request id"),
+        ("x-device-id" = String, Header, description = "Device id"),
+        ("x-department-id" = String, Header, description = "id of department account"), 
+      )
+)]
+#[tracing::instrument(err, name = "Business Role List API", skip(pool), fields())]
+pub async fn list_department_role_req(
+    pool: web::Data<PgPool>,
+    user: UserAccount,
+    business_account: BusinessAccount,
+    department_account: DepartmentAccount,
+) -> Result<web::Json<GenericResponse<Vec<AccountRole>>>, GenericError> {
+    let roles = get_roles(
+        &pool,
+        Some(business_account.id),
+        Some(department_account.id),
+        None,
+        None,
+        true,
+    )
+    .await
+    .map_err(|e| GenericError::DatabaseError(e.to_string(), e))?;
+    Ok(web::Json(GenericResponse::success(
+        "sucessfully listed department roles",
+        roles,
+    )))
+}
+
+#[utoipa::path(
+    delete,
+    description = "API for deleting roles specific to department.",
+    summary = "Department Roles Deletion API",
+    path = "/role/department/delete/{id}",
+    tag = "Role",
+    // request_body(content = CreatedepartmentSettingRequest, description = "Request Body"),
+    responses(
+        (status=200, description= "sucessfully delete department role", body= GenericResponse<TupleUnit>),
+        (status=400, description= "Invalid Request body", body= GenericResponse<TupleUnit>),
+        (status=401, description= "Invalid Token", body= GenericResponse<TupleUnit>),
+	    (status=403, description= "Insufficient Previlege", body= GenericResponse<TupleUnit>),
+	    (status=410, description= "Data not found", body= GenericResponse<TupleUnit>),
+        (status=500, description= "Internal Server Error", body= GenericResponse<TupleUnit>)
+    ),
+    params(
+        ("Authorization" = String, Header, description = "JWT token"),
+        ("x-business-id" = String, Header, description = "id of business_account"),
+        ("x-department-id" = String, Header, description = "id of department account"), 
+        ("x-request-id" = String, Header, description = "Request id"),
+        ("x-device-id" = String, Header, description = "Device id"),
+        ("id" = String, Path, description = "Role ID"),
+      )
+)]
+#[tracing::instrument(err, name = "Business Role List API", skip(pool), fields())]
+pub async fn delete_department_role_req(
+    path: web::Path<Uuid>,
+    pool: web::Data<PgPool>,
+    user: UserAccount,
+    business_account: BusinessAccount,
+    department_account: DepartmentAccount,
+) -> Result<web::Json<GenericResponse<()>>, GenericError> {
+    let role_id = path.into_inner();
+    let roles = get_roles(
+        &pool,
+        Some(business_account.id),
+        Some(department_account.id),
+        Some(vec![role_id]),
+        None,
+        false,
+    )
+    .await
+    .map_err(|e| GenericError::DatabaseError(e.to_string(), e))?;
+    if roles.is_empty() {
+        return Err(GenericError::ValidationError("Invalid Role ID".to_string()));
+    }
+    soft_delete_role(&pool, role_id, user.id, Utc::now())
+        .await
+        .map_err(|e| GenericError::DatabaseError(e.to_string(), e))?;
+    Ok(web::Json(GenericResponse::success(
+        "sucessfully delete business role",
         (),
     )))
 }
