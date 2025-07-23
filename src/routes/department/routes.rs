@@ -8,8 +8,9 @@ use crate::{
 };
 
 use super::handlers::{
-    department_account_deletion_req, department_account_updation_req, fetch_department_req,
-    list_department_req, register_department_account_req, user_department_association_req,
+    department_account_deletion_req, department_account_updation_req,
+    department_permission_validation, fetch_department_req, list_department_req,
+    register_department_account_req, user_department_association_req,
     user_department_deassociation_req,
 };
 
@@ -24,10 +25,14 @@ pub fn department_routes(cfg: &mut web::ServiceConfig) {
                 permission_list: vec![PermissionType::CreateDepartment.to_string()],
             }),
     )
-    .route("/fetch", web::post().to(fetch_department_req))
+    .route("/fetch/{id}", web::get().to(fetch_department_req))
+    .route(
+        "/permission",
+        web::post().to(department_permission_validation),
+    )
     .route("/list", web::get().to(list_department_req))
     .route(
-        "/user/association",
+        "/user/associate",
         web::post()
             .to(user_department_association_req)
             .wrap(DepartmentPermissionValidation {

@@ -211,7 +211,7 @@ pub async fn delete_business_role_req(
       )
 )]
 #[tracing::instrument(err, name = "Business Role List API", skip(pool), fields())]
-pub async fn list_role_permission_list_req(
+pub async fn list_business_role_permission_list_req(
     path: web::Path<Uuid>,
     pool: web::Data<PgPool>,
     user: UserAccount,
@@ -262,7 +262,7 @@ pub async fn save_department_role_req(
     pool: web::Data<PgPool>,
     user: UserAccount,
     business_account: BusinessAccount,
-    department_account: BusinessAccount,
+    department_account: DepartmentAccount,
 ) -> Result<web::Json<GenericResponse<()>>, GenericError> {
     let new_role_names: Vec<&str> = body
         .data
@@ -409,5 +409,60 @@ pub async fn delete_department_role_req(
     Ok(web::Json(GenericResponse::success(
         "sucessfully delete business role",
         (),
+    )))
+}
+
+#[utoipa::path(
+    get,
+    description = "API for listing permissions associated to roles",
+    summary = "Department Roles Permission List API",
+    path = "/role/department-permission/list/{id}",
+    tag = "Role",
+    // request_body(content = CreateBusinessSettingRequest, description = "Request Body"),
+    responses(
+        (status=200, description= "sucessfully listed role permissions", body= GenericResponse<Vec<Permission>>),
+        (status=400, description= "Invalid Request body", body= GenericResponse<TupleUnit>),
+        (status=401, description= "Invalid Token", body= GenericResponse<TupleUnit>),
+	    (status=403, description= "Insufficient Previlege", body= GenericResponse<TupleUnit>),
+	    (status=410, description= "Data not found", body= GenericResponse<TupleUnit>),
+        (status=500, description= "Internal Server Error", body= GenericResponse<TupleUnit>)
+    ),
+    params(
+        ("Authorization" = String, Header, description = "JWT token"),
+        ("x-business-id" = String, Header, description = "id of business_account"),
+        ("x-request-id" = String, Header, description = "Request id"),
+        ("x-device-id" = String, Header, description = "Device id"),
+        ("id" = String, Path, description = "Role ID"),
+        ("x-department-id" = String, Header, description = "id of department account"), 
+      )
+)]
+#[tracing::instrument(err, name = "Department Role List API", skip(pool), fields())]
+pub async fn list_department_role_permission_list_req(
+    path: web::Path<Uuid>,
+    pool: web::Data<PgPool>,
+    user: UserAccount,
+    business_account: BusinessAccount,
+    department_account: DepartmentAccount,
+) -> Result<web::Json<GenericResponse<Vec<Permission>>>, GenericError> {
+    let role_id = path.into_inner();
+    let roles = get_roles(
+        &pool,
+        Some(business_account.id),
+        Some(department_account.id),
+        Some(vec![role_id]),
+        None,
+        false,
+    )
+    .await
+    .map_err(|e| GenericError::DatabaseError(e.to_string(), e))?;
+    if roles.is_empty() {
+        return Err(GenericError::ValidationError("Invalid Role ID".to_string()));
+    }
+    let permissions = fetch_permissions_for_role(&pool, role_id, business_account.id)
+        .await
+        .map_err(|e| GenericError::DatabaseError(e.to_string(), e))?;
+    Ok(web::Json(GenericResponse::success(
+        "sucessfully listed role permissions",
+        permissions,
     )))
 }

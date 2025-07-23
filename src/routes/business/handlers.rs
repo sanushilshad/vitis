@@ -12,7 +12,7 @@ use crate::{
     errors::GenericError,
     pulsar_client::PulsarClient,
     routes::{
-        role::utils::get_role,
+        role::utils::{get_role, get_roles},
         setting::{
             schemas::{SettingKey, SettingsExt},
             utils::get_setting_value,
@@ -255,8 +255,14 @@ pub async fn user_business_association_req(
     websocket_srv: web::Data<Addr<Server>>,
     producer_client: web::Data<PulsarClient>,
 ) -> Result<web::Json<GenericResponse<()>>, GenericError> {
-    let role_id = req.role_id.to_string();
-    let role_obj_task = get_role(&db_pool, &role_id);
+    let role_obj_task = get_roles(
+        &db_pool,
+        Some(business_account.id),
+        None,
+        Some(vec![req.role_id]),
+        None,
+        true,
+    );
 
     let assocated_user_task = get_business_account(&db_pool, user_account.id, business_account.id);
     let assocating_user_task = get_business_account(&db_pool, req.user_id, business_account.id);
@@ -278,7 +284,9 @@ pub async fn user_business_association_req(
         .map_err(|e| {
             GenericError::DatabaseError("Something went wrong while fetching role".to_string(), e)
         })?
-        .ok_or_else(|| GenericError::ValidationError("role does not exist.".to_string()))?;
+        .into_iter()
+        .next()
+        .ok_or_else(|| GenericError::ValidationError("Role does not exist.".to_string()))?;
 
     let assocating_user = assocating_user_res.map_err(|e| {
         GenericError::DatabaseError(

@@ -93,9 +93,6 @@ pub mod tests {
         let business_account = business_account_res.unwrap().unwrap();
         let create_department_obj = CreateDepartmentAccount {
             display_name: "Dev Account".to_string(),
-            is_test_account: false,
-
-            international_dialing_code: DUMMY_INTERNATIONAL_DIALING_CODE.to_string(),
         };
         let department_res_obj =
             create_department_account(pool, &user, &business_account, &create_department_obj)

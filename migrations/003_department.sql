@@ -21,7 +21,7 @@ CREATE TABLE IF NOT EXISTS business_user_department_relationship (
   department_id uuid NOT NULL,
   business_id uuid NOT NULL,
   role_id uuid NOT NULL,
-  verified BOOLEAN NOT NULL DEFAULT false,
+  verified BOOLEAN NOT NULL DEFAULT true,
   created_on TIMESTAMPTZ NOT NULL,
   updated_on TIMESTAMPTZ,
   created_by uuid NOT NULL,

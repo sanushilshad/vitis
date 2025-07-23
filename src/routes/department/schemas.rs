@@ -7,7 +7,6 @@ use utoipa::ToSchema;
 use uuid::Uuid;
 
 use crate::errors::GenericError;
-use crate::routes::user::schemas::UserRoleType;
 use crate::schemas::Status;
 use anyhow::anyhow;
 
@@ -16,8 +15,6 @@ use anyhow::anyhow;
 #[serde(rename_all = "camelCase")]
 pub struct CreateDepartmentAccount {
     pub display_name: String,
-    pub is_test_account: bool,
-    pub international_dialing_code: String,
 }
 
 impl FromRequest for CreateDepartmentAccount {
@@ -154,8 +151,7 @@ impl FromRequest for DepartmentAccount {
 #[serde(rename_all = "camelCase")]
 pub struct DepartmentUserAssociationRequest {
     pub user_id: Uuid,
-    pub department_id: Uuid,
-    pub role: UserRoleType,
+    pub role_id: Uuid,
 }
 
 impl FromRequest for DepartmentUserAssociationRequest {

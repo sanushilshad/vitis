@@ -3,13 +3,14 @@ use actix_web::web;
 use chrono::Utc;
 use sqlx::PgPool;
 use utoipa::TupleUnit;
+use uuid::Uuid;
 
 use crate::{
     errors::GenericError,
     pulsar_client::PulsarClient,
     routes::{
         business::schemas::BusinessAccount,
-        role::utils::get_role,
+        role::utils::get_roles,
         user::schemas::{UserAccount, UserRoleType},
         web_socket::{schemas::ProcessType, utils::send_notification},
     },
@@ -80,8 +81,8 @@ pub async fn register_department_account_req(
 }
 
 #[utoipa::path(
-    post,
-    path = "/department/fetch",
+    get,
+    path = "/department/fetch/{id}",
     tag = "department Account",
     description = "API for fetching department account detail.",
     summary = "department Account Fetch API",
@@ -99,22 +100,27 @@ pub async fn register_department_account_req(
         ("x-request-id" = String, Header, description = "Request id"),
         ("x-device-id" = String, Header, description = "Device id"),
         ("x-business-id" = String, Header, description = "id of business_account"),
-      )
+        ("id" = String, Path, description = "id of department account"),      )
 )]
 #[tracing::instrument(err, name = "fetch department detail", skip(db_pool), fields())]
 pub async fn fetch_department_req(
     db_pool: web::Data<PgPool>,
     user_account: UserAccount,
     business_account: BusinessAccount,
-    body: DepartmentFetchRequest,
+    path: web::Path<Uuid>,
 ) -> Result<web::Json<GenericResponse<DepartmentAccount>>, GenericError> {
-    let department_account =
-        get_department_account(&db_pool, user_account.id, business_account.id, body.id)
-            .await
-            .map_err(|e| GenericError::DatabaseError(e.to_string(), e))?
-            .ok_or_else(|| {
-                GenericError::ValidationError("department account does not exist.".to_string())
-            })?;
+    let department_id = path.into_inner();
+    let department_account = get_department_account(
+        &db_pool,
+        user_account.id,
+        business_account.id,
+        department_id,
+    )
+    .await
+    .map_err(|e| GenericError::DatabaseError(e.to_string(), e))?
+    .ok_or_else(|| {
+        GenericError::ValidationError("department account does not exist.".to_string())
+    })?;
     Ok(web::Json(GenericResponse::success(
         "Sucessfully fetched department data.",
         department_account,
@@ -220,7 +226,7 @@ pub async fn list_department_req(
 
 #[utoipa::path(
     post,
-    path = "/user/assocation",
+    path = "/user/associate",
     tag = "department Account",
     description = "API for association of user with a department account",
     summary = "Use department Account Association API",
@@ -256,8 +262,19 @@ pub async fn user_department_association_req(
     websocket_srv: web::Data<Addr<Server>>,
     producer_client: web::Data<PulsarClient>,
 ) -> Result<web::Json<GenericResponse<()>>, GenericError> {
-    let role = req.role.to_lowercase_string();
-    let role_obj_task = get_role(&db_pool, &role);
+    // let role = req.role_id.to_string();
+    let role_obj_task = get_roles(
+        &db_pool,
+        Some(business_account.id),
+        Some(department_account.id),
+        Some(vec![req.role_id]),
+        None,
+        true,
+    );
+    // .await
+    // .map_err(|e| {
+    //     GenericError::DatabaseError("Something went wrong while fetching role".to_string(), e)
+    // });
 
     let assocated_user_task = get_department_account(
         &db_pool,
@@ -274,12 +291,13 @@ pub async fn user_department_association_req(
             e,
         )
     })?;
-
     let role_obj = role_obj_res
         .map_err(|e| {
             GenericError::DatabaseError("Something went wrong while fetching role".to_string(), e)
         })?
-        .ok_or_else(|| GenericError::ValidationError("role does not exist.".to_string()))?;
+        .into_iter()
+        .next()
+        .ok_or_else(|| GenericError::ValidationError("Role does not exist.".to_string()))?;
 
     if assocated_user.is_some() {
         return Err(GenericError::ValidationError(

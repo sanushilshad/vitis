@@ -391,7 +391,7 @@ pub async fn disassociate_permissions_to_department_role(
 ) -> Result<web::Json<GenericResponse<()>>, GenericError> {
     let permission_task = fetch_permissions_by_scope(
         &pool,
-        vec![PermissionLevel::Business],
+        vec![PermissionLevel::Department],
         Some(&body.permission_id_list),
     );
     let role_task = get_roles(

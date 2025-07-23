@@ -27,7 +27,6 @@ pub async fn get_role_model(
     Ok(row)
 }
 
-// test case not needed
 #[tracing::instrument(name = "get_role", skip(pool))]
 pub async fn get_role(pool: &PgPool, query: &str) -> Result<Option<AccountRole>, anyhow::Error> {
     let role_model = get_role_model(pool, query).await?;
@@ -37,7 +36,8 @@ pub async fn get_role(pool: &PgPool, query: &str) -> Result<Option<AccountRole>,
     }
 }
 
-#[tracing::instrument(name = "get_role_models", skip(pool))]
+// test case not needed
+#[tracing::instrument(name = "get_role", skip(pool))]
 pub async fn get_role_models(
     pool: &PgPool,
     business_id: Option<Uuid>,
@@ -57,10 +57,11 @@ pub async fn get_role_models(
             created_by, 
             is_deleted
         FROM role 
-        WHERE is_deleted = false AND name !='superadmin'
+        WHERE is_deleted = false AND name != 'superadmin'
         "#,
     );
 
+    // Filter by name list
     if let Some(names) = name_list {
         if !names.is_empty() {
             query_builder.push(" AND name = ANY(");
@@ -69,18 +70,32 @@ pub async fn get_role_models(
         }
     }
 
+    // Filter by ID list
     if let Some(ids) = id_list {
         if !ids.is_empty() {
-            tracing::info!(" IDS {:?}", ids);
+            tracing::info!("IDS {:?}", ids);
             query_builder.push(" AND id = ANY(");
             query_builder.push_bind(ids);
             query_builder.push(")");
         }
     }
 
-    if let Some(bid) = business_id {
-        query_builder.push(" AND (business_id = ");
-        tracing::info!("BUSINESS ID {}", bid);
+    // Complex department + business + global logic
+    if let Some(did) = department_id {
+        query_builder.push(" AND (department_id = ");
+        query_builder.push_bind(did);
+        if let Some(bid) = business_id {
+            query_builder.push(" AND business_id = ");
+            query_builder.push_bind(bid);
+        }
+        if show_global {
+            query_builder.push(
+                " OR (business_id IS NULL AND department_id IS NULL AND is_editable = false)",
+            );
+        }
+        query_builder.push(")");
+    } else if let Some(bid) = business_id {
+        query_builder.push(" AND (department_id is null AND business_id = ");
         query_builder.push_bind(bid);
         if show_global {
             query_builder.push(
@@ -88,27 +103,20 @@ pub async fn get_role_models(
             );
         }
         query_builder.push(")");
-    } else if let Some(did) = department_id {
-        query_builder.push(" AND (department_id = ");
-        query_builder.push_bind(did);
-        if show_global {
-            query_builder
-                .push("OR (business_id IS NULL AND department_id IS NULL AND is_editable = false)");
-        }
-        query_builder.push(")");
     }
 
     let query = query_builder.build_query_as::<RoleModel>();
-    let query_string = query.sql();
-    println!("Generated SQL query for: {}", query_string);
-    let roles = query.fetch_all(pool).await.map_err(|e: sqlx::Error| {
+
+    // Log the generated query for debugging
+    println!("Generated SQL query: {}", query.sql());
+
+    let roles = query.fetch_all(pool).await.map_err(|e| {
         tracing::error!("Failed to execute query: {:?}", e);
         anyhow!(e).context("A database failure occurred while fetching roles")
     })?;
 
     Ok(roles)
 }
-
 #[tracing::instrument(name = "get_role_models", skip(pool))]
 pub async fn get_roles(
     pool: &PgPool,

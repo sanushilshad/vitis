@@ -16,6 +16,7 @@ CREATE TABLE IF NOT EXISTS role (
 );
 
 ALTER TABLE role ADD CONSTRAINT fk_role_business_id FOREIGN KEY (business_id) REFERENCES business_account(id) ON DELETE CASCADE;
+ALTER TABLE role ADD CONSTRAINT fk_role_department_id FOREIGN KEY (department_id) REFERENCES department_account(id) ON DELETE CASCADE;
 -- ALTER TABLE role ADD CONSTRAINT unique_role_name UNIQUE NULLS NOT DISTINCT(business_id, department_id, name);
 
 ALTER TABLE role ADD CONSTRAINT unique_role_name UNIQUE (role_name);
