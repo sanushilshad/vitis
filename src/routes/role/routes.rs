@@ -1,5 +1,8 @@
 use crate::{
-    middlewares::{BusinessAccountValidation, BusinessPermissionValidation},
+    middlewares::{
+        BusinessAccountValidation, BusinessPermissionValidation, DepartmentAccountValidation,
+        DepartmentPermissionValidation,
+    },
     schemas::PermissionType,
 };
 
@@ -14,6 +17,9 @@ pub fn role_routes(cfg: &mut web::ServiceConfig) {
         "/business/save",
         web::post()
             .to(save_business_role_req)
+            .wrap(BusinessPermissionValidation {
+                permission_list: vec![PermissionType::CreateBusinessRole.to_string()],
+            })
             .wrap(BusinessAccountValidation),
     );
     cfg.route(
@@ -41,6 +47,16 @@ pub fn role_routes(cfg: &mut web::ServiceConfig) {
             .wrap(BusinessPermissionValidation {
                 permission_list: vec![PermissionType::CreateBusinessRole.to_string()],
             })
+            .wrap(BusinessAccountValidation),
+    );
+    cfg.route(
+        "/department/save",
+        web::post()
+            .to(save_business_role_req)
+            .wrap(DepartmentPermissionValidation {
+                permission_list: vec![PermissionType::CreateBusinessRole.to_string()],
+            })
+            .wrap(DepartmentAccountValidation)
             .wrap(BusinessAccountValidation),
     );
 }

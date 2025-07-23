@@ -136,6 +136,7 @@ pub async fn get_roles(
 fn prepare_bulk_role_data<'a>(
     role_list: &'a Vec<CreateRoleData>,
     business_id: Option<Uuid>,
+    department_id: Option<Uuid>,
     created_by: Uuid,
     created_on: DateTime<Utc>,
 ) -> Option<BulkRoleInsert<'a>> {
@@ -143,6 +144,7 @@ fn prepare_bulk_role_data<'a>(
     let mut created_on_list = vec![];
     let mut id_list = vec![];
     let mut business_id_list = vec![];
+    let mut department_id_list = vec![];
     let mut created_by_list = vec![];
     let mut is_editable_list = vec![];
     if role_list.is_empty() {
@@ -159,6 +161,7 @@ fn prepare_bulk_role_data<'a>(
         name_list.push(role.name.as_ref());
         business_id_list.push(business_id);
         is_editable_list.push(true);
+        department_id_list.push(department_id);
     }
     Some(BulkRoleInsert {
         id: id_list,
@@ -167,6 +170,7 @@ fn prepare_bulk_role_data<'a>(
         created_by: created_by_list,
         business_id: business_id_list,
         is_editable: is_editable_list,
+        department_id: department_id_list,
     })
 }
 
@@ -178,8 +182,8 @@ async fn save_role_to_database<'a>(
 ) -> Result<(), anyhow::Error> {
     let query = sqlx::query!(
         r#"
-        INSERT INTO role (id, created_by, created_on, name, business_id, is_editable)
-        SELECT * FROM UNNEST($1::uuid[], $2::uuid[], $3::TIMESTAMP[],  $4::TEXT[], $5::uuid[], $6::bool[]) 
+        INSERT INTO role (id, created_by, created_on, name, business_id, is_editable, department_id)
+        SELECT * FROM UNNEST($1::uuid[], $2::uuid[], $3::TIMESTAMP[],  $4::TEXT[], $5::uuid[], $6::bool[], $7::uuid[]) 
         ON CONFLICT (id) DO UPDATE
         SET name = EXCLUDED.name,
         updated_by = EXCLUDED.created_by,
@@ -190,7 +194,8 @@ async fn save_role_to_database<'a>(
         &data.created_on[..] as &[DateTime<Utc>],
         &data.name[..] as &[&str],
         &data.business_id[..] as &[Option<Uuid>],
-        &data.is_editable[..] as &[bool]
+        &data.is_editable[..] as &[bool],
+        &data.department_id[..] as &[Option<Uuid>],
     );
     let query_string = query.sql();
     println!("Generated SQL query for: {}", query_string);
@@ -206,10 +211,17 @@ pub async fn save_role(
     pool: &PgPool,
     role_list: &Vec<CreateRoleData>,
     business_id: Option<Uuid>,
+    department_id: Option<Uuid>,
     created_by: Uuid,
     created_on: DateTime<Utc>,
 ) -> Result<(), anyhow::Error> {
-    let data = prepare_bulk_role_data(role_list, business_id, created_by, created_on);
+    let data = prepare_bulk_role_data(
+        role_list,
+        business_id,
+        department_id,
+        created_by,
+        created_on,
+    );
     if let Some(data) = data {
         save_role_to_database(pool, data).await?;
     }

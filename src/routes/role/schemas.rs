@@ -55,5 +55,6 @@ pub struct BulkRoleInsert<'a> {
     pub created_on: Vec<DateTime<Utc>>,
     pub created_by: Vec<Uuid>,
     pub business_id: Vec<Option<Uuid>>,
+    pub department_id: Vec<Option<Uuid>>,
     pub is_editable: Vec<bool>,
 }

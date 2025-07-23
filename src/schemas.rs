@@ -187,6 +187,8 @@ pub enum PermissionType {
     DeleteDepartment,
     #[serde(rename = "update:department")]
     UpdateDepartment,
+    #[serde(rename = "create:department-role")]
+    CreateDepartmentRole,
 }
 
 impl fmt::Display for PermissionType {
@@ -225,6 +227,7 @@ impl fmt::Display for PermissionType {
             PermissionType::CreateDepartmentSetting => "create:department-setting",
             PermissionType::DeleteDepartment => "delete:department",
             PermissionType::UpdateDepartment => "update:department",
+            PermissionType::CreateDepartmentRole => "create:department-role",
         };
 
         write!(f, "{}", display_str)

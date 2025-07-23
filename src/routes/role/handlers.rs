@@ -83,6 +83,7 @@ pub async fn save_business_role_req(
         &pool,
         &body.data,
         Some(business_account.id),
+        None,
         user.id,
         Utc::now(),
     )
@@ -228,5 +229,83 @@ pub async fn list_role_permission_list_req(
     Ok(web::Json(GenericResponse::success(
         "sucessfully listed role permissions",
         permissions,
+    )))
+}
+
+#[utoipa::path(
+    post,
+    description = "API for creating roles specific to department.",
+    summary = "Bepartment Roles Create API",
+    path = "/role/department/save",
+    tag = "Role",
+    request_body(content = CreateBusinessRoleRequest, description = "Request Body"),
+    responses(
+        (status=200, description= "sucessfully created business roles", body= GenericResponse<TupleUnit>),
+        (status=400, description= "Invalid Request body", body= GenericResponse<TupleUnit>),
+        (status=401, description= "Invalid Token", body= GenericResponse<TupleUnit>),
+	    (status=403, description= "Insufficient Previlege", body= GenericResponse<TupleUnit>),
+	    (status=410, description= "Data not found", body= GenericResponse<TupleUnit>),
+        (status=500, description= "Internal Server Error", body= GenericResponse<TupleUnit>)
+    ),
+    params(
+        ("Authorization" = String, Header, description = "JWT token"),
+        ("x-business-id" = String, Header, description = "id of business_account"),
+        ("x-request-id" = String, Header, description = "Request id"),
+        ("x-device-id" = String, Header, description = "Device id"),
+        ("x-department-id" = String, Header, description = "id of department account"), 
+      )
+)]
+#[tracing::instrument(err, name = "Business role Creation API", skip(pool), fields())]
+pub async fn save_department_role_req(
+    body: CreateBusinessRoleRequest,
+    pool: web::Data<PgPool>,
+    user: UserAccount,
+    business_account: BusinessAccount,
+    department_account: BusinessAccount,
+) -> Result<web::Json<GenericResponse<()>>, GenericError> {
+    let new_role_names: Vec<&str> = body
+        .data
+        .iter()
+        .filter(|a| a.id.is_none())
+        .map(|f| f.name.as_ref())
+        .collect();
+    if !new_role_names.is_empty() {
+        let roles = get_roles(
+            &pool,
+            Some(business_account.id),
+            Some(department_account.id),
+            None,
+            Some(new_role_names),
+            true,
+        )
+        .await
+        .map_err(|e| GenericError::DatabaseError(e.to_string(), e))?;
+        if !roles.is_empty() {
+            let existing_labels = roles
+                .iter()
+                .map(|p| p.name.as_str())
+                .collect::<Vec<&str>>()
+                .join(", ");
+
+            return Err(GenericError::ValidationError(format!(
+                "Roles already exist: {}",
+                existing_labels
+            )));
+        }
+    }
+
+    save_role(
+        &pool,
+        &body.data,
+        Some(business_account.id),
+        Some(department_account.id),
+        user.id,
+        Utc::now(),
+    )
+    .await
+    .map_err(|e| GenericError::UnexpectedCustomError(e.to_string()))?;
+    Ok(web::Json(GenericResponse::success(
+        "sucessfully created business roles",
+        (),
     )))
 }
