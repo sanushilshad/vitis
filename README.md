@@ -302,7 +302,7 @@ The API Docmentation can be found at `https://{{domain}}/docs/` after running th
 * [x] Create Save Role API for department.
 * [x] Create Role fetch API for department.
 * [x] Delete Role API for department.
-* [ ] Create Permission list API.
+* [x] Create Permission list API.
 * [ ] Create role permissions assigment API.
 * [ ] Create role permissions assigment delete API.
 

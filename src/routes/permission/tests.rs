@@ -21,10 +21,19 @@ pub mod tests {
     };
 
     #[tokio::test]
-    async fn test_list_permissions() {
+    async fn test_list_business_permissions() {
         let pool = get_test_pool().await;
         let permissions =
             fetch_permissions_by_scope(&pool, vec![PermissionLevel::Business], None).await;
+        assert!(permissions.is_ok());
+        assert!(!permissions.unwrap().is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_list_department_permissions() {
+        let pool = get_test_pool().await;
+        let permissions =
+            fetch_permissions_by_scope(&pool, vec![PermissionLevel::Department], None).await;
         assert!(permissions.is_ok());
         assert!(!permissions.unwrap().is_empty());
     }

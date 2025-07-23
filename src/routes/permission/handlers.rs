@@ -9,7 +9,8 @@ use uuid::Uuid;
 use crate::{
     errors::GenericError,
     routes::{
-        business::schemas::BusinessAccount, role::utils::get_roles, user::schemas::UserAccount,
+        business::schemas::BusinessAccount, department::schemas::DepartmentAccount,
+        role::utils::get_roles, user::schemas::UserAccount,
     },
     schemas::GenericResponse,
 };
@@ -222,5 +223,49 @@ pub async fn disassociate_permissions_to_role(
     Ok(web::Json(GenericResponse::success(
         "sucessfully disassociated permissions to role",
         (),
+    )))
+}
+
+#[utoipa::path(
+    get,
+    description = "API for creating roles specific to department.",
+    summary = "Department Permission List API",
+    path = "/permission/department/list",
+    tag = "Permission",
+
+    responses(
+        (status=200, description= "sucessfully listed business permissions", body= GenericResponse<Vec<Permission>>),
+        (status=400, description= "Invalid Request body", body= GenericResponse<TupleUnit>),
+        (status=401, description= "Invalid Token", body= GenericResponse<TupleUnit>),
+	    (status=403, description= "Insufficient Previlege", body= GenericResponse<TupleUnit>),
+	    (status=410, description= "Data not found", body= GenericResponse<TupleUnit>),
+        (status=500, description= "Internal Server Error", body= GenericResponse<TupleUnit>)
+    ),
+    params(
+        ("Authorization" = String, Header, description = "JWT token"),
+        ("x-business-id" = String, Header, description = "id of business_account"),
+        ("x-request-id" = String, Header, description = "Request id"),
+        ("x-device-id" = String, Header, description = "Device id"),
+        ("x-department-id" = String, Header, description = "id of department_account"),
+    )
+)]
+#[tracing::instrument(err, name = "Department Permission List API", skip(pool), fields())]
+pub async fn list_department_permissions(
+    pool: web::Data<PgPool>,
+    user: UserAccount,
+    business_account: BusinessAccount,
+    department_account: DepartmentAccount,
+) -> Result<web::Json<GenericResponse<Vec<Permission>>>, GenericError> {
+    let permissions = fetch_permissions_by_scope(&pool, vec![PermissionLevel::Department], None)
+        .await
+        .map_err(|e| {
+            GenericError::DatabaseError(
+                "Something went wrong while fetching department permissions".to_string(),
+                e,
+            )
+        })?;
+    Ok(web::Json(GenericResponse::success(
+        "sucessfully listed business permissions",
+        permissions,
     )))
 }
