@@ -2,13 +2,15 @@ use crate::{email::EmailObject, errors::GenericError, schemas::Status};
 use actix_http::Payload;
 use actix_web::{FromRequest, HttpRequest, web};
 use bigdecimal::BigDecimal;
-use chrono::{DateTime, FixedOffset, NaiveDateTime, Utc};
+use chrono::{DateTime, FixedOffset, NaiveDate, NaiveDateTime, Utc};
 use chrono_tz::Tz;
 use futures::future::LocalBoxFuture;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use utoipa::ToSchema;
 use uuid::Uuid;
+
+use super::models::LeaveAllowedDateModel;
 
 // impl LeaveType {
 //     pub fn get_setting_key(&self) -> SettingKey {
@@ -317,12 +319,29 @@ impl<'a> FetchLeaveQuery<'a> {
     }
 }
 
+#[derive(Debug, Deserialize, Serialize, ToSchema, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct LeaveAllowedDate {
+    pub date: NaiveDate,
+    pub label: String,
+}
+
+impl LeaveAllowedDate {
+    pub fn into_model(&self) -> LeaveAllowedDateModel {
+        LeaveAllowedDateModel {
+            date: self.date.to_owned(),
+            label: self.label.to_owned(),
+        }
+    }
+}
+
 #[derive(Deserialize, Debug, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct LeaveTypeCreationData {
     pub id: Option<Uuid>,
     pub label: String,
     pub period_id_list: Vec<Uuid>,
+    pub allowed_dates: Option<Vec<LeaveAllowedDate>>,
 }
 
 #[derive(Deserialize, Debug, ToSchema)]
@@ -354,16 +373,20 @@ pub struct BulkLeaveTypeInsert<'a> {
     pub created_on: Vec<DateTime<Utc>>,
     pub created_by: Vec<Uuid>,
     pub business_id: Vec<Uuid>,
+    pub allowed_dates: Vec<Option<Value>>,
 }
 
 #[derive(Debug, Serialize, ToSchema)]
+#[serde(rename_all = "camelCase")]
 pub struct LeaveTypeData {
     pub id: Uuid,
     pub label: String,
     pub period_list: Vec<LeavePeriodData>,
+    pub allowed_dates: Option<Vec<LeaveAllowedDate>>,
 }
 
 #[derive(Debug, Serialize, ToSchema, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct LeavePeriodData {
     pub id: Uuid,
     pub label: String,
@@ -419,6 +442,7 @@ impl FromRequest for LeaveGroupCreationRequest {
 }
 
 #[derive(Debug, Serialize, ToSchema)]
+#[serde(rename_all = "camelCase")]
 pub struct LeaveGroup {
     pub id: Uuid,
     pub label: String,
@@ -510,6 +534,7 @@ pub struct UserLeave {
     pub leave_type: UserLeaveType,
     pub leave_group: UserLeaveGroup,
     pub periods: Vec<LeavePeriodData>,
+    pub allowed_dates: Option<Vec<LeaveAllowedDate>>,
 }
 
 // #[derive(Deserialize, Debug, ToSchema)]
@@ -522,6 +547,7 @@ pub struct UserLeave {
 pub struct BulkUserLeaveInsert<'a> {
     pub id: Vec<Uuid>,
     pub group_id: Vec<Uuid>,
+    pub user_id: Vec<Uuid>,
     pub type_id: Vec<Uuid>,
     pub allocated_count: Vec<&'a BigDecimal>,
     pub created_on: Vec<DateTime<Utc>>,

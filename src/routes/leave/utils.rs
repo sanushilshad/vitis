@@ -373,6 +373,14 @@ pub fn validate_leave_request_creation(
                 return Err(anyhow!("Invalid leave period with id: {}", item.period_id));
             }
         }
+        if let Some(allowed_dates) = &user_leave.allowed_dates {
+            if !allowed_dates.is_empty() && !allowed_dates.iter().any(|d| d.date == item.date) {
+                return Err(anyhow!(
+                    "You are not allowed to take leave on {}",
+                    item.date.format("%Y-%m-%d")
+                ));
+            }
+        }
     }
 
     if (&user_leave.used_count + &new_leave_count) > user_leave.allocated_count {
@@ -670,6 +678,7 @@ pub async fn prepare_bulk_leave_type_data<'a>(
     let mut id_list = vec![];
     let mut business_id_list = vec![];
     let mut created_by_list = vec![];
+    let mut allowed_dates = vec![];
     if leave_type_data.is_empty() {
         return None;
     }
@@ -683,6 +692,24 @@ pub async fn prepare_bulk_leave_type_data<'a>(
         }
         label_list.push(leave_data.label.as_ref());
         business_id_list.push(business_id);
+        // if Some(allowed_dates) = &leave_data.allowed_dates {
+        //     allowed_dates.push(
+        //         serde_json::to_value(
+        //             leave_data
+        //                 .allowed_dates
+        //                 .iter()
+        //                 .flatten()
+        //                 .map(|a| a.into_model())
+        //                 .collect::<Vec<_>>(), // collect into a Vec before serialization
+        //         )
+        //         .unwrap(),
+        //     );
+        // } else {
+        //     allowed_dates.push(None);
+        // }
+        allowed_dates.push(leave_data.allowed_dates.as_ref().map(|dates| {
+            serde_json::to_value(dates.iter().map(|a| a.into_model()).collect::<Vec<_>>()).unwrap()
+        }));
     }
     Some(BulkLeaveTypeInsert {
         id: id_list,
@@ -690,6 +717,7 @@ pub async fn prepare_bulk_leave_type_data<'a>(
         created_on: created_on_list,
         created_by: created_by_list,
         business_id: business_id_list,
+        allowed_dates: allowed_dates,
     })
 }
 
@@ -701,8 +729,8 @@ pub async fn save_leave_type_to_database<'a>(
 ) -> Result<HashMap<String, Uuid>, anyhow::Error> {
     let query = sqlx::query!(
         r#"
-        INSERT INTO leave_type (id, created_by, created_on, label, business_id)
-        SELECT * FROM UNNEST($1::uuid[], $2::uuid[], $3::TIMESTAMP[],  $4::TEXT[], $5::uuid[]) 
+        INSERT INTO leave_type (id, created_by, created_on, label, business_id, allowed_dates)
+        SELECT * FROM UNNEST($1::uuid[], $2::uuid[], $3::TIMESTAMP[],  $4::TEXT[], $5::uuid[], $6::jsonb[]) 
         ON CONFLICT (id) DO UPDATE
         SET label = EXCLUDED.label,
         updated_by = EXCLUDED.created_by,
@@ -713,7 +741,8 @@ pub async fn save_leave_type_to_database<'a>(
         &data.created_by[..] as &[Uuid],
         &data.created_on[..] as &[DateTime<Utc>],
         &data.label[..] as &[&str],
-        &data.business_id[..] as &[Uuid]
+        &data.business_id[..] as &[Uuid],
+        &data.allowed_dates[..] as &[Option<Value>],
     );
     let query_string = query.sql();
     println!("Generated SQL query for: {}", query_string);
@@ -766,7 +795,7 @@ async fn fetch_leave_type_models<'a>(
 ) -> Result<Vec<LeaveTypeModel>, anyhow::Error> {
     let mut query_builder = QueryBuilder::new(
         r#"
-        SELECT id, label FROM leave_type WHERE business_id="#,
+        SELECT id, label, allowed_dates FROM leave_type WHERE business_id="#,
     );
     query_builder.push_bind(business_id);
     if let Some(id_list) = id_list {
@@ -822,6 +851,7 @@ pub async fn get_leave_type(
 
     for data_model in data_models {
         let periods = period_map.remove(&data_model.id).unwrap_or_default();
+
         final_data.push(data_model.into_schema(periods));
     }
 
@@ -1073,6 +1103,7 @@ async fn fetch_user_leave_models(
             u_l.id,
             u_l.leave_type_id,
             u_l.leave_group_id,
+            lt.allowed_dates,
             u_l.allocated_count,
             u_l.used_count,
             u_l.user_id,
@@ -1184,6 +1215,7 @@ pub fn prepare_bulk_user_leave_data<'a>(
     leave_type_data: &'a Vec<UserLeaveCreationData>,
     user_id: Uuid,
     group_id: Uuid,
+    created_by: Uuid,
 ) -> BulkUserLeaveInsert<'a> {
     let current_utc = Utc::now();
     let mut created_on_list = vec![];
@@ -1192,18 +1224,20 @@ pub fn prepare_bulk_user_leave_data<'a>(
     let mut group_id_list = vec![];
     let mut type_id_list = vec![];
     let mut allocated_count_list = vec![];
-
+    let mut user_id_list = vec![];
     for leave_data in leave_type_data.iter() {
         created_on_list.push(current_utc);
-        created_by_list.push(user_id);
+        created_by_list.push(created_by);
         id_list.push(Uuid::new_v4());
         group_id_list.push(group_id);
         type_id_list.push(leave_data.type_id);
         allocated_count_list.push(&leave_data.count);
+        user_id_list.push(user_id);
     }
     BulkUserLeaveInsert {
         id: id_list,
         created_on: created_on_list,
+        user_id: user_id_list,
         created_by: created_by_list,
         group_id: group_id_list,
         type_id: type_id_list,
@@ -1216,15 +1250,16 @@ pub async fn save_user_leave(
     data: &Vec<UserLeaveCreationData>,
     user_id: Uuid,
     group_id: Uuid,
+    created_by: Uuid,
 ) -> Result<(), anyhow::Error> {
     if data.is_empty() {
         return Ok(());
     }
-    let data = prepare_bulk_user_leave_data(data, user_id, group_id);
+    let data = prepare_bulk_user_leave_data(data, user_id, group_id, created_by);
     let query = sqlx::query!(
         r#"
         INSERT INTO user_leave_relationship ( id, leave_type_id, leave_group_id, allocated_count, user_id, created_by, created_on)
-        SELECT * FROM UNNEST($1::uuid[], $2::uuid[], $3::uuid[], $4::decimal[],  $5::uuid[], $5::uuid[], $6::TIMESTAMP[])
+        SELECT * FROM UNNEST($1::uuid[], $2::uuid[], $3::uuid[], $4::decimal[],  $5::uuid[], $6::uuid[], $7::TIMESTAMP[])
         ON CONFLICT (user_id, leave_group_id, leave_type_id) DO UPDATE
         SET allocated_count = EXCLUDED.allocated_count,
         updated_by = EXCLUDED.created_by,
@@ -1234,6 +1269,7 @@ pub async fn save_user_leave(
         &data.type_id[..] as &[Uuid],
         &data.group_id[..] as &[Uuid],
         &data.allocated_count[..] as &[&BigDecimal],
+        &data.user_id[..] as &[Uuid],
         &data.created_by[..] as &[Uuid],
         &data.created_on[..] as &[DateTime<Utc>],
     );

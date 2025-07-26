@@ -236,7 +236,7 @@ pub async fn list_business_role_permission_list_req(
 #[utoipa::path(
     post,
     description = "API for creating roles specific to department.",
-    summary = "Bepartment Roles Create API",
+    summary = "Department Roles Create API",
     path = "/role/department/save",
     tag = "Role",
     request_body(content = CreateBusinessRoleRequest, description = "Request Body"),
@@ -298,7 +298,7 @@ pub async fn save_department_role_req(
     save_role(
         &pool,
         &body.data,
-        Some(business_account.id),
+        None,
         Some(department_account.id),
         user.id,
         Utc::now(),
@@ -341,16 +341,9 @@ pub async fn list_department_role_req(
     business_account: BusinessAccount,
     department_account: DepartmentAccount,
 ) -> Result<web::Json<GenericResponse<Vec<AccountRole>>>, GenericError> {
-    let roles = get_roles(
-        &pool,
-        Some(business_account.id),
-        Some(department_account.id),
-        None,
-        None,
-        true,
-    )
-    .await
-    .map_err(|e| GenericError::DatabaseError(e.to_string(), e))?;
+    let roles = get_roles(&pool, None, Some(department_account.id), None, None, true)
+        .await
+        .map_err(|e| GenericError::DatabaseError(e.to_string(), e))?;
     Ok(web::Json(GenericResponse::success(
         "sucessfully listed department roles",
         roles,
@@ -392,7 +385,7 @@ pub async fn delete_department_role_req(
     let role_id = path.into_inner();
     let roles = get_roles(
         &pool,
-        Some(business_account.id),
+        None,
         Some(department_account.id),
         Some(vec![role_id]),
         None,
@@ -447,7 +440,7 @@ pub async fn list_department_role_permission_list_req(
     let role_id = path.into_inner();
     let roles = get_roles(
         &pool,
-        Some(business_account.id),
+        None,
         Some(department_account.id),
         Some(vec![role_id]),
         None,

@@ -40,6 +40,7 @@ CREATE TABLE IF NOT EXISTS leave_type (
     label TEXT NOT NULL,
     business_id uuid NOT NULL,
     created_on TIMESTAMPTZ NOT NULL,
+    allowed_dates JSONB,
     created_by uuid NOT NULL,
     updated_by uuid,
     updated_on TIMESTAMPTZ

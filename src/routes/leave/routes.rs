@@ -55,7 +55,7 @@ pub fn leave_routes(cfg: &mut web::ServiceConfig) {
 
     cfg.route("/group/list", web::post().to(leave_group_list_req));
     cfg.route(
-        "/user/association/save",
+        "/user/allocate",
         web::post()
             .to(create_leave_user_association_req)
             .wrap(BusinessPermissionValidation {
@@ -63,7 +63,7 @@ pub fn leave_routes(cfg: &mut web::ServiceConfig) {
             }),
     );
     cfg.route(
-        "/user/association/delete/{id}",
+        "/user/allocation/delete/{id}",
         web::delete()
             .to(delete_leave_user_association_req)
             .wrap(BusinessPermissionValidation {
@@ -71,7 +71,7 @@ pub fn leave_routes(cfg: &mut web::ServiceConfig) {
             }),
     );
     cfg.route(
-        "/user/association/list",
+        "/user/allocation/list",
         web::post()
             .to(list_leave_user_association_req)
             .wrap(BusinessPermissionValidation {

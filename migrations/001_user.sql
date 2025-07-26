@@ -23,10 +23,11 @@ CREATE TABLE IF NOT EXISTS user_account(
     email TEXT NOT NULL,
     display_name TEXT NOT NULL,
     is_active status DEFAULT 'active'::status NOT NULL,
-    created_by uuid NOT NULL,
+
     vectors jsonb NOT NULL,
     updated_by uuid,
     deleted_by uuid,
+    created_by uuid NOT NULL,
     created_on TIMESTAMPTZ NOT NULL,
     updated_on TIMESTAMPTZ,
     deleted_on TIMESTAMPTZ,

@@ -259,7 +259,7 @@ The API Docmentation can be found at `https://{{domain}}/docs/` after running th
 * [x] Create business edit API. (Ongoing)
 
 
-## MILESTONE 4 (17/17) (LEAVE MANAGEMENT):
+## MILESTONE 4 (18/18) (LEAVE MANAGEMENT):
 * [x] Add leave type creation / edit API.
 * [x] Add leave  type fetch API.
 * [x] Add leave  type deletion API.
@@ -277,7 +277,7 @@ The API Docmentation can be found at `https://{{domain}}/docs/` after running th
 * [x] Add leave period creation API.
 * [x] Add leave period fetch API.
 * [x] Add leave period deletion API.
-
+* [x] Allocate restricted dates to leave type.
 
 ## MILESTONE 6 (7/7) (ROLE AND PERMISSION MANAGEMENT):
 * [x] Create Role Save + Update API. (In-progress)
@@ -306,19 +306,25 @@ The API Docmentation can be found at `https://{{domain}}/docs/` after running th
 * [x] Create role permissions assigment API.
 * [x] Create role permissions assigment delete API.
 
-## MILESTONE 8 (2/5) GENERIC 
+
+## MILESTONE 8 (0/4) (ON-CALL MANAGEMENT):
+
+* [ ] API for auto-creating leave from admin for user (FOR).
+* [ ] Create On-call creation API.
+* [ ] Create On-call fetch API.
+* [ ] Create On-call history fetch API.
+
+
+## MILESTONE 9 (3/6) GENERIC: 
 * [x] Add Cluster ID for setting.
 * [x] Allow bulk send of websocket.
+* [x] Set the setting_type of html string to html.
 * [ ] Move Slack + Personal Email Credential to Setting.
-* [ ] Set the setting_type of html string to html
 * [ ] Set the setting_type of  passwords to secret and mask it before sending to UI.
 * [ ] Fix Sinch Implementation.
 
 
-## MILESTONE 9 (0/3) (ON-CALL MANAGEMENT):
-* [ ] Create On-call creation API.
-* [ ] Create On-call fetch API.
-* [ ] Create On-call history fetch API.
+
 
 
 ## MILESTONE 10 (0/7) (TASK MANAGEMENT):

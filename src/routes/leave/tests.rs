@@ -260,11 +260,13 @@ pub mod tests {
                 id: None,
                 label: "Casual Leave".to_string(),
                 period_id_list: vec![period_id],
+                allowed_dates: None,
             },
             LeaveTypeCreationData {
                 id: None,
                 label: "Restricted Leave".to_string(),
                 period_id_list: vec![period_id],
+                allowed_dates: None,
             },
         ];
         let mut transaction = pool
@@ -300,6 +302,7 @@ pub mod tests {
             id: Some(leave_id),
             label: "Medical Leave".to_string(),
             period_id_list: vec![period_id],
+            allowed_dates: None,
         }];
         let mut transaction = pool
             .begin()
@@ -372,6 +375,7 @@ pub mod tests {
             id: None,
             label: "Casual Leave".to_string(),
             period_id_list: vec![period_id],
+            allowed_dates: None,
         }];
         let mut transaction = pool
             .begin()
@@ -416,7 +420,7 @@ pub mod tests {
             count: BigDecimal::from_i32(23).unwrap(),
             status: Status::Active,
         }];
-        let res = save_user_leave(&pool, &user_leave_data, user_id, leave_group_id).await;
+        let res = save_user_leave(&pool, &user_leave_data, user_id, leave_group_id, user_id).await;
         assert!(res.is_ok());
 
         let user_leave_res =
@@ -462,6 +466,7 @@ pub mod tests {
             id: None,
             label: "Casual Leave".to_string(),
             period_id_list: vec![period_id],
+            allowed_dates: None,
         }];
 
         let mut transaction = pool
@@ -514,7 +519,7 @@ pub mod tests {
             count: BigDecimal::from_i32(1).unwrap(),
             status: Status::Active,
         }];
-        let res = save_user_leave(&pool, &user_leave_data, user_id, leave_group_id).await;
+        let res = save_user_leave(&pool, &user_leave_data, user_id, leave_group_id, user_id).await;
 
         assert!(res.is_ok());
 
@@ -541,6 +546,7 @@ pub mod tests {
         };
 
         let leave_request_validation = validate_leave_request_creation(&leave_request, user_leave);
+        print!("Leave request validation: {:?}", leave_request_validation);
         assert!(leave_request_validation.is_ok());
 
         let leave_data = vec![
@@ -586,6 +592,7 @@ pub mod tests {
             id: None,
             label: "Casual Leave".to_string(),
             period_id_list: vec![period_id],
+            allowed_dates: None,
         }];
         let mut transaction = pool
             .begin()
@@ -636,7 +643,7 @@ pub mod tests {
             count: BigDecimal::from_i32(5).unwrap(),
             status: Status::Active,
         }];
-        let res = save_user_leave(&pool, &user_leave_data, user_id, leave_group_id).await;
+        let res = save_user_leave(&pool, &user_leave_data, user_id, leave_group_id, user_id).await;
 
         assert!(res.is_ok());
 
@@ -727,6 +734,7 @@ pub mod tests {
             id: None,
             label: "Casual Leave".to_string(),
             period_id_list: vec![period_id],
+            allowed_dates: None,
         }];
         let mut transaction = pool
             .begin()
@@ -778,7 +786,7 @@ pub mod tests {
             count: BigDecimal::from_i32(5).unwrap(),
             status: Status::Active,
         }];
-        let res = save_user_leave(&pool, &user_leave_data, user_id, leave_group_id).await;
+        let res = save_user_leave(&pool, &user_leave_data, user_id, leave_group_id, user_id).await;
 
         assert!(res.is_ok());
 
@@ -900,6 +908,7 @@ pub mod tests {
                 label: "Full Day".to_string(),
                 value: BigDecimal::from_i32(1).unwrap(),
             }],
+            allowed_dates: None,
         }
     }
 
@@ -1013,6 +1022,7 @@ pub mod tests {
             id: None,
             label: "Casual Leave".to_string(),
             period_id_list: vec![period_id],
+            allowed_dates: None,
         }];
         let mut transaction = pool
             .begin()
@@ -1063,7 +1073,7 @@ pub mod tests {
             count: BigDecimal::from_i32(5).unwrap(),
             status: Status::Active,
         }];
-        let res = save_user_leave(&pool, &user_leave_data, user_id, leave_group_id).await;
+        let res = save_user_leave(&pool, &user_leave_data, user_id, leave_group_id, user_id).await;
 
         assert!(res.is_ok());
 

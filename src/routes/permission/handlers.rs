@@ -25,7 +25,7 @@ use super::{
 
 #[utoipa::path(
     get,
-    description = "API for creating roles specific to business.",
+    description = "API for listing all permissions associated to a business.",
     summary = "Business Permission List API",
     path = "/permission/business/list",
     tag = "Permission",
@@ -228,7 +228,7 @@ pub async fn disassociate_permissions_to_business_role(
 
 #[utoipa::path(
     get,
-    description = "API for creating roles specific to department.",
+    description = "API for listing department permissios.",
     summary = "Department Permission List API",
     path = "/permission/department/list",
     tag = "Permission",

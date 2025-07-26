@@ -462,7 +462,7 @@ pub async fn leave_group_list_req(
     description = "API for associating user to leave",
     tag = "Leave",
     summary = "Leave User Association API",
-    path = "/leave/user/association/save",
+    path = "/leave/user/allocate",
     request_body(content = CreateLeaveUserAssociationRequest, description = "Request Body"),
     responses(
         (status=200, description= "sucessfully associated user to leave", body= GenericResponse<TupleUnit>),
@@ -483,7 +483,6 @@ pub async fn leave_group_list_req(
 pub async fn create_leave_user_association_req(
     pool: web::Data<PgPool>,
     data: CreateLeaveUserAssociationRequest,
-
     user: UserAccount,
     business_account: BusinessAccount,
 ) -> Result<web::Json<GenericResponse<()>>, GenericError> {
@@ -520,7 +519,7 @@ pub async fn create_leave_user_association_req(
             "Leave type/s not found for given business".to_string(),
         ));
     }
-    save_user_leave(&pool, &data.data, user.id, leave_group.id)
+    save_user_leave(&pool, &data.data, data.user_id, leave_group.id, user.id)
         .await
         .map_err(|e| {
             GenericError::DatabaseError(
@@ -540,7 +539,7 @@ pub async fn create_leave_user_association_req(
     description = "API for listing associating user to leave",
     tag = "Leave",
     summary = "List Leave User Association API",
-    path = "/leave/user/association/list",
+    path = "/leave/user/allocation/list",
     request_body(content = ListLeaveUserAssociationRequest, description = "Request Body"),
     responses(
         (status=200, description= "sucessfully fetched user leaves", body= GenericResponse<Vec<UserLeave>>),
@@ -603,7 +602,7 @@ pub async fn list_leave_user_association_req(
     description = "API for delete associated user to leave",
     tag = "Leave",
     summary = "Delete Leave User Association API",
-    path = "/leave/user/association/delete",
+    path = "/leave/user/allocation/delete",
     responses(
         (status=200, description= "sucessfully deleted user leaves", body= GenericResponse<TupleUnit>),
         (status=400, description= "Invalid Request body", body= GenericResponse<TupleUnit>),

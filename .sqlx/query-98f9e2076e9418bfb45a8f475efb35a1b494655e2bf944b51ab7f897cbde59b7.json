@@ -1,0 +1,20 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        INSERT INTO user_leave_relationship ( id, leave_type_id, leave_group_id, allocated_count, user_id, created_by, created_on)\n        SELECT * FROM UNNEST($1::uuid[], $2::uuid[], $3::uuid[], $4::decimal[],  $5::uuid[], $6::uuid[], $7::TIMESTAMP[])\n        ON CONFLICT (user_id, leave_group_id, leave_type_id) DO UPDATE\n        SET allocated_count = EXCLUDED.allocated_count,\n        updated_by = EXCLUDED.created_by,\n        updated_on = EXCLUDED.created_on\n        ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "UuidArray",
+        "UuidArray",
+        "UuidArray",
+        "NumericArray",
+        "UuidArray",
+        "UuidArray",
+        "TimestampArray"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "98f9e2076e9418bfb45a8f475efb35a1b494655e2bf944b51ab7f897cbde59b7"
+}

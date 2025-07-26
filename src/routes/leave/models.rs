@@ -1,13 +1,14 @@
 use crate::email::EmailObject;
 
 use super::schemas::{
-    LeaveGroup, LeavePeriodData, LeaveRequestData, LeaveStatus, LeaveTypeData, UserLeave,
-    UserLeaveGroup, UserLeaveType,
+    LeaveAllowedDate, LeaveGroup, LeavePeriodData, LeaveRequestData, LeaveStatus, LeaveTypeData,
+    UserLeave, UserLeaveGroup, UserLeaveType,
 };
 use bigdecimal::BigDecimal;
-use chrono::{DateTime, TimeZone, Utc};
+use chrono::{DateTime, NaiveDate, TimeZone, Utc};
 use chrono_tz::Tz;
 
+use serde::{Deserialize, Serialize};
 use sqlx::{FromRow, types::Json};
 use uuid::Uuid;
 
@@ -71,10 +72,26 @@ pub struct MinimalLeaveModel {
 // pub period_label: String,
 // pub period_id: Uuid,
 
+#[derive(Debug, FromRow, Deserialize, Serialize)]
+pub struct LeaveAllowedDateModel {
+    pub date: NaiveDate,
+    pub label: String,
+}
+
+impl LeaveAllowedDateModel {
+    pub fn into_schema(self) -> LeaveAllowedDate {
+        LeaveAllowedDate {
+            date: self.date,
+            label: self.label,
+        }
+    }
+}
+
 #[derive(Debug, FromRow)]
 pub struct LeaveTypeModel {
     pub id: Uuid,
     pub label: String,
+    pub allowed_dates: Option<Json<Vec<LeaveAllowedDateModel>>>,
 }
 
 impl LeaveTypeModel {
@@ -83,6 +100,9 @@ impl LeaveTypeModel {
             id: self.id,
             label: self.label,
             period_list: periods,
+            allowed_dates: self
+                .allowed_dates
+                .map(|dates| dates.0.into_iter().map(|d| d.into_schema()).collect()),
         }
     }
 }
@@ -106,7 +126,7 @@ impl LeaveGroupModel {
     }
 }
 
-#[derive(Debug, FromRow)]
+#[derive(Debug, FromRow, Deserialize)]
 pub struct UserLeaveModel {
     pub id: Uuid,
     pub allocated_count: BigDecimal,
@@ -117,6 +137,7 @@ pub struct UserLeaveModel {
     pub leave_group_id: Uuid,
     pub leave_group_label: String,
     pub leave_type_label: String,
+    pub allowed_dates: Option<Json<Vec<LeaveAllowedDateModel>>>,
     // pub period_label: String,
     // pub period_id: Uuid,
 }
@@ -138,6 +159,9 @@ impl UserLeaveModel {
                 label: self.leave_group_label,
             },
             periods,
+            allowed_dates: self
+                .allowed_dates
+                .map(|p| p.0.into_iter().map(|p| p.into_schema()).collect()),
         }
     }
 }
@@ -160,7 +184,7 @@ impl LeavePeriodModel {
     }
 }
 
-#[derive(Debug, FromRow, Clone)]
+#[derive(Debug, FromRow, Clone, Deserialize)]
 pub struct LeavePeriodWithTypeModel {
     pub id: Uuid,
     pub label: String,

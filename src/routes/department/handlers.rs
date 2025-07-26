@@ -43,7 +43,7 @@ use super::{
     description = "API for creating department accounts. A business account can have multiple department accounts",
     summary = "Department Account Registration API",
     path = "/department/register",
-    tag = "department Account",
+    tag = "Department Account",
     request_body(content = CreateDepartmentAccount, description = "Request Body"),
     responses(
         (status=200, description= "sucessfully registered department Account.", body= GenericResponse<TupleUnit>),
@@ -83,7 +83,7 @@ pub async fn register_department_account_req(
 #[utoipa::path(
     get,
     path = "/department/fetch/{id}",
-    tag = "department Account",
+    tag = "Department Account",
     description = "API for fetching department account detail.",
     summary = "department Account Fetch API",
     request_body(content =DepartmentFetchRequest, description = "Request Body"),
@@ -130,9 +130,9 @@ pub async fn fetch_department_req(
 #[utoipa::path(
     post,
     path = "/department/permission",
-    tag = "department Account",
+    tag = "Department Account",
     description = "API for checking the permission of a department.",
-    summary = "department Account Permission API",
+    summary = "Department Account Permission API",
     request_body(content = DepartmentPermissionRequest, description = "Request Body"),
     responses(
         (status=200, description= "Sucessfully verified permission.", body= GenericResponse<TupleUnit>),
@@ -186,9 +186,9 @@ pub async fn department_permission_validation(
 #[utoipa::path(
     get,
     path = "/department/list",
-    tag = "department Account",
+    tag = "Department Account",
     description = "API for listing all department account associated to a user",
-    summary = "department Account List API",
+    summary = "Department Account List API",
     // request_body(content = departmentAccountListReq, description = "Request Body"),
     responses(
         (status=200, description= "sucessfully fetched all associated department accounts.", body= GenericResponse<Vec<BasicDepartmentAccount>>),
@@ -227,9 +227,9 @@ pub async fn list_department_req(
 #[utoipa::path(
     post,
     path = "/user/associate",
-    tag = "department Account",
-    description = "API for association of user with a department account",
-    summary = "Use department Account Association API",
+    tag = "Department Account",
+    description = "API for association user with a department account",
+    summary = "User department Account Association API",
     // request_body(content = departmentAccountListReq, description = "Request Body"),
     responses(
         (status=200, description= "sucessfully associated user with department account.", body= GenericResponse<TupleUnit>),
@@ -343,8 +343,8 @@ pub async fn user_department_association_req(
     post,
     path = "/department/user/disassociate",
     tag = "Department Account",
-    description = "API for disassociating user froms business account",
-    summary = "Use business Account Disassociation API",
+    description = "API for disassociating user froms department account",
+    summary = "User department Account Disassociation API",
     request_body(content = UserDepartmentDeassociationRequest, description = "Request Body"),
     responses(
         (status=200, description= "sucessfully disassociated user from department account.", body= GenericResponse<TupleUnit>),
